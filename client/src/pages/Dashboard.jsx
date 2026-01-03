@@ -121,7 +121,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API_BASE]);
 
   if (loading) return <p style={{ padding: "2rem" }}>Caricamento...</p>;
@@ -172,32 +172,61 @@ export default function Dashboard() {
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
                     justifyContent: "space-between",
-                    gap: "0.75rem",
+                    gap: "1rem",
                   }}
                 >
                   <h2 style={{ margin: 0 }}>{ev.title}</h2>
 
-                  <span
+                  <div
                     style={{
-                      fontSize: "0.75rem",
-                      padding: "0.25rem 0.5rem",
-                      borderRadius: "999px",
-                      border: "1px solid",
-                      borderColor: ev.plan === "premium" ? "#f5c542" : "#666",
-                      color: ev.plan === "premium" ? "#f5c542" : "#bbb",
-                      background:
-                        ev.plan === "premium"
-                          ? "rgba(245,197,66,0.08)"
-                          : "#111",
-                      whiteSpace: "nowrap",
-                      fontWeight: 600,
-                      letterSpacing: "0.3px",
+                      display: "flex",
+                      gap: "0.4rem",
+                      alignItems: "center",
                     }}
                   >
-                    {ev.plan === "premium" ? "⭐ Premium" : "Free"}
-                  </span>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "999px",
+                        border: "1px solid",
+                        borderColor: ev.plan === "premium" ? "#f5c542" : "#666",
+                        color: ev.plan === "premium" ? "#f5c542" : "#bbb",
+                        background:
+                          ev.plan === "premium"
+                            ? "rgba(245,197,66,0.08)"
+                            : "#111",
+                        whiteSpace: "nowrap",
+                        fontWeight: 600,
+                        letterSpacing: "0.3px",
+                      }}
+                    >
+                      {ev.plan === "premium" ? "⭐ Premium" : "Free"}
+                    </span>
+
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "999px",
+                        border: "1px solid",
+                        borderColor:
+                          ev.status === "published" ? "#4caf50" : "#ff4d4d",
+                        color:
+                          ev.status === "published" ? "#4caf50" : "#ff4d4d",
+                        background:
+                          ev.status === "published"
+                            ? "rgba(76,175,80,0.08)"
+                            : "rgba(255,77,77,0.08)",
+                        whiteSpace: "nowrap",
+                        fontWeight: 600,
+                        letterSpacing: "0.3px",
+                      }}
+                    >
+                      {ev.status === "published" ? "✅ Pubblicato" : "📝 Draft"}
+                    </span>
+                  </div>
                 </div>
 
                 <p style={{ opacity: 0.8, marginTop: "0.25rem" }}>
@@ -236,7 +265,17 @@ export default function Dashboard() {
                   <button onClick={() => navigate(`/edit/${ev.slug}`)}>
                     Apri editor
                   </button>
-                  <button onClick={() => navigate(`/e/${ev.slug}`)}>
+                  <button
+                    onClick={() => {
+                      if (ev.status !== "published") {
+                        alert(
+                          "Questo evento è ancora Draft. Pubblicalo dall’editor per renderlo visibile."
+                        );
+                        return;
+                      }
+                      navigate(`/e/${ev.slug}`);
+                    }}
+                  >
                     Apri pagina
                   </button>
 

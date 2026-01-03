@@ -72,6 +72,18 @@ export default function EventPublic() {
   if (loading) return <p>Caricamento...</p>;
   if (!event) return <p>Evento non trovato.</p>;
 
+  if (event.status !== "published") {
+    return (
+      <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
+        <h1>{event.title}</h1>
+        <p style={{ opacity: 0.8 }}>
+          Questo evento non è ancora stato pubblicato.
+        </p>
+        <p style={{ marginTop: "1rem", opacity: 0.6 }}>Torna più tardi ✨</p>
+      </div>
+    );
+  }
+
   const orderedBlocks = [...(event.blocks || [])].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0)
   );

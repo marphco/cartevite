@@ -563,6 +563,64 @@ export default function EventEditor() {
 
       <div
         style={{
+          marginTop: "1rem",
+          marginBottom: "1rem",
+          padding: "0.75rem 1rem",
+          borderRadius: "10px",
+          border: "1px solid #222",
+          background: "#0f0f0f",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem",
+        }}
+      >
+        <div>
+          <strong style={{ fontSize: "0.95rem" }}>
+            Stato evento:{" "}
+            <span
+              style={{
+                color: event.status === "published" ? "#4caf50" : "salmon",
+              }}
+            >
+              {event.status === "published" ? "Pubblicato" : "Draft"}
+            </span>
+          </strong>
+
+          <p
+            style={{ margin: "0.25rem 0 0", opacity: 0.7, fontSize: "0.85rem" }}
+          >
+            {event.status === "published"
+              ? "Il link è visibile agli invitati."
+              : "Finché è draft, chi apre il link vedrà un messaggio di attesa."}
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            setEvent((prev) => ({
+              ...prev,
+              status: prev.status === "published" ? "draft" : "published",
+            }));
+            setIsDirty(true);
+          }}
+          style={{
+            padding: "0.65rem 0.9rem",
+            borderRadius: "8px",
+            border: "1px solid #333",
+            background: event.status === "published" ? "#2a0000" : "#003300",
+            color: "#fff",
+            cursor: "pointer",
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {event.status === "published" ? "Rendi Draft" : "Pubblica"}
+        </button>
+      </div>
+
+      <div
+        style={{
           marginTop: "0.75rem",
           marginBottom: "1rem",
           padding: "0.6rem 0.8rem",

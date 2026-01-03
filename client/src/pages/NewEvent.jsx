@@ -28,6 +28,7 @@ export default function Home() {
           templateId: plan === "premium" ? "basic-premium" : "basic-free",
           blocks: [],
           plan,
+          status: "draft",
         }),
       });
 
