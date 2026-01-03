@@ -1,37 +1,35 @@
 import express from "express";
 import Event from "../models/Event.js";
 import Rsvp from "../models/Rsvp.js";
+import requireAuth from "../middleware/requireAuth.js";
 import { getRsvpsSummary } from "../controllers/rsvpSummaryController.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
-// funzione helper per creare slug da una stringa
+// helper slug
 const slugify = (str) => {
   return str
     .toString()
-    .normalize("NFD") // rimuove accenti
+    .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, "-") // tutto ciò che non è a-z0-9 diventa -
-    .replace(/^-+|-+$/g, ""); // rimuove trattini iniziali/finali
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 };
 
-// POST /api/events  -> crea un nuovo evento
-router.post("/", async (req, res) => {
+/* ============================
+   ✅ CREATE EVENT (PROTECTED)
+============================ */
+router.post("/", requireAuth, async (req, res) => {
   try {
-    const { title, date, dateTBD, templateId, blocks } = req.body;
-    const { plan } = req.body;
+    const { title, date, dateTBD, templateId, blocks, plan } = req.body;
 
-    if (!title) {
+    if (!title)
       return res.status(400).json({ message: "title è obbligatorio" });
-    }
 
-    // baseSlug generato dal titolo (+ data se presente)
-    let baseSlug = slugify(title);
-    if (!baseSlug) {
-      baseSlug = "evento";
-    }
+    let baseSlug = slugify(title) || "evento";
 
     if (date && !dateTBD) {
       const d = new Date(date);
@@ -43,11 +41,8 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // trova uno slug libero: /slug, /slug-2, /slug-3, ecc.
     let slug = baseSlug;
     let counter = 1;
-
-    // finché esiste un evento con questo slug, incrementiamo il numero
     while (await Event.exists({ slug })) {
       counter += 1;
       slug = `${baseSlug}-${counter}`;
@@ -62,6 +57,7 @@ router.post("/", async (req, res) => {
       status: "draft",
       blocks: blocks || [],
       plan: plan || "free",
+      ownerId: req.userId,
     });
 
     res.status(201).json(event);
@@ -71,27 +67,43 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET /api/events -> lista tutti gli eventi (per ora senza auth)
-router.get("/", async (req, res) => {
+/* ============================
+   ✅ DASHBOARD LIST (PROTECTED)
+============================ */
+router.get("/", requireAuth, async (req, res) => {
+  console.log("USER:", req.userId);
+  console.log("TOTAL EVENTS:", await Event.countDocuments());
+  console.log(
+    "MATCH EVENTS:",
+    await Event.countDocuments({
+      ownerId: new mongoose.Types.ObjectId(req.userId),
+    })
+  );
+
   try {
-    const events = await Event.find().sort({ createdAt: -1 });
+    const ownerId = new mongoose.Types.ObjectId(req.userId);
+
+    const events = await Event.find({ ownerId }).sort({ createdAt: -1 });
+
     res.json(events);
   } catch (error) {
-    console.error("Errore lista eventi:", error.message);
+    console.error("Errore lista eventi:", error);
     res.status(500).json({ message: "Errore del server" });
   }
 });
 
-
-// GET /api/events/:slug  -> recupera un evento pubblico per slug
+/* ============================
+   ✅ PUBLIC EVENT PAGE (PUBLIC)
+============================ */
 router.get("/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
-
     const event = await Event.findOne({ slug });
 
-    if (!event) {
-      return res.status(404).json({ message: "Evento non trovato" });
+    if (!event) return res.status(404).json({ message: "Evento non trovato" });
+
+    if (event.status !== "published") {
+      return res.status(403).json({ message: "Evento non pubblicato" });
     }
 
     res.json(event);
@@ -101,51 +113,56 @@ router.get("/:slug", async (req, res) => {
   }
 });
 
-// GET /api/events/:slug/rsvps -> lista RSVP di un evento
-router.get("/:slug/rsvps", async (req, res) => {
-  try {
-    const { slug } = req.params;
-    const rsvps = await Rsvp.find({ eventSlug: slug }).sort({ createdAt: -1 });
-    res.json(rsvps);
-  } catch (err) {
-    console.error("Errore recupero rsvps:", err.message);
-    res.status(500).json({ message: "Errore del server" });
+/* ============================
+   ✅ EVENT PAGE (DRAFT)
+============================ */
+router.get("/:slug/private", requireAuth, async (req, res) => {
+  const event = await Event.findOne({ slug: req.params.slug });
+  if (!event) return res.status(404).json({ message: "Evento non trovato" });
+
+  if (event.ownerId.toString() !== req.userId) {
+    return res.status(403).json({ message: "Non autorizzato" });
   }
+
+  res.json(event);
 });
 
-// PUT /api/events/:slug -> aggiorna un evento (es. blocchi)
-router.put("/:slug", async (req, res) => {
+/* ============================
+   ✅ EDIT EVENT (PROTECTED)
+============================ */
+router.put("/:slug", requireAuth, async (req, res) => {
   try {
     const { slug } = req.params;
     const { title, date, dateTBD, templateId, status, blocks, plan } = req.body;
 
-    // 1) evento esistente
     const existing = await Event.findOne({ slug });
-    if (!existing) {
+    if (!existing)
       return res.status(404).json({ message: "Evento non trovato" });
+
+    // ✅ owner check
+    if (existing.ownerId.toString() !== req.userId) {
+      return res.status(403).json({ message: "Non autorizzato" });
     }
 
-    // 2) plan "target": se dal client arriva plan, uso quello.
-    //    altrimenti tengo quello già in DB.
-    const targetPlan = (plan ?? existing.plan ?? "free").toLowerCase();
-    const isPremium = targetPlan === "premium";
+    // ✅ plan (server truth)
+    const realPlan = (plan || existing.plan || "free").toLowerCase();
+    const isPremium = realPlan === "premium";
 
-    // 3) se NON premium, elimino dal payload tutti i blocchi gallery
+    // ✅ blocks safe
     let safeBlocks = Array.isArray(blocks) ? blocks : [];
-    if (!isPremium) {
-      safeBlocks = safeBlocks.filter((b) => b.type !== "gallery");
-    }
+    if (!isPremium) safeBlocks = safeBlocks.filter((b) => b.type !== "gallery");
 
-    // 4) preparo update
     const update = {
       ...(title !== undefined && { title }),
       ...(templateId !== undefined && { templateId }),
       ...(status !== undefined && { status }),
       ...(blocks !== undefined && { blocks: safeBlocks }),
-      ...(plan !== undefined && { plan: targetPlan }), // ✅ SALVA PLAN
+
+      // ✅ allow plan update ONLY if explicitly provided
+      ...(plan !== undefined && { plan: realPlan }),
     };
 
-    // gestione data / TBD
+    // data logic
     if (dateTBD === true) {
       update.dateTBD = true;
       update.date = null;
@@ -157,26 +174,33 @@ router.put("/:slug", async (req, res) => {
       update.date = date;
     }
 
-    const event = await Event.findOneAndUpdate({ slug }, update, { new: true });
+    const updated = await Event.findOneAndUpdate({ slug }, update, {
+      new: true,
+    });
 
-    res.json(event);
+    res.json(updated);
   } catch (error) {
     console.error("Errore aggiornamento evento:", error.message);
     res.status(500).json({ message: "Errore del server" });
   }
 });
 
-// DELETE /api/events/:slug -> elimina un evento
-router.delete("/:slug", async (req, res) => {
+/* ============================
+   ✅ DELETE EVENT (PROTECTED)
+============================ */
+router.delete("/:slug", requireAuth, async (req, res) => {
   try {
     const { slug } = req.params;
 
-    const deleted = await Event.findOneAndDelete({ slug });
-
-    if (!deleted) {
+    const existing = await Event.findOne({ slug });
+    if (!existing)
       return res.status(404).json({ message: "Evento non trovato" });
+
+    if (existing.ownerId.toString() !== req.userId) {
+      return res.status(403).json({ message: "Non autorizzato" });
     }
 
+    await Event.deleteOne({ slug });
     res.json({ message: "Evento eliminato" });
   } catch (error) {
     console.error("Errore eliminazione evento:", error.message);
@@ -184,7 +208,32 @@ router.delete("/:slug", async (req, res) => {
   }
 });
 
-// RSVPs SUMMARY
-router.get("/:slug/rsvps/summary", getRsvpsSummary);
+/* ============================
+   ✅ RSVPs LIST (PROTECTED)
+============================ */
+router.get("/:slug/rsvps", requireAuth, async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const existing = await Event.findOne({ slug });
+    if (!existing)
+      return res.status(404).json({ message: "Evento non trovato" });
+
+    if (existing.ownerId.toString() !== req.userId) {
+      return res.status(403).json({ message: "Non autorizzato" });
+    }
+
+    const rsvps = await Rsvp.find({ eventSlug: slug }).sort({ createdAt: -1 });
+    res.json(rsvps);
+  } catch (err) {
+    console.error("Errore recupero rsvps:", err.message);
+    res.status(500).json({ message: "Errore del server" });
+  }
+});
+
+/* ============================
+   ✅ SUMMARY (PROTECTED)
+============================ */
+router.get("/:slug/rsvps/summary", requireAuth, getRsvpsSummary);
 
 export default router;

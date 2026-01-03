@@ -15,6 +15,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API_BASE}/api/events/${slug}`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (!res.ok) throw new Error("Errore eliminazione");
@@ -68,9 +69,25 @@ export default function Dashboard() {
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchEvents() {
+    async function bootstrap() {
       try {
-        const res = await fetch(`${API_BASE}/api/events`);
+        // 1) check auth prima
+        const meRes = await fetch(`${API_BASE}/api/auth/me`, {
+          credentials: "include",
+        });
+
+        if (meRes.status === 401) {
+          navigate("/login");
+          return;
+        }
+
+        if (!meRes.ok) throw new Error("Errore auth check");
+
+        // 2) fetch eventi SOLO se loggato
+        const res = await fetch(`${API_BASE}/api/events`, {
+          credentials: "include",
+        });
+
         if (!res.ok) throw new Error("Errore fetch eventi");
 
         const data = await res.json();
@@ -80,18 +97,18 @@ export default function Dashboard() {
           setEvents(safeEvents);
         }
 
-        // se non ci sono eventi, stoppo qui
+        // 3) summary
         if (!safeEvents.length) {
           if (!cancelled) setRsvpSummaryBySlug({});
           return;
         }
 
-        // prendo in parallelo i summary
         const summaries = await Promise.all(
           safeEvents.map(async (ev) => {
             try {
               const sRes = await fetch(
-                `${API_BASE}/api/events/${ev.slug}/rsvps/summary`
+                `${API_BASE}/api/events/${ev.slug}/rsvps/summary`,
+                { credentials: "include" }
               );
               if (!sRes.ok) return [ev.slug, null];
               const sData = await sRes.json();
@@ -116,13 +133,12 @@ export default function Dashboard() {
       }
     }
 
-    fetchEvents();
+    bootstrap();
 
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [API_BASE]);
+  }, [navigate]);
 
   if (loading) return <p style={{ padding: "2rem" }}>Caricamento...</p>;
 

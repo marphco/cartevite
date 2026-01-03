@@ -21,6 +21,7 @@ export default function Home() {
       const res = await fetch(`${API_BASE}/api/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // ✅ FONDAMENTALE
         body: JSON.stringify({
           title,
           date: dateTBD ? null : new Date(date).toISOString(),
@@ -36,9 +37,9 @@ export default function Home() {
         throw new Error("Errore creazione evento");
       }
 
-      const event = await res.json();
+      // const event = await res.json();
       // usiamo lo slug generato dal backend
-      navigate(`/edit/${event.slug}`);
+      navigate("/");
     } catch (err) {
       console.error(err);
       setError("Non siamo riusciti a creare l'evento. Riprova.");
@@ -119,16 +120,16 @@ export default function Home() {
         )}
 
         <label>
-  Piano
-  <select
-    value={plan}
-    onChange={(e) => setPlan(e.target.value)}
-    style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}
-  >
-    <option value="free">Free</option>
-    <option value="premium">Premium</option>
-  </select>
-</label>
+          Piano
+          <select
+            value={plan}
+            onChange={(e) => setPlan(e.target.value)}
+            style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}
+          >
+            <option value="free">Free</option>
+            <option value="premium">Premium</option>
+          </select>
+        </label>
 
         <button
           type="submit"

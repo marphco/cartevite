@@ -31,7 +31,9 @@ export default function EventRsvps() {
     async function fetchAll() {
       try {
         // evento per titolo
-        const evRes = await fetch(`${API_BASE}/api/events/${slug}`);
+        const evRes = await fetch(`${API_BASE}/api/events/${slug}/private`, {
+          credentials: "include",
+        });
         if (evRes.ok) {
           const evData = await evRes.json();
           setEventTitle(evData.title || slug);
@@ -40,7 +42,9 @@ export default function EventRsvps() {
         }
 
         // rsvps
-        const rRes = await fetch(`${API_BASE}/api/events/${slug}/rsvps`);
+        const rRes = await fetch(`${API_BASE}/api/events/${slug}/rsvps`, {
+          credentials: "include",
+        });
         if (rRes.ok) {
           const rData = await rRes.json();
           setRsvps(Array.isArray(rData) ? rData : []);

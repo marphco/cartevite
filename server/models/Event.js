@@ -24,6 +24,7 @@ const EventSchema = new mongoose.Schema(
       enum: ["free", "premium"],
       default: "free",
     },
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }
 );

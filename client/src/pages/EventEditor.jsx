@@ -80,7 +80,15 @@ export default function EventEditor() {
 
     async function fetchEvent() {
       try {
-        const res = await fetch(`${API_BASE}/api/events/${slug}`);
+        const res = await fetch(`${API_BASE}/api/events/${slug}/private`, {
+          credentials: "include",
+        });
+        
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+
         if (!res.ok) {
           throw new Error("Evento non trovato");
         }
@@ -327,6 +335,7 @@ export default function EventEditor() {
       const res = await fetch(`${API_BASE}/api/events/${slug}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           title: event.title,
           date: event.date,
@@ -1013,6 +1022,7 @@ export default function EventEditor() {
                           {
                             method: "POST",
                             body: formData,
+                            credentials: "include",
                           }
                         );
 
