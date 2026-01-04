@@ -102,21 +102,28 @@ export default function EventRsvps() {
     setManualError("");
     setManualSending(true);
 
+    if (!manualName.trim()) return;
+
     try {
       const res = await fetch(`${API_BASE}/api/rsvps`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           eventSlug: slug,
           name: manualName,
+          email: null,
+          phone: null,
           guestsCount: Number(manualGuests) || 1,
+          message: "",
           status: manualStatus,
         }),
       });
 
       if (!res.ok) throw new Error("Errore aggiunta manuale");
 
-      const created = await res.json();
+      const data = await res.json();
+      const created = data.rsvp || data; // fallback nel caso tu abbia vecchio backend
       setRsvps((prev) => [created, ...prev]);
 
       setManualName("");
@@ -151,6 +158,7 @@ export default function EventRsvps() {
       const res = await fetch(`${API_BASE}/api/rsvps/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name: editForm.name,
           guestsCount: Number(editForm.guestsCount) || 1,
@@ -174,6 +182,7 @@ export default function EventRsvps() {
     try {
       const res = await fetch(`${API_BASE}/api/rsvps/${id}`, {
         method: "DELETE",
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Errore delete RSVP");
 
@@ -332,7 +341,7 @@ export default function EventRsvps() {
 
             return (
               <div
-                key={r._id}
+                key={r._id || `${r.name}-${r.createdAt}-${Math.random()}`}
                 style={{
                   border: "1px solid #333",
                   borderRadius: "10px",
@@ -352,7 +361,7 @@ export default function EventRsvps() {
                 >
                   {!isEditing ? (
                     <div>
-                      <strong>{r.name}</strong>{" "}
+                      <strong>{r.name || "(senza nome)"}</strong>
                       <span style={{ opacity: 0.8 }}>
                         ({r.guestsCount} ospiti)
                       </span>
@@ -472,7 +481,9 @@ export default function EventRsvps() {
                 )}
 
                 <small style={{ opacity: 0.6 }}>
-                  {new Date(r.createdAt).toLocaleString("it-IT")}
+                  {r.createdAt
+                    ? new Date(r.createdAt).toLocaleString("it-IT")
+                    : "—"}
                 </small>
               </div>
             );

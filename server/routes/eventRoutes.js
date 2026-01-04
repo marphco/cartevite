@@ -71,14 +71,6 @@ router.post("/", requireAuth, async (req, res) => {
    ✅ DASHBOARD LIST (PROTECTED)
 ============================ */
 router.get("/", requireAuth, async (req, res) => {
-  console.log("USER:", req.userId);
-  console.log("TOTAL EVENTS:", await Event.countDocuments());
-  console.log(
-    "MATCH EVENTS:",
-    await Event.countDocuments({
-      ownerId: new mongoose.Types.ObjectId(req.userId),
-    })
-  );
 
   try {
     const ownerId = new mongoose.Types.ObjectId(req.userId);

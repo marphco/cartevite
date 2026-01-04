@@ -13,6 +13,10 @@ export default function EventPublic() {
   const [rsvpSending, setRsvpSending] = useState(false);
   const [rsvpDone, setRsvpDone] = useState(false);
   const [rsvpError, setRsvpError] = useState("");
+  const [rsvpEmail, setRsvpEmail] = useState("");
+  const [rsvpPhone, setRsvpPhone] = useState("");
+  const [editLink, setEditLink] = useState("");
+  const [rsvpWasUpdated, setRsvpWasUpdated] = useState(false);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -22,6 +26,8 @@ export default function EventPublic() {
           throw new Error("Evento non trovato");
         }
         const data = await res.json();
+        setEditLink(data.editLink || "");
+
         setEvent(data);
       } catch (error) {
         console.error(error);
@@ -37,6 +43,7 @@ export default function EventPublic() {
     e.preventDefault();
     setRsvpError("");
     setRsvpDone(false);
+    setRsvpWasUpdated(false);
     setRsvpSending(true);
 
     try {
@@ -46,6 +53,8 @@ export default function EventPublic() {
         body: JSON.stringify({
           eventSlug: slug,
           name: rsvpName,
+          email: rsvpEmail || null,
+          phone: rsvpPhone || null,
           guestsCount: Number(rsvpGuests) || 1,
           message: rsvpMessage,
           status: rsvpStatus,
@@ -56,7 +65,11 @@ export default function EventPublic() {
         throw new Error("Errore nell'invio RSVP");
       }
 
+      const data = await res.json();
+      setRsvpWasUpdated(!!data.updated);
+
       setRsvpDone(true);
+
       setRsvpName("");
       setRsvpGuests(1);
       setRsvpMessage("");
@@ -109,6 +122,23 @@ export default function EventPublic() {
           onChange={(e) => setRsvpName(e.target.value)}
           style={{ padding: "0.5rem" }}
         />
+
+        <input
+          type="email"
+          placeholder="Email (obbligatoria se non metti telefono)"
+          value={rsvpEmail}
+          onChange={(e) => setRsvpEmail(e.target.value)}
+          style={{ padding: "0.5rem" }}
+        />
+
+        <input
+          type="tel"
+          placeholder="Telefono (opzionale)"
+          value={rsvpPhone}
+          onChange={(e) => setRsvpPhone(e.target.value)}
+          style={{ padding: "0.5rem" }}
+        />
+
         <input
           type="number"
           min="1"
@@ -117,6 +147,7 @@ export default function EventPublic() {
           onChange={(e) => setRsvpGuests(e.target.value)}
           style={{ padding: "0.5rem" }}
         />
+
         <select
           value={rsvpStatus}
           onChange={(e) => setRsvpStatus(e.target.value)}
@@ -126,6 +157,7 @@ export default function EventPublic() {
           <option value="maybe">Forse</option>
           <option value="no">Non posso</option>
         </select>
+
         <textarea
           placeholder="Messaggio opzionale"
           rows={3}
@@ -140,10 +172,41 @@ export default function EventPublic() {
 
         {rsvpDone && (
           <p style={{ color: "lightgreen" }}>
-            Grazie, abbiamo registrato la tua risposta ✅
+            {rsvpWasUpdated
+              ? "✅ Abbiamo aggiornato la tua RSVP!"
+              : "✅ Grazie, abbiamo registrato la tua risposta!"}
           </p>
         )}
+
         {rsvpError && <p style={{ color: "salmon" }}>{rsvpError}</p>}
+        {editLink && (
+          <div
+            style={{
+              marginTop: "1rem",
+              padding: "0.75rem",
+              border: "1px solid #333",
+              borderRadius: "8px",
+            }}
+          >
+            <p style={{ margin: 0, opacity: 0.9 }}>
+              ✅ Puoi modificare la tua risposta con questo link:
+            </p>
+            <code style={{ display: "block", marginTop: "0.5rem" }}>
+              {window.location.origin}
+              {editLink}
+            </code>
+            <button
+              onClick={() =>
+                navigator.clipboard.writeText(
+                  `${window.location.origin}${editLink}`
+                )
+              }
+              style={{ marginTop: "0.5rem" }}
+            >
+              Copia link modifica
+            </button>
+          </div>
+        )}
       </form>
     </section>
   );
