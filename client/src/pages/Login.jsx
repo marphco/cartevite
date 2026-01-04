@@ -1,7 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { API_BASE } from "../config/api";
 
 export default function Login() {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function check() {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
+          credentials: "include",
+        });
+
+        if (!cancelled && res.ok) {
+          // ✅ già loggato → fuori dalla pagina login
+          window.location.href = "/";
+        }
+      } catch {
+        // ignore: se fallisce resta su login
+      }
+    }
+
+    check();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [mode, setMode] = useState("login"); // login | register
   const [email, setEmail] = useState("");

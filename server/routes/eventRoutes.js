@@ -4,6 +4,7 @@ import Rsvp from "../models/Rsvp.js";
 import requireAuth from "../middleware/requireAuth.js";
 import { getRsvpsSummary } from "../controllers/rsvpSummaryController.js";
 import mongoose from "mongoose";
+import crypto from "crypto";
 
 const router = express.Router();
 
@@ -71,7 +72,6 @@ router.post("/", requireAuth, async (req, res) => {
    ✅ DASHBOARD LIST (PROTECTED)
 ============================ */
 router.get("/", requireAuth, async (req, res) => {
-
   try {
     const ownerId = new mongoose.Types.ObjectId(req.userId);
 
@@ -220,6 +220,46 @@ router.get("/:slug/rsvps", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("Errore recupero rsvps:", err.message);
     res.status(500).json({ message: "Errore del server" });
+  }
+});
+
+/* ============================
+   ✅ ADD RSVP MANUAL (PROTECTED)
+   POST /api/events/:slug/rsvps/manual
+============================ */
+router.post("/:slug/rsvps/manual", requireAuth, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { name, guestsCount, status } = req.body;
+
+    if (!name) return res.status(400).json({ message: "name obbligatorio" });
+
+    // ✅ evento + owner check
+    const existing = await Event.findOne({ slug });
+    if (!existing)
+      return res.status(404).json({ message: "Evento non trovato" });
+
+    if (existing.ownerId.toString() !== req.userId) {
+      return res.status(403).json({ message: "Non autorizzato" });
+    }
+
+    // ✅ crea RSVP senza email/phone
+    const created = await Rsvp.create({
+      eventSlug: slug,
+      name,
+      guestsCount: Number(guestsCount) || 1,
+      status: status || "yes",
+      message: "",
+      email: undefined,
+      phone: undefined,
+      editToken: crypto.randomBytes(24).toString("hex"),
+      editTokenExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 anno fallback
+    });
+
+    res.status(201).json(created);
+  } catch (err) {
+    console.error("Errore add manual RSVP:", err.message);
+    res.status(500).json({ message: "Errore server" });
   }
 });
 

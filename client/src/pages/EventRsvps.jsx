@@ -9,6 +9,7 @@ export default function EventRsvps() {
   const [rsvps, setRsvps] = useState([]);
   const [eventTitle, setEventTitle] = useState("");
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const [manualName, setManualName] = useState("");
   const [manualGuests, setManualGuests] = useState(1);
@@ -30,6 +31,18 @@ export default function EventRsvps() {
   useEffect(() => {
     async function fetchAll() {
       try {
+        // ✅ check auth
+        const meRes = await fetch(`${API_BASE}/api/auth/me`, {
+          credentials: "include",
+        });
+
+        if (!meRes.ok) {
+          window.location.href = "/login";
+          return;
+        }
+
+        setAuthChecked(true);
+
         // evento per titolo
         const evRes = await fetch(`${API_BASE}/api/events/${slug}/private`, {
           credentials: "include",
@@ -105,17 +118,13 @@ export default function EventRsvps() {
     if (!manualName.trim()) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/rsvps`, {
+      const res = await fetch(`${API_BASE}/api/events/${slug}/rsvps/manual`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          eventSlug: slug,
           name: manualName,
-          email: null,
-          phone: null,
           guestsCount: Number(manualGuests) || 1,
-          message: "",
           status: manualStatus,
         }),
       });
@@ -138,7 +147,8 @@ export default function EventRsvps() {
   };
 
   // ✅ ORA il return condizionale è dopo tutti gli hook
-  if (loading) return <p style={{ padding: "2rem" }}>Caricamento RSVP...</p>;
+  if (loading || !authChecked)
+    return <p style={{ padding: "2rem" }}>Caricamento RSVP...</p>;
 
   const startEdit = (r) => {
     setEditingId(r._id);
