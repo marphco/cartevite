@@ -41,7 +41,7 @@ export default function MarketingLanding() {
     <div className="marketing-page">
       {/* HEADER NAV */}
       <nav className="marketing-nav">
-        <div className="marketing-logo" onClick={() => navigate("/")} style={{cursor:"pointer"}}>YNVIO</div>
+        <div className="marketing-logo" onClick={() => navigate("/")} style={{cursor:"pointer"}}>CARTEVITE</div>
         <div className="marketing-nav-links">
           <Button variant="ghost" onClick={() => navigate("/templates")} style={{ marginRight: '1rem', color: "var(--text)"}}>Catalogo Inviti</Button>
           {!loading && user ? (
@@ -176,7 +176,7 @@ export default function MarketingLanding() {
       <section className="marketing-section premium-teaser">
         <Surface variant="glass" className="premium-box">
           <h2>Passa a Premium per espandere le funzionalità.</h2>
-          <p>Sblocca la Gallery fotografica, elimina i limiti di caricamento e rimuovi il brand Ynvio, per darti un tocco ancora più esclusivo.</p>
+          <p>Sblocca la Gallery fotografica, elimina i limiti di caricamento e rimuovi il brand Cartevite, per darti un tocco ancora più esclusivo.</p>
           <Button onClick={() => setShowAuthModal(true)} style={{ marginTop: "1rem" }}>
             <CreditCard size={18} style={{ marginRight: "0.5rem" }} />
             Scopri i vantaggi
@@ -186,7 +186,7 @@ export default function MarketingLanding() {
 
       {/* FOOTER */}
       <footer className="marketing-footer">
-        <div>YNVIO &copy; 2026. Tutti i diritti riservati.</div>
+        <div>CARTEVITE &copy; 2026. Tutti i diritti riservati.</div>
         <div className="footer-links">
           <span>Privacy</span>
           <span>Termini</span>

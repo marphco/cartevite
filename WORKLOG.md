@@ -26,7 +26,7 @@
 
 - Recupero contesto repository + richieste: lettura `WORKLOG.md`, `client/src/pages/*`, `server/server.js`. Nessuna memoria/specifica esterna disponibile → riallineate con Marco via chat.
 - Formalizzato piano operativo richiesto (Fase 1) con stato attuale, gap e sequenza deliverable: file `docs/fase1-spec.md` creato (11:50 EST) per tracciare scope (3D polish, block editor, design controls, inviti & rubrica, UX inviti/RSVP, marketing site).
-- Creato branch `feature/ynvio-phase1`.
+- Creato branch `feature/cartevite-phase1`.
 - Phase A kick-off: `components/Envelope3D.jsx` reingegnerizzato con materiali PBR, timeline easing, luci multiple + Environment HDR e sincronizzato con accento tema; `EventPublic.jsx` ora passa `accent`, `EventPublic.css` aggiornata per layout testo multi-colonna.
 - Phase B scaffolding: introdotto `client/src/utils/layoutSchema.js` (libreria blocchi, preset colonne e temi) + nuovo pannello "Blocchi guidati" in `EventEditor.jsx`/`EventEditor.css`; blocchi selezionabili con layout chips, highlight selezione, e salvataggio tema esteso (colori personalizzati, font pairing, preset). Rimosse quick actions legacy, aggiornato salvataggio per includere `theme`.
 - Bozze ulteriori (in corso): blocco foto singola, layout colonne, palette/font picker implementati a livello di editor ma **non ancora** collegati alla preview live né all’output pubblico; mappa auto-link pronta lato UI ma non ancora completata lato API.

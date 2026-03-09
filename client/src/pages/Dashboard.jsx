@@ -177,7 +177,7 @@ export default function Dashboard() {
         <div className="dashboard-header">
           <div className="dashboard-title-block">
             <p style={{ textTransform: "uppercase", letterSpacing: "0.3em", color: "var(--text-soft)", margin: 0 }}>
-              YNVIO CONTROL ROOM
+              CARTEVITE CONTROL ROOM
             </p>
             <h1>I tuoi inviti digitali</h1>
             <p>Gestisci eventi, RSVP e pagamenti in un unico pannello dal design elegante.</p>
@@ -185,7 +185,7 @@ export default function Dashboard() {
 
           <div className="ui-toolbar__actions">
             <Button variant="ghost" onClick={() => navigate("/")} style={{ opacity: 0.7 }}>
-              Home Ynvio
+              Home Cartevite
             </Button>
             <Button
               variant="base"

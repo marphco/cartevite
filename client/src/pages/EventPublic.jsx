@@ -4,87 +4,9 @@ import { resolveImageUrl, API_BASE } from "../config/api";
 import { apiFetch } from "../utils/apiFetch";
 import { Surface, Button, Badge } from "../ui";
 import EnvelopeAnimation from "../components/EnvelopeAnimation";
+import ReadOnlyCanvas from "../components/ReadOnlyCanvas";
 import { Calendar, MapPin, Users, Send } from "lucide-react";
 import "./EventPublic.css";
-
-const ReadOnlyCanvas = ({ layers, canvasProps }) => {
-  const [scale, setScale] = useState(1);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const updateScale = () => {
-      if (containerRef.current) {
-         let w = containerRef.current.parentElement.offsetWidth;
-         let h = containerRef.current.parentElement.offsetHeight;
-         
-         if (!w || w === 0) w = Math.min(window.innerWidth - 32, 600);
-         if (!h || h === 0) h = window.innerHeight * 0.8;
-
-         const scaleW = w / canvasProps.width;
-         const scaleH = h / canvasProps.height;
-         // Prendi il valore min per assicurare che il canvas entri completamente nel genitore
-         setScale(Math.min(scaleW, scaleH));
-      }
-    };
-    updateScale();
-    // Recheck dopo montaggio completato in caso di ref flow lazily
-    setTimeout(updateScale, 50);
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
-  }, [canvasProps.width, canvasProps.height]);
-
-  return (
-    <div ref={containerRef} style={{ width: '100%', display: 'flex', justifyContent: 'center', margin: '0 auto' }}>
-       <div style={{
-         width: canvasProps.width, 
-         height: canvasProps.height,
-         flexShrink: 0, /* PREVIENE che FlexBox della busta lo schiacci disattivando distorsione aspect-ratio! */
-         transformOrigin: "center center",
-         transform: `scale(${scale})`,
-         backgroundImage: canvasProps.bgImage ? `url(${canvasProps.bgImage})` : 'none',
-         backgroundColor: canvasProps.bgImage ? 'transparent' : '#fff',
-         backgroundSize: 'cover',
-         position: 'relative',
-         overflow: 'hidden',
-         boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
-         borderRadius: "4px",
-       }}>
-          {layers.map(layer => {
-            const isText = layer.type === 'text';
-            return (
-              <div 
-               key={layer.id} 
-               style={{
-                 position: 'absolute',
-                 left: layer.x === 'center' || isNaN(layer.x) ? '50%' : layer.x,
-                 top: layer.y === 'center' || isNaN(layer.y) ? '50%' : layer.y,
-                 transform: 'translate(-50%, -50%)',
-                 width: isText ? 'max-content' : layer.w,
-                 height: isText ? 'auto' : layer.h,
-                 fontSize: layer.fontSize,
-                 fontFamily: layer.fontFamily,
-                 fontWeight: layer.fontWeight || "normal",
-                 fontStyle: layer.fontStyle || "normal",
-                 textDecoration: layer.textDecoration || "none",
-                 letterSpacing: (layer.letterSpacing || 0) + 'px',
-                 lineHeight: layer.lineHeight || 1.2,
-                 color: layer.color,
-                 textAlign: layer.textAlign,
-                 backgroundImage: layer.type === 'image' && layer.src ? `url(${layer.src})` : 'none',
-                 backgroundSize: 'contain',
-                 backgroundRepeat: 'no-repeat',
-                 backgroundPosition: 'center',
-                 whiteSpace: 'pre-wrap'
-               }}
-             >
-               {isText ? layer.text : null}
-             </div>
-            )
-          })}
-       </div>
-    </div>
-  );
-};
 
 export default function EventPublic() {
   const { slug } = useParams();
@@ -271,11 +193,44 @@ export default function EventPublic() {
   );
 
   return (
-    <div className="event-public-page" style={{ backgroundColor: pageTheme.bg }}>
-      <div className="event-public-shell" style={{ fontFamily: pageTheme.fonts.body }}>
-        <EnvelopeAnimation 
-          guestName={event.theme?.coverText} 
+    <div className="event-public-page" style={{ backgroundColor: pageTheme.bg, position: 'relative', overflow: 'hidden' }}>
+      {/* Sfondo Scenario */}
+      {/* Sfondo Colore Scenario di base */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: event.theme?.heroBgColor || '#0f0f15',
+        zIndex: 0,
+        pointerEvents: 'none'
+      }} />
+
+      {/* Sfondo Immagine Scenario con Opacità */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 0,
+        backgroundImage: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) 
+          ? `url(${event.theme.heroBg})` 
+          : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: event.theme?.heroBgPosition || 'center',
+        opacity: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) ? (event.theme?.heroBgOpacity ?? 1) : 0,
+        pointerEvents: 'none'
+      }} />
+
+      <div className="event-public-shell" style={{ fontFamily: pageTheme.fonts.body, position: 'relative', zIndex: 1 }}>
+        <EnvelopeAnimation
+          guestName={event.theme?.coverText}
           envelopeColor={event.theme?.coverBg}
+          pocketColor={event.theme?.coverPocketColor}
+          linerImg={event.theme?.coverLiner}
+          pocketLinerImg={event.theme?.coverPocketLiner}
+          linerX={event.theme?.linerX || 0}
+          linerY={event.theme?.linerY || 0}
+          linerScale={event.theme?.linerScale || 1}
+          linerOpacity={event.theme?.linerOpacity ?? 1}
+          linerColor={event.theme?.coverLinerColor || '#ffffff'}
+          canvasProps={event.canvas}
           onOpenComplete={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         >
           {event.layers && event.canvas ? (

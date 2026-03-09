@@ -159,3 +159,14 @@ node_modules
 .env
 .DS_Store
 dist
+
+# Task, project planning, and AI generated files
+task.md
+implementation_plan.md
+WORKLOG.md
+docs/fase1-spec.md
+*.md
+!README.md
+diff.txt
+.gemini/
+brain/

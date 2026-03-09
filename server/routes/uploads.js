@@ -94,7 +94,7 @@ router.post(
         // Parallel S3 upload streams
         const uploadPromises = files.map(async (file) => {
           const ext = path.extname(file.originalname);
-          const key = `ynvio/events/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+          const key = `cartevite/events/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
 
           const s3Upload = new Upload({
             client: s3Client,

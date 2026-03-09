@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Task, project planning, and AI generated files
+task.md
+implementation_plan.md
+WORKLOG.md
+docs/fase1-spec.md
+*.md
+!README.md
+diff.txt
+.gemini/
+brain/

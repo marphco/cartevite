@@ -32,7 +32,8 @@ app.use(
 
       console.log("[CORS] request origin:", origin);
 
-      if (origin.startsWith("http://localhost")) {
+      // Allow localhost and local network IPs (192.168.x.x)
+      if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1") || /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin)) {
         return callback(null, origin);
       }
 
@@ -65,7 +66,7 @@ app.use("/api/events", inviteRoutes); // registra sotto /api/events/:slug/invite
 app.use("/api/rsvps", rsvpRoutes);
 app.use("/api/payments", paymentRoutes);
 
-app.get("/", (req, res) => res.json({ message: "YNVIO API is running" }));
+app.get("/", (req, res) => res.json({ message: "CARTEVITE API is running" }));
 
 const PORT = process.env.PORT || 4000;
 

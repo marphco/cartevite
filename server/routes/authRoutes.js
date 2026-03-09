@@ -7,7 +7,7 @@ import User from "../models/User.js";
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const COOKIE_NAME = "ynvio_token";
+const COOKIE_NAME = "cartevite_token";
 
 const createToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });

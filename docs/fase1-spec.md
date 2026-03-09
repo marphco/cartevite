@@ -1,4 +1,4 @@
-# YNVIO – Fase 1 Operativa (2026-02-27 11:50 EST)
+# CARTEVITE – Fase 1 Operativa (2026-02-27 11:50 EST)
 
 ## Obiettivi richiesti
 
@@ -61,6 +61,6 @@ Totale stimato: ~30h uomo. Priorità immediate: Phase A + B + C (core prodotto).
 ---
 
 ## Prossimi passi immediati
-1. Branch `feature/ynvio-phase1`.
+1. Branch `feature/cartevite-phase1`.
 2. Implementazione Phase A (3D polish) + setup skeleton per Phase B (data schema + UI scaffolding) oggi stesso.
 3. Aggiornamenti frequenti nel WORKLOG + commit granulari.
