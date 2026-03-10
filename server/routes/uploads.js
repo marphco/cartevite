@@ -6,46 +6,12 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import Event from "../models/Event.js";
 
+console.log("[DEBUG TOP] uploads.js eval - R2_BUCKET_NAME:", process.env.R2_BUCKET_NAME);
+
 const router = express.Router();
 
-const isS3Configured =
-  process.env.AWS_REGION &&
-  process.env.AWS_ACCESS_KEY_ID &&
-  process.env.AWS_SECRET_ACCESS_KEY &&
-  process.env.AWS_BUCKET_NAME;
-
-let s3Client;
-if (isS3Configured) {
-  s3Client = new S3Client({
-    region: process.env.AWS_REGION,
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-    // Useful for Cloudflare R2
-    endpoint: process.env.AWS_ENDPOINT || undefined, 
-  });
-  console.log("[STORAGE] S3/R2 configurato correttamente.");
-} else {
-  console.log("[STORAGE] Fallback su server locale (cartella uploads).");
-}
-
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-if (!isS3Configured && !fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-
-// Memory Storage instradato via Lib-Storage su S3 o DiskStorage
-const storage = isS3Configured
-  ? multer.memoryStorage()
-  : multer.diskStorage({
-      destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-      filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-        cb(null, name);
-      },
-    });
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const isImage = file.mimetype && file.mimetype.startsWith("image/");
@@ -57,7 +23,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 15 * 1024 * 1024,
+    fileSize: 10 * 1024 * 1024,
     files: 20,
   },
 });
@@ -81,6 +47,7 @@ const requirePremiumForGalleryUpload = async (req, res, next) => {
   }
 };
 
+// Caricamento Immagini
 router.post(
   "/",
   requirePremiumForGalleryUpload,
@@ -90,16 +57,35 @@ router.post(
       const files = req.files || [];
       const urls = [];
 
-      if (isS3Configured) {
-        // Parallel S3 upload streams
+      // Check R2 on every request to avoid dotenv loading issues
+      const r2Config = {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+        endpoint: process.env.R2_ENDPOINT,
+        bucketName: process.env.R2_BUCKET_NAME,
+        publicUrl: process.env.R2_PUBLIC_URL
+      };
+
+      const isR2Ready = !!(r2Config.accessKeyId && r2Config.secretAccessKey && r2Config.endpoint && r2Config.bucketName);
+
+      if (isR2Ready) {
+        const client = new S3Client({
+          region: "auto",
+          endpoint: r2Config.endpoint,
+          credentials: {
+            accessKeyId: r2Config.accessKeyId,
+            secretAccessKey: r2Config.secretAccessKey,
+          },
+        });
+
         const uploadPromises = files.map(async (file) => {
           const ext = path.extname(file.originalname);
-          const key = `cartevite/events/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+          const key = `events/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
 
           const s3Upload = new Upload({
-            client: s3Client,
+            client,
             params: {
-              Bucket: process.env.AWS_BUCKET_NAME,
+              Bucket: r2Config.bucketName,
               Key: key,
               Body: file.buffer,
               ContentType: file.mimetype,
@@ -107,28 +93,105 @@ router.post(
           });
 
           await s3Upload.done();
-          
-          const domain = process.env.AWS_PUBLIC_DOMAIN || `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
-          return `${domain}/${key}`;
+          return `${r2Config.publicUrl}/${key}`;
         });
 
-        const s3Urls = await Promise.all(uploadPromises);
-        urls.push(...s3Urls);
+        const r2Urls = await Promise.all(uploadPromises);
+        urls.push(...r2Urls);
       } else {
-        // Fallback locale urls
-        const localUrls = files.map((f) => `/uploads/${f.filename}`);
+        if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+        
+        const localPromises = files.map(async (file) => {
+          const ext = path.extname(file.originalname);
+          const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+          const filePath = path.join(UPLOAD_DIR, filename);
+          fs.writeFileSync(filePath, file.buffer);
+          return `/uploads/${filename}`;
+        });
+        
+        const localUrls = await Promise.all(localPromises);
         urls.push(...localUrls);
       }
 
       res.json({ urls });
     } catch (err) {
       console.error("UPLOAD ERROR:", err);
-      res.status(500).json({
-        error: "Errore durante il salvataggio o inoltro S3.",
-        code: err.code,
-      });
+      res.status(500).json({ error: "Errore durante il caricamento delle immagini." });
     }
   }
 );
+
+// ✅ Endpoint di test per R2
+router.post("/test-r2", upload.single("image"), async (req, res) => {
+  console.log("[DEBUG REQ] process.env.R2_BUCKET_NAME:", process.env.R2_BUCKET_NAME);
+  console.log("[DEBUG REQ] All env keys:", Object.keys(process.env).filter(k => k.startsWith("R2_") || k === "PORT"));
+
+  const r2Config = {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    endpoint: process.env.R2_ENDPOINT,
+    bucketName: process.env.R2_BUCKET_NAME,
+    publicUrl: process.env.R2_PUBLIC_URL
+  };
+
+  const isR2Ready = !!(r2Config.accessKeyId && r2Config.secretAccessKey && r2Config.endpoint && r2Config.bucketName);
+
+  if (!isR2Ready) {
+    return res.status(500).json({ 
+      error: "R2 non configurato", 
+      debug: { 
+        hasKey: !!r2Config.accessKeyId, 
+        keyLen: r2Config.accessKeyId?.length,
+        secretLen: r2Config.secretAccessKey?.length,
+        endpoint: r2Config.endpoint,
+        bucket: r2Config.bucketName 
+      } 
+    });
+  }
+
+  // Debug log (masked)
+  console.log("[TEST-R2] Attempting upload with:", {
+    keyStart: r2Config.accessKeyId?.substring(0, 4),
+    secretEnd: r2Config.secretAccessKey?.substring(r2Config.secretAccessKey.length - 4),
+    endpoint: r2Config.endpoint,
+    bucket: r2Config.bucketName
+  });
+
+  if (!req.file) return res.status(400).json({ error: "Nessun file inviato" });
+
+  try {
+    const client = new S3Client({
+      region: "us-east-1", // Alcuni client preferiscono us-east-1 per il signing v4 su R2
+      endpoint: r2Config.endpoint,
+      forcePathStyle: true,
+      credentials: {
+        accessKeyId: r2Config.accessKeyId,
+        secretAccessKey: r2Config.secretAccessKey,
+      },
+    });
+
+    console.log("[DEBUG R2] CLIENT CREATED. Region: us-east-1, Endpoint:", r2Config.endpoint);
+
+    const ext = path.extname(req.file.originalname);
+    const key = `test/${Date.now()}${ext}`;
+
+    const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+    
+    const command = new PutObjectCommand({
+      Bucket: r2Config.bucketName,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    });
+
+    await client.send(command);
+    
+    const url = `${r2Config.publicUrl}/${key}`;
+    res.json({ message: "Test R2 riuscito!", url });
+  } catch (err) {
+    console.error("TEST R2 ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 export default router;

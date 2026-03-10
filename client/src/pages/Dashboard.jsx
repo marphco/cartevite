@@ -177,9 +177,16 @@ export default function Dashboard() {
       <div className="dashboard-shell">
         <div className="dashboard-header">
           <div className="dashboard-title-block">
-            <p style={{ textTransform: "uppercase", letterSpacing: "0.3em", color: "var(--text-soft)", margin: 0 }}>
-              CARTEVITE CONTROL ROOM
-            </p>
+            <div style={{ marginBottom: "1rem" }}>
+              <img 
+                src="/logo-cartevite.png" 
+                alt="Cartevite" 
+                style={{ 
+                  height: "45px", 
+                  display: "block"
+                }} 
+              />
+            </div>
             <h1>I tuoi inviti digitali</h1>
             <p>Gestisci eventi, RSVP e pagamenti in un unico pannello dal design elegante.</p>
           </div>

@@ -42,7 +42,16 @@ export default function MarketingLanding() {
     <div className="marketing-page">
       {/* HEADER NAV */}
       <nav className="marketing-nav">
-        <div className="marketing-logo" onClick={() => navigate("/")} style={{cursor:"pointer"}}>CARTEVITE</div>
+        <div className="marketing-logo" onClick={() => navigate("/")} style={{cursor:"pointer"}}>
+          <img 
+            src="/logo-cartevite.png" 
+            alt="Cartevite" 
+            style={{ 
+              height: "40px", 
+              display: "block"
+            }} 
+          />
+        </div>
         <div className="marketing-nav-links">
           <Button variant="ghost" onClick={() => navigate("/templates")} style={{ marginRight: '1rem', color: "var(--text)"}}>Catalogo Inviti</Button>
           {!loading && user ? (
@@ -187,7 +196,7 @@ export default function MarketingLanding() {
 
       {/* FOOTER */}
       <footer className="marketing-footer">
-        <div>CARTEVITE &copy; 2026. Tutti i diritti riservati.</div>
+        <div>Cartevite &copy; 2026. Tutti i diritti riservati.</div>
         <div className="footer-links">
           <span>Privacy</span>
           <span>Termini</span>
