@@ -48,10 +48,39 @@ app.use(
   })
 );
 
+import { sendEmail } from "./utils/emailService.js";
+
 // ✅ parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// ✅ API di test email (da rimuovere in futuro)
+app.post("/api/test-email", async (req, res) => {
+  const { to } = req.body;
+  
+  if (!to) {
+    return res.status(400).json({ error: "Manca l'indirizzo destinatario 'to'" });
+  }
+
+  const result = await sendEmail({
+    to,
+    subject: "Test da Cartevite Server 🚀",
+    html: `
+      <div style="font-family: sans-serif; padding: 20px; text-align: center;">
+        <h2 style="color: #124d45;">Benvenuto a bordo!</h2>
+        <p>Se stai leggendo questa email, il server SMTP di Gmail su Railway funziona perfettamente.</p>
+        <p>Saluti,<br>Il Server Cartevite</p>
+      </div>
+    `,
+  });
+
+  if (result.success) {
+    return res.json({ message: "Email inviata con successo", id: result.messageId });
+  } else {
+    return res.status(500).json({ error: "Errore invio email", details: result.error });
+  }
+});
 
 // ✅ static uploads
 const uploadsDir = path.join(process.cwd(), "uploads");
