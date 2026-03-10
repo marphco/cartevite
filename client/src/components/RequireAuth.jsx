@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { API_BASE } from "../config/api";
+import { apiFetch } from "../utils/apiFetch";
 
 export default function RequireAuth() {
   const [loading, setLoading] = useState(true);
@@ -10,9 +10,7 @@ export default function RequireAuth() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch(`${API_BASE}/api/auth/me`, {
-          credentials: "include",
-        });
+        const res = await apiFetch(`/api/auth/me`);
         setIsAuth(res.ok);
       } catch {
         setIsAuth(false);
