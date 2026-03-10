@@ -1,0 +1,55 @@
+.editable-text {
+  cursor: text;
+  display: inline-block;
+  min-width: 20px;
+  min-height: 1lh; /* line-height */
+  border-bottom: 1px dashed transparent;
+  transition: all 0.2s;
+  position: relative;
+  white-space: pre-wrap; /* Preserve line breaks */
+}
+
+.editable-text:hover {
+  border-bottom-color: rgba(255, 255, 255, 0.4);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+}
+
+.editable-text:hover::after {
+  content: " ✏️";
+  font-size: 0.8rem;
+  opacity: 0.8;
+  position: absolute;
+  top: 0;
+  right: -20px;
+}
+
+.editable-text.empty {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.editable-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--accent);
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.editable-input.multiline {
+  overflow: hidden;
+  display: block;
+}
+
+.editable-input:focus {
+  background-color: rgba(255, 255, 255, 0.05);
+}

@@ -2,34 +2,57 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import Event from "../models/Event.js"; // 👈 1) IMPORTA Event (serve per leggere il plan)
+import { S3Client } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
+import Event from "../models/Event.js";
 
 const router = express.Router();
 
-// 1) cartella uploads assoluta
+const isS3Configured =
+  process.env.AWS_REGION &&
+  process.env.AWS_ACCESS_KEY_ID &&
+  process.env.AWS_SECRET_ACCESS_KEY &&
+  process.env.AWS_BUCKET_NAME;
+
+let s3Client;
+if (isS3Configured) {
+  s3Client = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+    // Useful for Cloudflare R2
+    endpoint: process.env.AWS_ENDPOINT || undefined, 
+  });
+  console.log("[STORAGE] S3/R2 configurato correttamente.");
+} else {
+  console.log("[STORAGE] Fallback su server locale (cartella uploads).");
+}
+
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) {
+if (!isS3Configured && !fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// 2) storage su disco con destination ASSOLUTA
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, name);
-  },
-});
+// Memory Storage instradato via Lib-Storage su S3 o DiskStorage
+const storage = isS3Configured
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+      filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        cb(null, name);
+      },
+    });
 
-// 3) filtro immagini
 const fileFilter = (req, file, cb) => {
   const isImage = file.mimetype && file.mimetype.startsWith("image/");
   if (!isImage) return cb(new Error("Puoi caricare solo immagini."), false);
   cb(null, true);
 };
 
-// 4) limiti MVP
 const upload = multer({
   storage,
   fileFilter,
@@ -39,13 +62,9 @@ const upload = multer({
   },
 });
 
-
-// ======================================================
-// ✅ MIDDLEWARE PREMIUM CHECK
-// ======================================================
 const requirePremiumForGalleryUpload = async (req, res, next) => {
   try {
-    const { slug } = req.query;                 // 👈 arriva da ?slug=...
+    const { slug } = req.query;
     if (!slug) return res.status(400).json({ error: "Missing slug" });
 
     const ev = await Event.findOne({ slug });
@@ -56,35 +75,59 @@ const requirePremiumForGalleryUpload = async (req, res, next) => {
       return res.status(403).json({ error: "Gallery solo Premium" });
     }
 
-    next(); // 👈 ok premium → fa passare multer
+    next();
   } catch (err) {
     next(err);
   }
 };
 
-// ======================================================
-// 5) route finale: middleware premium → multer → handler
-// ======================================================
 router.post(
   "/",
-  requirePremiumForGalleryUpload,              // 👈 QUI
-  (req, res) => {
-    console.log("UPLOAD CT:", req.headers["content-type"]);
+  requirePremiumForGalleryUpload,
+  upload.array("images", 20),
+  async (req, res) => {
+    try {
+      const files = req.files || [];
+      const urls = [];
 
-    upload.array("images", 20)(req, res, (err) => {
-      if (err) {
-        console.error("UPLOAD ERROR:", err);
-        return res.status(400).json({
-          error: err.message || "Errore durante l'upload.",
-          code: err.code,
+      if (isS3Configured) {
+        // Parallel S3 upload streams
+        const uploadPromises = files.map(async (file) => {
+          const ext = path.extname(file.originalname);
+          const key = `cartevite/events/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+
+          const s3Upload = new Upload({
+            client: s3Client,
+            params: {
+              Bucket: process.env.AWS_BUCKET_NAME,
+              Key: key,
+              Body: file.buffer,
+              ContentType: file.mimetype,
+            },
+          });
+
+          await s3Upload.done();
+          
+          const domain = process.env.AWS_PUBLIC_DOMAIN || `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
+          return `${domain}/${key}`;
         });
+
+        const s3Urls = await Promise.all(uploadPromises);
+        urls.push(...s3Urls);
+      } else {
+        // Fallback locale urls
+        const localUrls = files.map((f) => `/uploads/${f.filename}`);
+        urls.push(...localUrls);
       }
 
-      console.log("FILES:", (req.files || []).length);
-      const files = req.files || [];
-      const urls = files.map((f) => `/uploads/${f.filename}`);
-      return res.json({ urls });
-    });
+      res.json({ urls });
+    } catch (err) {
+      console.error("UPLOAD ERROR:", err);
+      res.status(500).json({
+        error: "Errore durante il salvataggio o inoltro S3.",
+        code: err.code,
+      });
+    }
   }
 );
 

@@ -1,0 +1,484 @@
+.canvas-mode, .preview-mode {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--background);
+  position: fixed; /* Prevents background scroll on some browsers */
+  width: 100%;
+}
+
+.editor-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  /* flex: 1 fills the remaining Space regardless of topbar height */
+}
+
+.editor-topbar {
+  height: 80px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-topbar h1 {
+  font-size: 1.25rem;
+  margin: 0;
+  display: inline-block;
+  margin-left: 1rem;
+}
+
+.editor-sidebar {
+  width: 320px;
+  min-width: 320px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  overflow-y: auto; /* Ripristinato per consentire lo scroll degli elementi (Il dropdown custom ora usa un Portal) */
+}
+
+.editor-canvas-stage {
+  flex: 1;
+  background: var(--bg-body); /* Set to Cream background based on user request */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden; /* removed scroll per User request */
+  padding: 3rem;
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Scaler logic for responsive canvas: for MVP we just center it and rely on transform scale if needed 
+   Currently it's just a flex centered container that might scroll if it exceeds screen */
+.canvas-scaler {
+  position: relative;
+  box-shadow: 0 10px 40px rgba(60, 79, 118, 0.15);
+}
+
+.artboard {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  border-radius: 4px; /* Slight rounding for realism */
+  transform-origin: center center;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.canvas-layer {
+  position: absolute;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  white-space: pre-wrap; /* respect newlines */
+  touch-action: none; /* important for pointer events dragging */
+}
+
+.canvas-layer:active {
+  cursor: grabbing;
+}
+
+.canvas-layer .layer-content {
+  pointer-events: none; /* lets the wrapper handle the drag */
+}
+
+.layer-outline {
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+  border-radius: 2px;
+}
+
+/* Properties Panel Styles */
+.property-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.property-panel label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  letter-spacing: 0.05em;
+}
+
+.property-panel input, 
+.property-panel select,
+.property-panel textarea {
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.6rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.prop-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.prop-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.extra-blocks {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.active-btn {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  border-color: var(--accent) !important;
+}
+
+/* ------------------------------------- */
+/* Mobile Icon Buttons & Toolbar UI */
+/* ------------------------------------- */
+
+.mobile-icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 8px;
+  transition: background 0.2s;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.mobile-icon-btn:hover {
+  background: rgba(60, 79, 118, 0.08);
+}
+.mobile-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.mobile-icon-btn.variant-primary {
+  color: #ffffff;
+  background: var(--accent);
+}
+.mobile-icon-btn.variant-primary:hover {
+  background: var(--accent-strong);
+}
+.mib-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.mobile-toolbar-container {
+  display: none; /* Hide on desktop by default */
+}
+
+@media (min-width: 769px) {
+  .mobile-icon-btn {
+    flex-direction: row;
+    gap: 6px;
+    padding: 0.45rem 0.8rem;
+  }
+  .mib-label {
+    font-size: 0.8rem;
+  }
+  .desktop-only-title {
+    display: inline-block;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-icon-btn {
+    flex: 1;
+  }
+  .editor-workspace {
+    flex-direction: column; /* Use full height for canvas and sticky bottom bar */
+  }
+  .editor-topbar {
+    padding: 0 2px;
+    gap: 0;
+    overflow-x: hidden;
+    flex-wrap: nowrap;
+    height: 65px;
+    justify-content: space-around;
+  }
+  .editor-topbar h1.desktop-only-title {
+    display: none; /* Nascondiamo il titolo su mobile per risparmiare spazio */
+  }
+  
+  .editor-sidebar {
+    display: none; /* Su mobile usiamo la bottom navbar! */
+  }
+
+  .editor-canvas-stage {
+    order: 1;
+    padding: 0; 
+    justify-content: center; 
+    align-items: center;
+    overflow: hidden; /* Prevent spillover during resize/animations */
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    display: flex;
+  }
+
+  .mobile-toolbar-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    order: 2;
+    z-index: 1000;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .mobile-toolbar {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 0.5rem;
+    padding: 0 10px; /* Prevent buttons from hitting edges */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  
+  .mobile-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+
+  /* Font Panel Styling */
+  .font-list-wrapper {
+    position: relative;
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  .font-list-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 40px;
+    background: linear-gradient(to right, transparent, var(--bg-surface) 80%);
+    pointer-events: none;
+  }
+  .font-scroll-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.8rem;
+    flex: 1;
+    padding: 4px 10px;
+    padding-bottom: 8px;
+    padding-right: 3rem; /* space for gradient readability */
+  }
+  .font-scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Color Picker Mobile Optimization */
+  .mobile-tab-content {
+    padding: 0.8rem !important;
+  }
+  .mobile-tab-content .custom-color-picker-container {
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    min-width: 0 !important;
+    gap: 12px !important;
+  }
+  .mobile-tab-content .react-colorful {
+    width: 100% !important;
+    height: 120px !important;
+  }
+
+  .mobile-tab-panel {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    animation: slideUp 0.25s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+  }
+  
+  .mobile-tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    margin-bottom: 0.5rem;
+  }
+  
+  .mobile-tab-header button {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0.2rem;
+  }
+
+  .editor-canvas-stage {
+    padding: 10px; /* Reduced to maximize canvas space on small screens */
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    touch-action: none; /* Prevents accidental pan/zoom of the whole page */
+  }
+}
+
+/* Scroll Lock Utility */
+body.editor-locked {
+  overflow: hidden !important;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Visibility Utilities */
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+}
+
+/* Font Size Stepper Polish */
+.font-size-stepper {
+  transition: border-color 0.2s ease;
+}
+.font-size-stepper:hover {
+  border-color: var(--accent) !important;
+}
+.stepper-btn {
+  padding: 8px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--text-soft) !important;
+  transition: all 0.2s ease !important;
+}
+.stepper-btn:hover {
+  color: var(--accent) !important;
+  background: rgba(60, 79, 118, 0.05) !important;
+}
+/* Custom Range Slider Styling to match mobile polish as requested */
+.custom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px !important;
+  background: rgba(60, 79, 118, 0.1);
+  border-radius: 10px;
+  outline: none;
+  border: none !important;
+  padding: 0 !important;
+  cursor: pointer;
+  margin: 0 !important;
+}
+
+/* Add accent color to the lower (filled) part of the track */
+.custom-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(var(--accent), var(--accent)) 0/var(--sx, 0%) 100% no-repeat rgba(60, 79, 118, 0.1);
+  border-radius: 10px;
+}
+
+.custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 99px;
+  box-shadow: 0 0 10px rgba(60, 79, 118, 0.2);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  margin-top: -4px; /* Center thumb on track */
+}
+
+.custom-slider::-moz-range-thumb {
+  width: 24px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 99px;
+  box-shadow: 0 0 10px rgba(60, 79, 118, 0.2);
+  cursor: pointer;
+  border: none;
+}
+
+.custom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+/* Mini scrollbar for contextual UI */
+.custom-scrollbar-mini::-webkit-scrollbar {
+  height: 4px;
+}
+.custom-scrollbar-mini::-webkit-scrollbar-track {
+  background: rgba(60, 79, 118, 0.05);
+  border-radius: 10px;
+}
+.custom-scrollbar-mini::-webkit-scrollbar-thumb {
+  background: rgba(var(--accent-rgb), 0.3);
+  border-radius: 10px;
+}
+.custom-scrollbar-mini::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Override generic property-panel styles that break range inputs */
+.property-panel input[type="range"].custom-slider {
+  background: transparent;
+}

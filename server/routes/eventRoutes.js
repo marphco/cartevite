@@ -25,7 +25,7 @@ const slugify = (str) => {
 ============================ */
 router.post("/", requireAuth, async (req, res) => {
   try {
-    const { title, date, dateTBD, templateId, blocks, plan } = req.body;
+    const { title, date, dateTBD, templateId, blocks, layers, canvas, plan } = req.body;
 
     if (!title)
       return res.status(400).json({ message: "title è obbligatorio" });
@@ -57,6 +57,8 @@ router.post("/", requireAuth, async (req, res) => {
       templateId: templateId || "basic-free",
       status: "draft",
       blocks: blocks || [],
+      layers: layers || [],
+      canvas: canvas || {},
       plan: plan || "free",
       ownerId: req.userId,
     });
@@ -125,7 +127,7 @@ router.get("/:slug/private", requireAuth, async (req, res) => {
 router.put("/:slug", requireAuth, async (req, res) => {
   try {
     const { slug } = req.params;
-    const { title, date, dateTBD, templateId, status, blocks, plan } = req.body;
+    const { title, date, dateTBD, templateId, status, blocks, plan, theme, layers, canvas } = req.body;
 
     const existing = await Event.findOne({ slug });
     if (!existing)
@@ -149,6 +151,9 @@ router.put("/:slug", requireAuth, async (req, res) => {
       ...(templateId !== undefined && { templateId }),
       ...(status !== undefined && { status }),
       ...(blocks !== undefined && { blocks: safeBlocks }),
+      ...(theme !== undefined && { theme }),
+      ...(layers !== undefined && { layers }),
+      ...(canvas !== undefined && { canvas }),
 
       // ✅ allow plan update ONLY if explicitly provided
       ...(plan !== undefined && { plan: realPlan }),

@@ -1,0 +1,437 @@
+/* EnvelopeAnimation.css */
+.paperless-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* 1. CONTAINER E SCENA BASE */
+.envelope-overlay {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--bg-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.8s ease-in-out;
+  overflow: hidden;
+}
+.envelope-hero {
+  position: relative; 
+  width: 100%; 
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  cursor: pointer;
+  perspective: 1500px;
+  transition: background-color 1s ease;
+}
+
+.envelope-3d-scene {
+  position: relative;
+  width: 500px; /* Fixed canonical base width for predictable scaling */
+  aspect-ratio: var(--env-aspect-ratio, 1);
+  margin: 0 auto;
+  transform-style: preserve-3d;
+  overflow: visible;
+}
+
+.envelope-3d-scene.is-editing-liner {
+  touch-action: none;
+}
+
+.envelope-3d-scene.env-rectangular {
+  --env-aspect-ratio: 1.4; /* Busta orizzontale */
+  width: 600px;
+}
+
+/* 1. BACK */
+.envelope-back {
+  position: absolute;
+  inset: 0;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  z-index: 1;
+  overflow: hidden; /* Importante per il liner interno */
+}
+
+.envelope-liner-ghost {
+  position: absolute;
+  /* Area totale virtuale del liner (tasca + aletta) */
+  top: -100%; /* Hinge pinned at EXACT center of 200% virtual sheet */
+  height: 200%;
+  left: -100%;
+  right: -100%;
+  background-size: contain;
+  background-position: center center; 
+  background-repeat: no-repeat;
+  opacity: 0.3;
+  pointer-events: none;
+  /* Dietro TUTTO lo scene 3D */
+  transform: translate3d(var(--liner-x, 0px), var(--liner-y, 0px), -50px) scale(var(--liner-scale, 1));
+  transform-origin: center;
+  transition: transform 0.05s linear;
+}
+
+/* ------------------------------------- */
+/* LINER EDIT UI (BANNER & HANDLES) */
+/* ------------------------------------- */
+
+.liner-edit-banner {
+  position: absolute;
+  bottom: 100px; /* Elevated further per user request for clear visibility */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 8px 18px;
+  border-radius: 40px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--accent);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+
+
+
+
+.envelope-back-liner {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(4% 0, 96% 0, 96% 100%, 4% 100%);
+  background-size: 0 0 !important; /* Hide on parent but allow inheritance */
+}
+
+.envelope-back-liner::before {
+  content: "";
+  position: absolute;
+  left: -100%;
+  right: -100%;
+  height: 200%; /* total virtual height context (pocket + flap) */
+  top: -100%; /* Hinge pinned at center (top edge of pocket) */
+  background-image: inherit;
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+  /* Dynamic Adjustment */
+  transform: translate(var(--liner-x, 0px), var(--liner-y, 0px)) scale(var(--liner-scale, 1));
+  transform-origin: center;
+  transition: transform 0.05s linear;
+}
+
+.envelope-3d-scene.is-editing-liner .envelope-back-liner::before,
+.envelope-3d-scene.is-editing-liner .envelope-flap-inner-texture::before {
+  cursor: move;
+  filter: brightness(1.05);
+}
+
+.envelope-back-liner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Rimossa ombra eccessiva per pulizia */
+  background-color: transparent;
+}
+
+.envelope-back::after {
+  display: none; /* Rimosso gradiente che scuriva la tasca */
+}
+
+/* Ombra dinamica castata dall'aletta sulla tasca */
+.envelope-dynamic-shadow {
+  position: absolute;
+  top: 0;
+  left: 4%;
+  right: 4%;
+  height: 40px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 100%);
+  z-index: 5;
+  pointer-events: none;
+  transform-origin: top center;
+}
+
+/* 2. CARD */
+.envelope-card-wrapper {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  bottom: 0px; 
+  pointer-events: none;
+  overflow: visible;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.envelope-card-content {
+  position: relative;
+  width: 96%; 
+  height: 96%; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform-origin: center center;
+}
+
+.envelope-card-scaler {
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 3. FRONT POCKET */
+.envelope-pocket-bottom {
+  position: absolute;
+  inset: 0;
+  bottom: -0.5px; /* Micro-sovrapposizione per eliminare linea bianca anti-aliasing */
+  /* Trapezio Isoscele Sharpened (Paperless Style - Vertici definiti) */
+  clip-path: polygon(
+    0 100%, 100% 100%, 
+    100% 99.5%, 75% 53%, 72.5% 49.5%, 69% 48%, 31% 48%, 27.5% 49.5%, 25% 53%, 0 99.5%
+  );
+  filter: brightness(0.97); /* Plane separation: più scura per profondità */
+  /* Micro-highlight tattile superiore più marcato + ombra di profondità inferiore */
+  background: linear-gradient(to bottom, rgba(255,255,255,0.12) 0%, transparent 2.5px),
+              linear-gradient(to top, rgba(0,0,0,0.1) 0%, transparent 20%);
+  z-index: 3;
+}
+
+.envelope-pocket-bottom-shadow-container {
+  position: absolute;
+  inset: 0;
+  /* Ombra dell'aletta inferiore: netta e visibile per lo stacco dalle laterali */
+  filter: drop-shadow(0 -4px 5px rgba(0,0,0,0.5));
+  pointer-events: none;
+  z-index: 2; /* Sopra le laterali (z:1) ma sotto la bottom (z:3) */
+}
+
+.envelope-pocket-bottom-shadow-shape {
+  position: absolute;
+  inset: 0;
+  /* Stessa maschera trapezoidale per coerenza */
+  clip-path: polygon(
+    0 100%, 100% 100%, 
+    100% 99.5%, 75% 53%, 72.5% 49.5%, 69% 48%, 31% 48%, 27.5% 49.5%, 25% 53%, 0 99.5%
+  );
+}
+
+.envelope-front {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.envelope-pocket-left {
+  position: absolute;
+  inset: 0;
+  /* Trapezio laterale spigoloso */
+  clip-path: polygon(
+    0 0, 0 100%, 46.5% 50.5%, 5% 0
+  );
+  filter: brightness(0.92) drop-shadow(2px 0 3px rgba(0,0,0,0.2));
+  z-index: 2;
+}
+
+.envelope-pocket-right {
+  position: absolute;
+  inset: 0;
+  /* Trapezio laterale spigoloso specchiato */
+  clip-path: polygon(
+    100% 0, 100% 100%, 53.5% 50.5%, 95% 0
+  );
+  filter: brightness(0.92) drop-shadow(-2px 0 3px rgba(0,0,0,0.2));
+  z-index: 2;
+}
+
+.envelope-guest-name {
+  position: absolute;
+  top: 75%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-family: var(--font-heading, "Playfair Display");
+  font-size: 1.8rem;
+  font-style: italic;
+  opacity: 0.8;
+  z-index: 6;
+}
+
+/* 4. FLAP */
+.envelope-flap-wrapper {
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 60%; 
+  transform-origin: top center;
+  transform-style: preserve-3d;
+  /* RIMOSSO IL FILTRO: causava il flattening 3D e faceva sparire i fiori */
+}
+
+.envelope-flap-cast-shadow {
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 60%; 
+  pointer-events: none;
+  z-index: 1; /* Sotto l'aletta e sotto le tasche laterali */
+  /* L'ombra non ruota, resta piatta sulla busta */
+}
+
+.envelope-flap-shadow-shape {
+  position: absolute;
+  inset: 0;
+  background: black; /* Colore puro ombra */
+  /* Stessa maschera dell'aletta per coerenza */
+  clip-path: polygon(
+    0 0, 100% 0, 100% 1%, 
+    55% 95%, 53% 98%, 51.5% 99.5%, 50% 100%, 48.5% 99.5%, 47% 98%, 45% 95%, 
+    0 1%
+  );
+}
+
+.envelope-flap-outer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  backface-visibility: hidden;
+  /* Ombra di bordo 3D-safe + Plane Lighting: più chiara per "staccarsi" */
+  filter: drop-shadow(0 1.2px 1.2px rgba(0,0,0,0.45)) brightness(1.04);
+  /* Gradiente di profondità sull'aletta (si inscurisce verso la punta per volume) */
+  background-image: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.06) 100%);
+  /* Arrotondamento Paperless Style (Definito) */
+  clip-path: polygon(
+    0 0, 100% 0, 100% 1%, 
+    55% 95%, 53% 98%, 51.5% 99.5%, 50% 100%, 48.5% 99.5%, 47% 98%, 45% 95%, 
+    0 1%
+  );
+}
+
+.envelope-flap-inner {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(
+    0 0, 100% 0, 100% 1%, 
+    55% 95%, 53% 98%, 51.5% 99.5%, 50% 100%, 48.5% 99.5%, 47% 98%, 45% 95%, 
+    0 1%
+  );
+  transform: rotateY(180deg);
+  backface-visibility: hidden;
+  z-index: 3;
+}
+
+.envelope-flap-inner-bg {
+  position: absolute;
+  inset: 0;
+  /* background-color passed from React matches envelope base */
+}
+
+.envelope-flap-inner-texture {
+  position: absolute;
+  inset: 0;
+  /* Simmetria 1:1 SENZA DISTORSIONE (Soluzione Auto):
+     - '100% auto' preserva le proporzioni reali dei fiori.
+     - 'center bottom' accosta la fine del pattern alla hinge.
+     - scale(-1, -1) corregge le specchiature 3D.
+  */
+  transform: scale(-1, -1);
+  clip-path: polygon(
+    4% 100%, 96% 100%, 
+    55% 15%, 53% 12%, 51.5% 10.5%, 50% 10%, 48.5% 10.5%, 47% 12%, 45% 15%
+  );
+  background-size: 0 0 !important;
+}
+
+.envelope-flap-inner-texture::before {
+  content: "";
+  position: absolute;
+  left: -100%;
+  right: -100%;
+  height: 333.33%; /* 200 / 60 flap height */
+  top: -66.66% !important; /* FIXED PIVOT: Pins image center (166.66) to hinge (100). */
+  background-image: inherit;
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+  /* Interaction sync for parent scale(-1, -1) + rotateX(180):
+     - Parent rotateX(180) mirrors horizontal view.
+     - Child scale(-1, -1) mirrors local X and Y.
+     - Net X & Y: Both cancel out to standard global directions (use +x, +y).
+  */
+  transform: translate(var(--liner-x, 0px), var(--liner-y, 0px)) scale(var(--liner-scale, 1));
+  transform-origin: center;
+  transition: transform 0.05s linear;
+}
+
+.envelope-flap-hinge-shadow {
+  position: absolute;
+  bottom: 0;
+  left: 4%;
+  right: 4%;
+  height: 1px; /* Cordonatura finissima */
+  background: rgba(0,0,0,0.2);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.envelope-flap-inner-texture::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Rimossa ombra eccessiva per pulizia */
+  background-color: transparent;
+}
+
+.envelope-hint {
+  position: absolute;
+  bottom: -40px;
+  width: 100%;
+  text-align: center;
+  color: rgba(255,255,255,0.7);
+  font-family: var(--font-body, sans-serif);
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+}.custom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px !important;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  outline: none;
+  border: none !important;
+  padding: 0 !important;
+  cursor: pointer;
+  margin: 0 !important;
+}
+
+.custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 99px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.custom-slider::-moz-range-thumb {
+  width: 24px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 99px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  border: none;
+}
+
+.custom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}

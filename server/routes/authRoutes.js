@@ -1,11 +1,13 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
 
 const router = express.Router();
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const COOKIE_NAME = "ynvio_token";
+const COOKIE_NAME = "cartevite_token";
 
 const createToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -78,6 +80,70 @@ router.post("/login", async (req, res) => {
   } catch (err) {
     console.error("LOGIN ERROR:", err);
     res.status(500).json({ message: "Errore server" });
+  }
+});
+
+// --- GOOGLE SSO LOGIN ---
+router.post("/google", async (req, res) => {
+  try {
+    console.log("GOOGLE LOGIN PAYLOAD:", req.body);
+    
+    // Supporto ibrido: react-oauth può inviare oggetti diversi in base al flow
+    const access_token = req.body.access_token || req.body.credential || req.body.token || (req.body.code ? req.body.code : null);
+
+    if (!access_token) {
+      return res.status(400).json({ message: "Token Google mancante nel payload", details: req.body });
+    }
+
+    // Richiesta a Google userInfo API usando l'access token
+    const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Google verify info Error:", errorText);
+      return res.status(401).json({ message: "Token Google non valido o scaduto" });
+    }
+    
+    const payload = await response.json();
+    const { email, sub: googleId } = payload; // sub is the unique user ID from Google
+
+    if (!email) {
+      return res.status(400).json({ message: "Email non fornita da Google" });
+    }
+
+    // Check if user already exists
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      // Create new SSO user
+      user = await User.create({
+        email: email.toLowerCase(),
+        authProvider: "google",
+        googleId: googleId,
+        // passwordHash is omitted naturally since missing
+      });
+    } else {
+      // Optional: Update existing user to link google accounts if they registered locally first
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.authProvider = "google"; // Upgrade to Google provider or keep mixed
+        await user.save();
+      }
+    }
+
+    // Sign proprietary JWT like usual
+    const token = createToken(user._id);
+    res.cookie(COOKIE_NAME, token, cookieOptions);
+
+    res.json({
+      user: { id: user._id, email: user.email },
+    });
+
+  } catch (err) {
+    console.error("GOOGLE SSO ERROR:", err);
+    res.status(500).json({ message: "Errore autenticazione Google SSO" });
   }
 });
 

@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const COOKIE_NAME = "ynvio_token";
+const COOKIE_NAME = "cartevite_token";
 
 export default function requireAuth(req, res, next) {
   try {

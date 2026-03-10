@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_BASE } from "../config/api";
+import { apiFetch } from "../utils/apiFetch";
+import { Surface, Button, Badge, StatCard } from "../ui";
+import { PenSquare, Send, Users, ExternalLink, Link2, Share2, Trash2, CheckCircle2, HelpCircle, XCircle, Star } from "lucide-react";
+import "./Dashboard.css";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -13,9 +16,8 @@ export default function Dashboard() {
 
   const deleteEvent = async (slug) => {
     try {
-      const res = await fetch(`${API_BASE}/api/events/${slug}`, {
+      const res = await apiFetch(`/api/events/${slug}`, {
         method: "DELETE",
-        credentials: "include",
       });
 
       if (!res.ok) throw new Error("Errore eliminazione");
@@ -23,7 +25,6 @@ export default function Dashboard() {
       setEvents((prev) => prev.filter((e) => e.slug !== slug));
       setConfirmDeleteSlug(null);
 
-      // opzionale: pulisco anche i summary in UI
       setRsvpSummaryBySlug((prev) => {
         const copy = { ...prev };
         delete copy[slug];
@@ -71,10 +72,7 @@ export default function Dashboard() {
 
     async function bootstrap() {
       try {
-        // 1) check auth prima
-        const meRes = await fetch(`${API_BASE}/api/auth/me`, {
-          credentials: "include",
-        });
+        const meRes = await apiFetch(`/api/auth/me`);
 
         if (meRes.status === 401) {
           navigate("/login");
@@ -83,10 +81,7 @@ export default function Dashboard() {
 
         if (!meRes.ok) throw new Error("Errore auth check");
 
-        // 2) fetch eventi SOLO se loggato
-        const res = await fetch(`${API_BASE}/api/events`, {
-          credentials: "include",
-        });
+        const res = await apiFetch(`/api/events`);
 
         if (!res.ok) throw new Error("Errore fetch eventi");
 
@@ -97,7 +92,6 @@ export default function Dashboard() {
           setEvents(safeEvents);
         }
 
-        // 3) summary
         if (!safeEvents.length) {
           if (!cancelled) setRsvpSummaryBySlug({});
           return;
@@ -106,10 +100,7 @@ export default function Dashboard() {
         const summaries = await Promise.all(
           safeEvents.map(async (ev) => {
             try {
-              const sRes = await fetch(
-                `${API_BASE}/api/events/${ev.slug}/rsvps/summary`,
-                { credentials: "include" }
-              );
+              const sRes = await apiFetch(`/api/events/${ev.slug}/rsvps/summary`);
               if (!sRes.ok) return [ev.slug, null];
               const sData = await sRes.json();
               return [ev.slug, sData];
@@ -140,240 +131,228 @@ export default function Dashboard() {
     };
   }, [navigate]);
 
-  if (loading) return <p style={{ padding: "2rem" }}>Caricamento...</p>;
+  const { publishedCount, premiumCount, upcomingCount, totalGuests, totalResponses } = useMemo(() => {
+    const published = events.filter((e) => e.status === "published").length;
+    const premium = events.filter((e) => (e.plan || "").toLowerCase() === "premium").length;
+    const now = Date.now();
+    const upcoming = events.filter((e) => {
+      if (e.dateTBD || !e.date) return true;
+      const dateValue = new Date(e.date).getTime();
+      return dateValue >= now;
+    }).length;
+
+    let guests = 0;
+    let responses = 0;
+
+    Object.values(rsvpSummaryBySlug).forEach((summary) => {
+      if (!summary) return;
+      guests += summary.totalGuests || 0;
+      responses += summary.totalResponses || 0;
+    });
+
+    return {
+      publishedCount: published,
+      premiumCount: premium,
+      upcomingCount: upcoming,
+      totalGuests: guests,
+      totalResponses: responses,
+    };
+  }, [events, rsvpSummaryBySlug]);
+
+  if (loading) {
+    return (
+      <div className="dashboard-page">
+        <div className="dashboard-shell">
+          <Surface variant="glass">
+            <p style={{ margin: 0 }}>Caricamento…</p>
+          </Surface>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: "2rem",
-        fontFamily: "sans-serif",
-        background: "#111",
-        color: "#f5f5f5",
-      }}
-    >
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "1rem",
-      }}>
-      <h1>I tuoi eventi</h1>
+    <div className="dashboard-page">
+      <div className="dashboard-shell">
+        <div className="dashboard-header">
+          <div className="dashboard-title-block">
+            <p style={{ textTransform: "uppercase", letterSpacing: "0.3em", color: "var(--text-soft)", margin: 0 }}>
+              CARTEVITE CONTROL ROOM
+            </p>
+            <h1>I tuoi inviti digitali</h1>
+            <p>Gestisci eventi, RSVP e pagamenti in un unico pannello dal design elegante.</p>
+          </div>
 
-      <button
-        onClick={async () => {
-          await fetch(`${API_BASE}/api/auth/logout`, {
-            method: "POST",
-            credentials: "include",
-          });
-          window.location.href = "/login";
-        }}
-      >
-        Logout
-      </button>
-      </div>
+          <div className="ui-toolbar__actions">
+            <Button variant="ghost" onClick={() => navigate("/")} style={{ opacity: 0.7 }}>
+              Home Cartevite
+            </Button>
+            <Button
+              variant="base"
+              onClick={async () => {
+                await apiFetch(`/api/auth/logout`, { method: "POST" });
+                window.location.href = "/";
+              }}
+            >
+              Logout
+            </Button>
+            <Button onClick={() => navigate("/templates")}>+ Nuovo evento</Button>
+          </div>
+        </div>
 
-      <button
-        onClick={() => navigate("/new")}
-        style={{
-          marginBottom: "1.5rem",
-          padding: "0.75rem 1rem",
-          background: "#000",
-          color: "#fff",
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        + Crea nuovo evento
-      </button>
+        <div className="dashboard-stats">
+          <StatCard label="Eventi pubblicati" value={publishedCount} hint={`${premiumCount} premium`} />
+          <StatCard label="Eventi attivi/prossimi" value={upcomingCount} hint={events.length ? `${events.length} totali` : ""} />
+          <StatCard label="Ospiti invitati" value={totalGuests} hint={`${totalResponses} RSVP`} />
+        </div>
 
-      {events.length === 0 ? (
-        <p>Nessun evento ancora. Creane uno!</p>
-      ) : (
-        <div style={{ display: "grid", gap: "0.75rem", maxWidth: "600px" }}>
-          {events.map((ev) => {
-            const sum = rsvpSummaryBySlug[ev.slug];
+        {events.length === 0 ? (
+          <Surface variant="glass" className="empty-state">
+            <h2 style={{ marginTop: 0 }}>Ancora nessun evento</h2>
+            <p style={{ marginBottom: "1.5rem" }}>
+              Crea il tuo primo invito digitale e personalizzalo con il nuovo editor a blocchi.
+            </p>
+            <Button onClick={() => navigate("/templates")}>Scegli un design</Button>
+          </Surface>
+        ) : (
+          <div className="events-grid">
+            {events.map((ev) => {
+              const sum = rsvpSummaryBySlug[ev.slug];
+              const premium = (ev.plan || "").toLowerCase() === "premium";
+              const published = ev.status === "published";
 
-            return (
-              <div
-                key={ev._id}
-                style={{
-                  border: "1px solid #333",
-                  borderRadius: "10px",
-                  padding: "1rem",
-                  background: "#161616",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "1rem",
-                  }}
-                >
-                  <h2 style={{ margin: 0 }}>{ev.title}</h2>
+              return (
+                <div key={ev._id} className="event-card">
+                  <div className="event-card__herostamp">{ev.slug}</div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "0.4rem",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        padding: "0.25rem 0.5rem",
-                        borderRadius: "999px",
-                        border: "1px solid",
-                        borderColor: ev.plan === "premium" ? "#f5c542" : "#666",
-                        color: ev.plan === "premium" ? "#f5c542" : "#bbb",
-                        background:
-                          ev.plan === "premium"
-                            ? "rgba(245,197,66,0.08)"
-                            : "#111",
-                        whiteSpace: "nowrap",
-                        fontWeight: 600,
-                        letterSpacing: "0.3px",
-                      }}
+                  <h2>{ev.title}</h2>
+                  <div className="event-card__meta">
+                    <Badge variant={premium ? "accent" : "default"}>
+                      {premium ? <><Star size={12} fill="currentColor" style={{marginRight:4, verticalAlign:"middle"}}/> Premium</> : "Free"}
+                    </Badge>
+                    <Badge variant={published ? "success" : "warning"}>
+                      {published ? "Pubblicato" : "Draft"}
+                    </Badge>
+                    {ev.dateTBD ? (
+                      <Badge>Data da definire</Badge>
+                    ) : ev.date ? (
+                      <Badge>
+                        {new Date(ev.date).toLocaleDateString("it-IT", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </Badge>
+                    ) : null}
+                  </div>
+
+                  {sum && sum.totalResponses > 0 ? (
+                    <div className="event-card__summary" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}><CheckCircle2 size={16} color="#3ae6b3"/> {sum.yesResponses}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}><HelpCircle size={16} color="#f4c46b"/> {sum.maybeResponses}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}><XCircle size={16} color="salmon"/> {sum.noResponses}</span>
+                      <span style={{ opacity: 0.6 }}> — <Users size={14} style={{verticalAlign:"middle", margin:"0 4px"}}/> {sum.totalGuests} ospiti</span>
+                    </div>
+                  ) : (
+                    <p className="event-card__summary" style={{ opacity: 0.6 }}>
+                      Ancora nessuna risposta.
+                    </p>
+                  )}
+
+                  <div className="event-card__actions grid-actions">
+                    <Button
+                      variant="primary"
+                      onClick={() => navigate(`/edit/${ev.slug}`)}
                     >
-                      {ev.plan === "premium" ? "⭐ Premium" : "Free"}
-                    </span>
-
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        padding: "0.25rem 0.5rem",
-                        borderRadius: "999px",
-                        border: "1px solid",
-                        borderColor:
-                          ev.status === "published" ? "#4caf50" : "#ff4d4d",
-                        color:
-                          ev.status === "published" ? "#4caf50" : "#ff4d4d",
-                        background:
-                          ev.status === "published"
-                            ? "rgba(76,175,80,0.08)"
-                            : "rgba(255,77,77,0.08)",
-                        whiteSpace: "nowrap",
-                        fontWeight: 600,
-                        letterSpacing: "0.3px",
-                      }}
+                      <PenSquare size={16} style={{marginRight: 6}} /> Modifica Design
+                    </Button>
+                    <Button
+                      variant="accent"
+                      onClick={() => navigate(`/invites/${ev.slug}`)}
                     >
-                      {ev.status === "published" ? "✅ Pubblicato" : "📝 Draft"}
-                    </span>
+                      <Send size={16} style={{marginRight: 6}} /> Invia Inviti
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => navigate(`/rsvps/${ev.slug}`)}
+                    >
+                      <Users size={16} style={{marginRight: 6}} /> Vedi RSVP
+                    </Button>
+                    
+                    <div className="event-card__actions-secondary">
+                      {!premium && (
+                        <Button 
+                          variant="ghost" 
+                          onClick={async () => {
+                             try {
+                               const res = await apiFetch(`/api/payments/checkout`, {
+                                 method: "POST",
+                                 body: JSON.stringify({ eventSlug: ev.slug })
+                               });
+                               if (res.ok) {
+                                 const data = await res.json();
+                                 window.location.href = data.url; 
+                               } else {
+                                 alert("Errore generazione checkout");
+                               }
+                             } catch (err) {
+                               console.error(err);
+                               alert("Errore pagamento");
+                             }
+                          }}
+                          style={{ color: "var(--accent)", border: "1px solid var(--accent)", marginRight: "auto" }}
+                        >
+                          <Star size={14} style={{marginRight:6}}/> Passa a Premium
+                        </Button>
+                      )}
+                      
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          if (!published) {
+                            alert("Questo evento è ancora Draft. Pubblicalo dall’editor.");
+                            return;
+                          }
+                          navigate(`/e/${ev.slug}`);
+                        }}
+                        title="Apri pagina pubblica"
+                      >
+                        <ExternalLink size={16}/>
+                      </Button>
+                      <Button
+                        variant={copiedSlug === ev.slug ? "subtle" : "ghost"}
+                        onClick={() => copyLink(ev.slug)}
+                        title="Copia link evento"
+                      >
+                         <Link2 size={16}/>
+                      </Button>
+                      <Button variant="ghost" onClick={() => nativeShare(ev.slug, ev.title)} title="Condividi nativo">
+                        <Share2 size={16}/>
+                      </Button>
+                      <Button
+                        variant={confirmDeleteSlug === ev.slug ? "danger" : "ghost"}
+                        onClick={() => {
+                          if (confirmDeleteSlug === ev.slug) {
+                            deleteEvent(ev.slug);
+                            return;
+                          }
+                          setConfirmDeleteSlug(ev.slug);
+                          setTimeout(() => {
+                            setConfirmDeleteSlug((current) => (current === ev.slug ? null : current));
+                          }, 2500);
+                        }}
+                        title="Elimina definitivo"
+                      >
+                        <Trash2 size={16} color={confirmDeleteSlug === ev.slug ? "#fff" : "currentColor"}/>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-
-                <p style={{ opacity: 0.8, marginTop: "0.25rem" }}>
-                  {ev.dateTBD
-                    ? "📅 Data da definire"
-                    : ev.date
-                    ? `📅 ${new Date(ev.date).toLocaleDateString("it-IT")}`
-                    : ""}
-                </p>
-
-                {sum && sum.totalResponses > 0 && (
-                  <p
-                    style={{
-                      marginTop: "0.5rem",
-                      fontSize: "0.9rem",
-                      opacity: 0.9,
-                    }}
-                  >
-                    ✅ {sum.yesResponses} · 🤔 {sum.maybeResponses} · ❌{" "}
-                    {sum.noResponses}
-                    <span style={{ opacity: 0.7 }}>
-                      {" "}
-                      — 👥 {sum.totalGuests} ospiti
-                    </span>
-                  </p>
-                )}
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "0.5rem",
-                    marginTop: "0.75rem",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <button onClick={() => navigate(`/edit/${ev.slug}`)}>
-                    Apri editor
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (ev.status !== "published") {
-                        alert(
-                          "Questo evento è ancora Draft. Pubblicalo dall’editor per renderlo visibile."
-                        );
-                        return;
-                      }
-                      navigate(`/e/${ev.slug}`);
-                    }}
-                  >
-                    Apri pagina
-                  </button>
-
-                  <button
-                    onClick={() => copyLink(ev.slug)}
-                    style={{
-                      transition: "all 0.2s ease",
-                      background:
-                        copiedSlug === ev.slug ? "#1a1a1a" : undefined,
-                      border:
-                        copiedSlug === ev.slug
-                          ? "1px solid #4caf50"
-                          : undefined,
-                      color: copiedSlug === ev.slug ? "#4caf50" : undefined,
-                    }}
-                  >
-                    {copiedSlug === ev.slug ? "Copiato ✅" : "Copia link"}
-                  </button>
-
-                  <button onClick={() => nativeShare(ev.slug, ev.title)}>
-                    Condividi
-                  </button>
-
-                  <button onClick={() => navigate(`/rsvps/${ev.slug}`)}>
-                    Vedi RSVP
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      if (confirmDeleteSlug === ev.slug) {
-                        deleteEvent(ev.slug);
-                        return;
-                      }
-
-                      setConfirmDeleteSlug(ev.slug);
-                      setTimeout(() => {
-                        setConfirmDeleteSlug((current) =>
-                          current === ev.slug ? null : current
-                        );
-                      }, 3000);
-                    }}
-                    style={{
-                      transition: "all 0.2s ease",
-                      background:
-                        confirmDeleteSlug === ev.slug ? "#2a0000" : undefined,
-                      border:
-                        confirmDeleteSlug === ev.slug
-                          ? "1px solid #ff4d4d"
-                          : undefined,
-                      color:
-                        confirmDeleteSlug === ev.slug ? "#ff4d4d" : undefined,
-                    }}
-                  >
-                    {confirmDeleteSlug === ev.slug
-                      ? "Conferma elimina"
-                      : "Elimina"}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,155 @@
+.catalog-page {
+  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--text);
+  padding: 4rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.catalog-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  position: relative;
+}
+
+.back-btn {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-soft);
+}
+
+.header-titles h1 {
+  font-size: 2.5rem;
+  font-family: var(--font-heading);
+  margin-bottom: 0.5rem;
+  margin-top: 0;
+}
+
+.header-titles p {
+  color: var(--text-soft);
+  font-size: 1.1rem;
+}
+
+.catalog-filters {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.chip {
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  padding: 0.75rem 1.5rem;
+  border-radius: 2rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.chip:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.chip.active {
+  background: var(--text);
+  color: var(--background);
+  border-color: var(--text);
+}
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+.template-card {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background-color: var(--surface);
+  transition: transform 0.3s ease;
+}
+
+.template-card:hover {
+  transform: translateY(-4px);
+}
+
+.thumbnail-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  background-color: var(--surface-light);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.template-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.thumbnail-wrapper:hover .template-thumbnail {
+  transform: scale(1.03);
+}
+
+.hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.thumbnail-wrapper:hover .hover-overlay {
+  opacity: 1;
+}
+
+.template-info {
+  text-align: center;
+}
+
+.template-info h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.template-category {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-soft);
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+}
