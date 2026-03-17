@@ -360,7 +360,7 @@ export default function EventRsvps() {
               );
 
               return (
-                <div key={r._id || `${r.name}-${r.createdAt}`} className="rsvp-card">
+                <div key={r._id || `${r.name}-${r.createdAt}`} className={`rsvp-card rsvp-card-${r.status}`}>
                   <div className="rsvp-card-header">
                     <div>
                       {!isEditing ? (
