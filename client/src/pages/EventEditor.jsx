@@ -25,6 +25,12 @@ const MobileIconBtn = ({ icon: Icon, label, onClick, disabled, variant = "ghost"
   </button>
 );
 
+const decodeHtml = (html) => {
+  const txt = document.createElement("textarea");
+  txt.innerHTML = html;
+  return txt.value;
+};
+
 // Componente Custom per il Color Picker (Stile Canva/Native Chrome)
 const CustomColorPicker = ({ color, onChange }) => {
   const [hexInput, setHexInput] = useState(color);
@@ -190,18 +196,18 @@ const CustomFontSelect = ({ value, onChange, fonts, selectedLayer }) => {
          onClick={() => setIsOpen(!isOpen)}
          style={{
            padding: '8px 12px', 
-           border: '1px solid var(--border)', 
-           borderRadius: 'var(--radius-sm)',
-           background: 'var(--surface-light)',
+           border: '1px solid var(--border-color-strong)', 
+           borderRadius: 'var(--radius-xs)',
+           background: 'var(--bg-surface)',
            cursor: 'pointer',
            display: 'flex',
            justifyContent: 'space-between',
            alignItems: 'center',
-           fontFamily: value,
+           fontFamily: `'${value}'`,
            fontSize: '15px'
          }}
        >
-         <span>{value}</span>
+         <span style={{ color: 'var(--text-primary)', fontFamily: `'${value}'` }}>{value}</span>
          <ChevronDown size={14} style={{ color: "var(--text-soft)", transform: isOpen ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
        </div>
        
@@ -211,10 +217,10 @@ const CustomFontSelect = ({ value, onChange, fonts, selectedLayer }) => {
            width: '100%',
            maxHeight: '300px',
            overflowY: 'auto',
-           background: '#181820',
-           border: '1px solid var(--border)',
-           borderRadius: 'var(--radius-md)',
-           boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.4)',
+           background: 'var(--bg-surface)',
+           border: '1px solid var(--border-color-strong)',
+           borderRadius: 'var(--radius-xs)',
+           boxShadow: 'var(--shadow-soft)',
            zIndex: 1000
          }} className="custom-scrollbar-mini">
             {fonts.map(f => (
@@ -227,9 +233,8 @@ const CustomFontSelect = ({ value, onChange, fonts, selectedLayer }) => {
                  style={{
                    padding: '12px 14px',
                    cursor: 'pointer',
-                   borderBottom: '1px solid rgba(255,255,255,0.05)',
                    backgroundColor: value === f ? 'var(--accent)' : 'transparent',
-                   color: value === f ? '#ffffff' : 'var(--text-main)',
+                   color: value === f ? '#ffffff' : 'var(--text-primary)',
                    transition: 'all 0.15s ease',
                    display: 'flex',
                    flexDirection: 'column',
@@ -237,7 +242,7 @@ const CustomFontSelect = ({ value, onChange, fonts, selectedLayer }) => {
                  }}
                  onMouseEnter={e => {
                    if(value !== f) {
-                     e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                     e.currentTarget.style.backgroundColor = 'var(--accent-soft)';
                    }
                  }}
                  onMouseLeave={e => {
@@ -291,6 +296,23 @@ export default function EventEditor() {
   const [keyLayerId, setKeyLayerId] = useState(null);
   const [alignmentReference, setAlignmentReference] = useState('canvas'); // 'canvas' | 'selection'
   const [editingLayerId, setEditingLayerId] = useState(null);
+
+  useEffect(() => {
+    if (editingLayerId) {
+      setTimeout(() => {
+        const el = document.getElementById(`layer-content-${editingLayerId}`);
+        if (el) {
+          el.focus();
+          const range = document.createRange();
+          const sel = window.getSelection();
+          range.selectNodeContents(el);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }, 50);
+    }
+  }, [editingLayerId]);
   const [selectionBox, setSelectionBox] = useState(null); // Box di selezione {startX, startY, currentX, currentY}
   const [displayColorPicker, setDisplayColorPicker] = useState(false);
   const [isEditingBackground, setIsEditingBackground] = useState(false);
@@ -794,12 +816,14 @@ export default function EventEditor() {
       return; 
     }
 
-    // Manual Double-Click Detection
+    // Double-Tap or Tap-to-Edit (if already selected and text)
     const now = Date.now();
     const isDoubleClick = lastClickRef.current.id === layer.id && (now - lastClickRef.current.time < 300);
+    const isAlreadySelectedText = selectedLayerIds.length === 1 && selectedLayerIds[0] === layer.id && (layer.type === 'text' || !layer.type);
+    
     lastClickRef.current = { id: layer.id, time: now };
 
-    if (isDoubleClick && (layer.type === 'text' || !layer.type)) {
+    if ((isDoubleClick || isAlreadySelectedText) && (layer.type === 'text' || !layer.type)) {
       setEditingLayerId(layer.id);
       draggingLayerId.current = null;
       return; // Stop here to allow focus/editing
@@ -1485,7 +1509,7 @@ export default function EventEditor() {
                               {(!layer.type || layer.type === 'text') ? <Type size={14} color="var(--text-soft)" /> : <ImageIcon size={14} color="var(--text-soft)" />}
                             </div>
                             <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
-                              {(!layer.type || layer.type === 'text') ? (layer.text.replace(/<[^>]*>/g, '').substring(0, 20) || "Testo") : "Immagine"}
+                              {(!layer.type || layer.type === 'text') ? (decodeHtml(layer.text.replace(/<[^>]*>/g, '').substring(0, 20)) || "Testo") : "Immagine"}
                             </span>
                             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)', opacity: hoveredLayerId === layer.id ? 1 : 0, transition: 'opacity 0.2s' }} />
                           </div>
@@ -1584,7 +1608,7 @@ export default function EventEditor() {
                     </div>
                   ) : (!selectedLayer.type || selectedLayer.type === 'text') ? (
                    <>
-                     <label>Font</label>
+                     <label style={{marginTop: '1.2rem', marginBottom: '8px', display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-soft)'}}>Carattere</label>
                      <CustomFontSelect 
                        value={selectedLayer.fontFamily} 
                        fonts={AVAILABLE_FONTS}
@@ -1600,8 +1624,29 @@ export default function EventEditor() {
                           <Button variant="ghost" className="stepper-btn" onClick={() => updateSelectedLayer({fontSize: Math.max(8, selectedLayer.fontSize - 1)})}>
                             <Minus size={14}/>
                           </Button>
-                          <div style={{width: '40px', textAlign: 'center', fontSize: '0.9rem', fontWeight: 600}}>{selectedLayer.fontSize}</div>
-                          <Button variant="ghost" className="stepper-btn" onClick={() => updateSelectedLayer({fontSize: selectedLayer.fontSize + 1})}>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '45px' }}>
+                            <input 
+                              type="text" 
+                              value={selectedLayer.fontSize}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value.replace(/\D/g, '')) || 0;
+                                updateSelectedLayer({fontSize: val});
+                              }}
+                              style={{
+                                width: '100%',
+                                textAlign: 'center',
+                                fontSize: '0.9rem',
+                                fontWeight: 600,
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-primary)',
+                                outline: 'none',
+                                padding: 0
+                              }}
+                            />
+                          </div>
+                          <Button variant="ghost" className="stepper-btn" onClick={() => updateSelectedLayer({fontSize: (selectedLayer.fontSize || 0) + 1})}>
                             <Plus size={14}/>
                           </Button>
                         </div>
@@ -1619,24 +1664,21 @@ export default function EventEditor() {
                         </div>
                       </div>
 
-                        <div className="prop-row" style={{alignItems: 'center', marginTop: '0.5rem', marginBottom: displayColorPicker === 'font' ? '0.5rem' : '0.5rem'}}>
-                           <PaintBucket size={16} color="var(--text-soft)"/>
-                           <label style={{margin: 0, flex: 1}}>Colore</label>
-                           <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-                              <div 
-                                onClick={() => setDisplayColorPicker(displayColorPicker === 'font' ? false : 'font')}
-                                style={{
-                                  padding: 0, 
-                                  border: '2px solid var(--border)', 
-                                  background: selectedLayer.color, 
-                                  width: '24px', 
-                                  height: '24px', 
-                                  cursor: 'pointer', 
-                                  borderRadius: '4px', 
-                                  overflow: 'hidden'
-                                }}
-                              />
-                           </div>
+                        <div className="prop-row" style={{alignItems: 'center', marginTop: '1.2rem', marginBottom: '8px'}}>
+                           <label style={{margin: 0, flex: 1, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-soft)'}}>Colore</label>
+                           <div 
+                             onClick={() => setDisplayColorPicker(displayColorPicker === 'font' ? false : 'font')}
+                             style={{
+                               padding: 0, 
+                               border: '2px solid var(--border)', 
+                               background: selectedLayer.color, 
+                               width: '28px', 
+                               height: '28px', 
+                               cursor: 'pointer', 
+                               borderRadius: '6px', 
+                               overflow: 'hidden'
+                             }}
+                           />
                         </div>
                         {displayColorPicker === 'font' && (
                            <div style={{ marginTop: '12px', width: '100%' }}>
@@ -1646,7 +1688,7 @@ export default function EventEditor() {
                              />
                            </div>
                         )}
-                      <label style={{marginTop: '0.5rem', marginBottom: '8px', display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-soft)'}}>Spaziatura Lettere</label>
+                      <label style={{marginTop: '1.2rem', marginBottom: '8px', display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-soft)'}}>Spaziatura Lettere</label>
                       <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '0.5rem'}}>
                         <input 
                           type="range" 
@@ -1664,7 +1706,7 @@ export default function EventEditor() {
                         <span style={{fontSize: '14px', width: '30px', textAlign: 'right', fontWeight: 700, color: 'var(--text-soft)'}}>{selectedLayer.letterSpacing || 0}</span>
                       </div>
 
-                      <label style={{marginBottom: '8px', display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-soft)'}}>Spaziatura Righe</label>
+                      <label style={{marginTop: '0.5rem', marginBottom: '8px', display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-soft)'}}>Spaziatura Righe</label>
                       <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '1rem'}}>
                         <input 
                           type="range" 
@@ -2231,7 +2273,30 @@ export default function EventEditor() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '10px 20px', flex: 1, justifyContent: 'center' }}>
                       <div className="font-size-stepper" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem'}}>
                         <Button variant="ghost" className="stepper-btn" onClick={() => updateSelectedLayer({fontSize: Math.max(8, selectedLayer.fontSize - 1)})}><Minus size={28}/></Button>
-                        <span style={{fontSize: '1.4rem', minWidth: '50px', fontWeight: 700, textAlign: 'center'}}>{selectedLayer.fontSize}px</span>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '60px' }}>
+                          <input 
+                            type="text" 
+                            value={selectedLayer.fontSize}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value.replace(/\D/g, '')) || 0;
+                              updateSelectedLayer({fontSize: val});
+                            }}
+                            style={{
+                              fontSize: '1.4rem', 
+                              width: '45px', 
+                              fontWeight: 700, 
+                              textAlign: 'center',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--text-primary)',
+                              padding: 0,
+                              outline: 'none',
+                              fontFamily: 'inherit'
+                            }}
+                          />
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', marginLeft: '2px', position: 'relative', top: '2px' }}>px</span>
+                        </div>
                         <Button variant="ghost" className="stepper-btn" onClick={() => updateSelectedLayer({fontSize: selectedLayer.fontSize + 1})}><Plus size={28}/></Button>
                       </div>
                       
@@ -2748,13 +2813,7 @@ export default function EventEditor() {
                  <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', width: '100%', padding: '4px 0' }}>
                    {(!selectedLayer.type || selectedLayer.type === 'text') ? (
                      <>
-                       <MobileIconBtn 
-                         icon={Type} 
-                         label="Modifica" 
-                         variant={selectedLayer.type === 'text' ? 'primary' : 'ghost'}
-                         onClick={() => setEditingLayerId(selectedLayer.id)} 
-                       />
-                       <MobileIconBtn icon={Baseline} label="Font" onClick={() => setActiveMobileTab(activeMobileTab === 'font' ? null : 'font')} />
+                       <MobileIconBtn icon={Baseline} label="Carattere" onClick={() => setActiveMobileTab(activeMobileTab === 'font' ? null : 'font')} />
                        <MobileIconBtn icon={Settings2} label="Dimensioni" onClick={() => setActiveMobileTab(activeMobileTab === 'size' ? null : 'size')} />
                        <MobileIconBtn icon={Bold} label="Formato" onClick={() => setActiveMobileTab(activeMobileTab === 'format' ? null : 'format')} />
                        <MobileIconBtn icon={PaintBucket} label="Colore" onClick={() => setActiveMobileTab(activeMobileTab === 'color' ? null : 'color')} />
