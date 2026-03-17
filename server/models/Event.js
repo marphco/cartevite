@@ -4,7 +4,11 @@ const BlockSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
     type: { type: String, required: true }, // es: "text", "image", "map", "rsvp"
-    order: { type: Number, required: true },
+    order: { type: Number, default: 0 },
+    x: { type: mongoose.Schema.Types.Mixed },
+    y: { type: mongoose.Schema.Types.Mixed },
+    width: { type: mongoose.Schema.Types.Mixed },
+    height: { type: mongoose.Schema.Types.Mixed },
     props: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { _id: false }

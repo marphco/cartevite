@@ -195,10 +195,10 @@ export default function EventRsvps() {
   }
 
   const filterOptions = [
-    { key: "all", label: "Tutte" },
-    { key: "yes", label: <span style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}><CheckCircle2 size={16} /> Partecipa</span> },
-    { key: "maybe", label: <span style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}><HelpCircle size={16} /> Forse</span> },
-    { key: "no", label: <span style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}><XCircle size={16} /> No</span> },
+    { key: "all", label: "Tutti", icon: Users },
+    { key: "yes", label: "Partecipa", icon: CheckCircle2 },
+    { key: "maybe", label: "Forse", icon: HelpCircle },
+    { key: "no", label: "No", icon: XCircle },
   ];
 
   return (
@@ -219,99 +219,115 @@ export default function EventRsvps() {
           </div>
         </div>
 
-        <div className="rsvp-stats">
+
+
+        <Surface variant="glass" className="rsvp-manual-card" style={{ padding: '2rem', border: '1px solid var(--border-color-strong)' }}>
+          <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+            <p className="rsvp-eyebrow" style={{ margin: 0, fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.25em' }}>AGGIUNTA MANUALE</p>
+            <h2 style={{ margin: '0.4rem 0 0', fontSize: '1.6rem', fontFamily: 'var(--font-display)' }}>Inserisci un nuovo ospite</h2>
+          </div>
+
+          <form onSubmit={handleManualAdd} className="rsvp-form-grid">
+            <div className="input-group">
+              <label>Nome Ospite</label>
+              <input
+                type="text"
+                required
+                placeholder="Es. Mario Rossi"
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+                className="rsvp-input"
+              />
+            </div>
+
+            <div className="input-group">
+              <label>Numero Ospiti</label>
+              <input
+                type="number"
+                min="1"
+                placeholder="1"
+                value={manualGuests}
+                onChange={(e) => setManualGuests(e.target.value)}
+                className="rsvp-input"
+              />
+            </div>
+
+            <div className="input-group">
+              <label>Stato</label>
+              <select
+                value={manualStatus}
+                onChange={(e) => setManualStatus(e.target.value)}
+                className="rsvp-select"
+              >
+                <option value="yes">Partecipa</option>
+                <option value="maybe">Forse</option>
+                <option value="no">Non può</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <Button type="submit" disabled={manualSending} style={{ width: '100%', height: '52px', fontWeight: 800, fontSize: '1rem' }}>
+                {manualSending ? "Aggiungo..." : "Aggiungi ospite"}
+              </Button>
+            </div>
+          </form>
+
+          {manualError && (
+            <p style={{ color: "salmon", marginTop: '1rem', fontSize: '0.9rem', fontWeight: 600 }}>{manualError}</p>
+          )}
+        </Surface>
+
+        <div className="rsvp-stats" style={{ marginTop: '2rem' }}>
           <StatCard label="Conferme" value={counts.yesResponses} hint={`${counts.yesGuests} ospiti`} />
           <StatCard label="Forse" value={counts.maybeResponses} hint={`${counts.maybeGuests} ospiti`} />
           <StatCard label="Non possono" value={counts.noResponses} hint={`${counts.noGuests} ospiti`} />
         </div>
 
-        <Surface variant="soft" className="rsvp-filters">
-          {filterOptions.map((opt) => {
-            const isSelected = filterStatus === opt.key;
-            let bgColor = "transparent";
-            let color = "currentColor";
-            
-            if (isSelected) {
-              if (opt.key === "yes") {
-                bgColor = "rgba(58, 230, 179, 0.15)";
-                color = "#3ae6b3"; // verde scuro/chiaro
-              } else if (opt.key === "maybe") {
-                bgColor = "rgba(244, 196, 107, 0.15)";
-                color = "#f4c46b"; // giallognolo
-              } else if (opt.key === "no") {
-                bgColor = "rgba(250, 128, 114, 0.15)";
-                color = "salmon"; // rosso salmon
-              } else {
-                // all
-                bgColor = "rgba(255,255,255,0.1)";
-                color = "#fff";
+        <div style={{ marginTop: '2.5rem', marginBottom: '1rem' }}>
+          <p className="rsvp-eyebrow" style={{ marginBottom: '0.8rem', opacity: 0.8 }}>Filtra per stato:</p>
+          <Surface variant="soft" className="rsvp-filters" style={{ margin: 0 }}>
+            {filterOptions.map((opt) => {
+              const isSelected = filterStatus === opt.key;
+              let bgColor = "transparent";
+              let color = "var(--text-soft)";
+              
+              if (isSelected) {
+                if (opt.key === "yes") {
+                  bgColor = "rgba(var(--accent-rgb), 0.1)";
+                  color = "var(--accent)";
+                } else if (opt.key === "maybe") {
+                  bgColor = "rgba(244, 196, 107, 0.15)";
+                  color = "#d9a13e";
+                } else if (opt.key === "no") {
+                  bgColor = "rgba(250, 128, 114, 0.15)";
+                  color = "#e66a5c";
+                } else {
+                  bgColor = "var(--accent)";
+                  color = "#fff";
+                }
               }
-            }
 
-            return (
-              <Button
-                key={opt.key}
-                variant="ghost"
-                onClick={() => setFilterStatus(opt.key)}
-                style={{
-                   backgroundColor: bgColor,
-                   color: color,
-                   border: isSelected ? `1px solid ${color}` : "1px solid transparent",
-                   opacity: isSelected ? 1 : 0.6
-                }}
-              >
-                {opt.label}
-              </Button>
-            );
-          })}
-        </Surface>
-
-        <Surface variant="glass" className="rsvp-manual-card">
-          <div>
-            <p className="rsvp-eyebrow" style={{ letterSpacing: "0.25em" }}>
-              Aggiunta manuale
-            </p>
-            <h2 style={{ margin: "0.2rem 0 0" }}>Inserisci un nuovo ospite</h2>
-          </div>
-
-          <form onSubmit={handleManualAdd} className="rsvp-form-grid">
-            <input
-              type="text"
-              required
-              placeholder="Nome ospite"
-              value={manualName}
-              onChange={(e) => setManualName(e.target.value)}
-              className="rsvp-input"
-            />
-
-            <input
-              type="number"
-              min="1"
-              placeholder="Numero ospiti totali"
-              value={manualGuests}
-              onChange={(e) => setManualGuests(e.target.value)}
-              className="rsvp-input"
-            />
-
-            <select
-              value={manualStatus}
-              onChange={(e) => setManualStatus(e.target.value)}
-              className="rsvp-select"
-            >
-              <option value="yes">Partecipa</option>
-              <option value="maybe">Forse</option>
-              <option value="no">Non può</option>
-            </select>
-
-            <Button type="submit" disabled={manualSending}>
-              {manualSending ? "Aggiungo..." : "Aggiungi ospite"}
-            </Button>
-          </form>
-
-          {manualError && (
-            <p style={{ color: "salmon", margin: 0 }}>{manualError}</p>
-          )}
-        </Surface>
+              return (
+                <Button
+                  key={opt.key}
+                  variant={isSelected ? "primary" : "ghost"}
+                  onClick={() => setFilterStatus(opt.key)}
+                  className="rsvp-filter-btn"
+                  style={{
+                    backgroundColor: bgColor,
+                    color: color,
+                    border: isSelected ? `1px solid ${color}` : "1px solid var(--border)",
+                    opacity: 1,
+                    boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  {opt.icon && <opt.icon size={22} className="filter-icon" />}
+                  <span className="filter-label">{opt.label}</span>
+                </Button>
+              );
+            })}
+          </Surface>
+        </div>
 
         {filteredRsvps.length === 0 ? (
           <Surface variant="soft" className="rsvp-empty">
@@ -355,44 +371,59 @@ export default function EventRsvps() {
                           </p>
                         </>
                       ) : (
-                        <input
-                          type="text"
-                          value={editForm.name}
-                          onChange={(e) =>
-                            setEditForm((prev) => ({ ...prev, name: e.target.value }))
-                          }
-                          className="rsvp-input"
-                        />
+                        <div className="input-group">
+                          <label>Nome Ospite</label>
+                          <input
+                            type="text"
+                            value={editForm.name}
+                            onChange={(e) =>
+                              setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                            }
+                            className="rsvp-input"
+                          />
+                        </div>
                       )}
                     </div>
-                    {statusBadge}
+                    <div style={{ alignSelf: 'flex-start' }}>
+                      {statusBadge}
+                    </div>
                   </div>
 
                   {isEditing ? (
-                    <div className="rsvp-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editForm.guestsCount}
-                        onChange={(e) =>
-                          setEditForm((prev) => ({ ...prev, guestsCount: e.target.value }))
-                        }
-                        className="rsvp-input"
-                      />
-                      <select
-                        value={editForm.status}
-                        onChange={(e) =>
-                          setEditForm((prev) => ({ ...prev, status: e.target.value }))
-                        }
-                        className="rsvp-select"
-                      >
-                        <option value="yes">Partecipa</option>
-                        <option value="maybe">Forse</option>
-                        <option value="no">Non può</option>
-                      </select>
+                    <div className="rsvp-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", marginTop: '0.5rem' }}>
+                      <div className="input-group">
+                        <label>Num. Ospiti</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={editForm.guestsCount}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, guestsCount: e.target.value }))
+                          }
+                          className="rsvp-input"
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label>Stato</label>
+                        <select
+                          value={editForm.status}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, status: e.target.value }))
+                          }
+                          className="rsvp-select"
+                        >
+                          <option value="yes">Partecipa</option>
+                          <option value="maybe">Forse</option>
+                          <option value="no">Non può</option>
+                        </select>
+                      </div>
                     </div>
                   ) : (
-                    r.message && <p className="rsvp-message">“{r.message}”</p>
+                    r.message && (
+                      <div className="rsvp-message">
+                         {r.message}
+                      </div>
+                    )
                   )}
 
                   <div className="rsvp-card-actions">

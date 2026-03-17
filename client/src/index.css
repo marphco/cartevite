@@ -113,3 +113,26 @@ body::after {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(60, 79, 118, 0.25);
 }
+
+/* Custom Scrollbar Mini */
+.custom-scrollbar-mini::-webkit-scrollbar {
+  width: 8px; /* Slightly wider */
+  height: 8px;
+}
+
+.custom-scrollbar-mini::-webkit-scrollbar-track {
+  background: rgba(60, 79, 118, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar-mini::-webkit-scrollbar-thumb {
+  background: rgba(60, 79, 118, 0.4); /* Much more visible */
+  border-radius: 10px;
+  border: 2px solid white;
+}
+
+.custom-scrollbar-mini::-webkit-scrollbar-thumb:hover {
+  background: var(--accent); /* Visual feedback on hover */
+}
+
+

@@ -297,11 +297,11 @@ export default function EnvelopeAnimation({
                style={{ zIndex: phase === "extracted" ? 8 : 3 }}
              >
                <motion.div className="envelope-card-content"
-                 initial={{ y: "0%", scale: 1, rotateZ: -90 }}
+                 initial={{ y: "0%", scale: 1, rotateZ: 0 }}
                  animate={{ 
                    y: phase === "extracted" ? "-15%" : (phase === "extracting" ? "-120%" : "0%"),
                    scale: 1,
-                   rotateZ: phase === "extracted" ? 0 : -90
+                   rotateZ: phase === "extracted" ? -90 : 0
                   }}
                  transition={{ duration: phase === "extracted" ? 1.2 : 0.8, ease: "easeInOut" }}
                >

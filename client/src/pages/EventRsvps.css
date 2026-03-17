@@ -48,9 +48,55 @@
 }
 
 .rsvp-filters {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.5rem;
+  padding: 0.8rem;
+  background: var(--surface-light);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+
+.rsvp-filter-btn {
+  flex-direction: column !important;
+  padding: 0.8rem 0.4rem !important;
+  height: auto !important;
+  min-height: 70px;
+  gap: 0.4rem !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.filter-icon {
+  opacity: 0.9;
+}
+
+.filter-label {
+  font-size: 0.65rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+@media (min-width: 768px) {
+  .rsvp-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding: 0.6rem 1rem;
+    width: fit-content;
+  }
+  
+  .rsvp-filter-btn {
+    flex-direction: row !important;
+    padding: 0.55rem 1.3rem !important;
+    min-height: unset;
+  }
+  
+  .filter-label {
+    font-size: 0.9rem !important;
+    text-transform: none;
+    letter-spacing: normal;
+  }
 }
 
 .rsvp-manual-card {
@@ -68,15 +114,50 @@
 .rsvp-select,
 .rsvp-textarea {
   width: 100%;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-color-strong);
+  background: var(--surface);
   color: var(--text-primary);
-  padding: 0.65rem 0.75rem;
+  padding: 0.8rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
 
-.rsvp-select {
-  appearance: none;
+.rsvp-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.rsvp-input:hover,
+.rsvp-select:hover,
+.rsvp-textarea:hover {
+  border-color: var(--accent);
+  background: var(--surface-light);
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.input-group label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+
+.rsvp-input:focus,
+.rsvp-select:focus,
+.rsvp-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+  outline: none;
 }
 
 .rsvp-list {
@@ -87,26 +168,52 @@
 
 .rsvp-card {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(9, 9, 14, 0.9);
-  padding: 1.25rem;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-color-strong); /* Bordo più forte */
+  background: var(--surface);
+  padding: 1.5rem; /* Più respiro */
+  box-shadow: 0 4px 20px rgba(60, 79, 118, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.rsvp-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(60, 79, 118, 0.12);
+}
+
+.rsvp-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+.rsvp-card-header strong {
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  font-family: var(--font-display);
 }
 
 .rsvp-card-header {
   display: flex;
   justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  align-items: flex-start; /* Fix badge stretching */
+  gap: 1rem;
 }
 
 .rsvp-card-actions {
   display: flex;
   gap: 0.4rem;
   flex-wrap: wrap;
+  margin-top: 0.5rem;
 }
 
 .rsvp-chip-row {
@@ -116,15 +223,36 @@
 }
 
 .rsvp-message {
-  color: var(--text-soft);
-  font-size: 0.9rem;
-  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  margin: 0.5rem 0;
+  padding: 1.2rem;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.05), rgba(var(--accent-rgb), 0.02));
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent);
+  font-style: italic;
+  line-height: 1.6;
+  position: relative;
+}
+
+.rsvp-message::before {
+  content: "Messaggio:";
+  display: block;
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+  opacity: 0.8;
 }
 
 .rsvp-empty {
   text-align: center;
-  padding: 1.5rem;
+  padding: 3rem;
   border-radius: var(--radius-md);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border: 2px dashed var(--border);
   color: var(--text-muted);
+  background: var(--surface-light);
 }
