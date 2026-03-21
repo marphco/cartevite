@@ -1,18 +1,18 @@
 import { Routes, Route } from "react-router-dom";
 
-import Dashboard from "./pages/Dashboard.jsx";
-import MarketingLanding from "./pages/MarketingLanding.jsx";
-import NewEvent from "./pages/NewEvent";
-import TemplateCatalog from "./pages/TemplateCatalog";
-import EventPublic from "./pages/EventPublic";
-import EventEditor from "./pages/EventEditor";
-import EventRsvps from "./pages/EventRsvps.jsx";
-import EventInvites from "./pages/EventInvites.jsx";
-import MobileImport from "./pages/MobileImport";
-import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard/Dashboard.jsx";
+import MarketingLanding from "./pages/Marketing/MarketingLanding.jsx";
+import NewEvent from "./pages/Dashboard/NewEvent";
+import TemplateCatalog from "./pages/PublicView/TemplateCatalog";
+import EventPublic from "./pages/PublicView/EventPublic";
+import EventEditor from "./pages/Editor/EventEditor";
+import EventRsvps from "./pages/Rsvps/EventRsvps.jsx";
+import EventInvites from "./pages/PublicView/EventInvites.jsx";
+import MobileImport from "./pages/Dashboard/MobileImport";
+import Login from "./pages/Login/Login";
 
-import RequireAuth from "./components/RequireAuth";
-import RedirectIfAuth from "./components/RedirectIfAuth";
+import RequireAuth from "./components/auth/RequireAuth";
+import RedirectIfAuth from "./components/auth/RedirectIfAuth";
 
 function App() {
   return (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { apiFetch } from "../utils/apiFetch";
+import { apiFetch } from "../../utils/apiFetch";
 
 export default function RedirectIfAuth({ children }) {
   const [loading, setLoading] = useState(true);

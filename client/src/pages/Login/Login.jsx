@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "../ui";
+import { Button } from "../../ui";
 import { ArrowLeft } from "lucide-react";
-import AuthForm from "../components/AuthForm";
+import AuthForm from "../../components/ui/AuthForm";
 import "./Login.css";
 
 export default function Login() {

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Surface, Button, Badge } from "../ui";
+import { Surface, Button, Badge } from "../../ui";
 import { Sparkles, Calendar, Paintbrush, Send, CreditCard, X } from "lucide-react";
-import { API_BASE } from "../config/api";
-import AuthForm from "../components/AuthForm";
+import { API_BASE } from "../../config/api";
+import AuthForm from "../../components/ui/AuthForm";
 import "./MarketingLanding.css";
 
 const CATEGORY_CARDS = [

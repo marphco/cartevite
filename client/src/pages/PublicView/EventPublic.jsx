@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { resolveImageUrl, API_BASE } from "../config/api";
-import { apiFetch } from "../utils/apiFetch";
-import { Surface, Button, Badge } from "../ui";
-import EnvelopeAnimation from "../components/EnvelopeAnimation";
-import ReadOnlyCanvas from "../components/ReadOnlyCanvas";
+import { resolveImageUrl, API_BASE } from "../../config/api";
+import { apiFetch } from "../../utils/apiFetch";
+import { Surface, Button, Badge } from "../../ui";
+import EnvelopeAnimation from "../../components/envelope/EnvelopeAnimation";
+import ReadOnlyCanvas from "../../components/canvas/ReadOnlyCanvas";
 import { Calendar, MapPin, Users, Send } from "lucide-react";
 import "./EventPublic.css";
 

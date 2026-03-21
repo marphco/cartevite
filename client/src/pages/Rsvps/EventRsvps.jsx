@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { apiFetch } from "../utils/apiFetch";
-import { Surface, Button, Badge, StatCard } from "../ui";
+import { apiFetch } from "../../utils/apiFetch";
+import { Surface, Button, Badge, StatCard } from "../../ui";
 import { CheckCircle2, HelpCircle, XCircle, Users } from "lucide-react";
 import "./EventRsvps.css";
 

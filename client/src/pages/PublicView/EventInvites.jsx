@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { apiFetch } from "../utils/apiFetch";
-import { Surface, Button, Badge } from "../ui";
+import { apiFetch } from "../../utils/apiFetch";
+import { Surface, Button, Badge } from "../../ui";
 import { Users, Mail, MessageCircle, MessageSquare, ClipboardPaste, BookUser, QrCode, FileSpreadsheet } from "lucide-react";
 import "./EventInvites.css";
 

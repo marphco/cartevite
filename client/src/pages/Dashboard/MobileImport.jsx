@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { apiFetch } from "../utils/apiFetch";
-import { Surface, Button, Badge } from "../ui";
+import { apiFetch } from "../../utils/apiFetch";
+import { Surface, Button, Badge } from "../../ui";
 import { BookUser, CheckCircle2 } from "lucide-react";
 
 export default function MobileImport() {

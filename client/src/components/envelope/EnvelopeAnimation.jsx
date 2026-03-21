@@ -5,7 +5,7 @@ import "./EnvelopeAnimation.css";
 
 export default function EnvelopeAnimation({ 
   children, preview = false, guestName = "", envelopeColor = "#54392d", 
-  linerImg = "/minimal_pink_liner.png", pocketLinerImg = null,
+  linerImg = null, pocketLinerImg = null,
   pocketColor = null,
   canvasProps = null, onOpenComplete,
   editMode = false, manualPhase = null,
@@ -376,7 +376,7 @@ export default function EnvelopeAnimation({
                     clipPath: 'polygon(4% 100%, 96% 100%, 55% 15%, 53% 12%, 51.5% 10.5%, 50% 10%, 48.5% 10.5%, 47% 12%, 45% 15%)'
                   }}
                 ></div>
-                <div className="envelope-flap-inner-texture" style={{ backgroundImage: linerImg === "none" ? "none" : `url(${linerImg})`, opacity: linerOpacity }}></div>
+                <div className="envelope-flap-inner-texture" style={{ backgroundImage: (linerImg && linerImg !== "none") ? `url(${linerImg})` : "none", opacity: linerOpacity }}></div>
                 <div className="envelope-flap-hinge-shadow"></div>
               </div>
            </motion.div>

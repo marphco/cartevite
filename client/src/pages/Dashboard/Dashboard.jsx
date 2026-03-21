@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch } from "../utils/apiFetch";
-import { Surface, Button, Badge, StatCard } from "../ui";
+import { apiFetch } from "../../utils/apiFetch";
+import { Surface, Button, Badge, StatCard } from "../../ui";
 import { PenSquare, Send, Users, ExternalLink, Link2, Share2, Trash2, CheckCircle2, HelpCircle, XCircle, Star } from "lucide-react";
 import "./Dashboard.css";
 

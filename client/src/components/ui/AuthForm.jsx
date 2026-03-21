@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { apiFetch } from "../utils/apiFetch";
-import { Button, Surface } from "../ui";
+import { apiFetch } from "../../utils/apiFetch";
+import { Button, Surface } from "../../ui";
 import { useGoogleLogin } from '@react-oauth/google';
-import "../pages/Login.css";
+import "../../pages/Login/Login.css";
 
 export default function AuthForm({ initialMode = "login", onAuthSuccess }) {
   const [mode, setMode] = useState(initialMode);

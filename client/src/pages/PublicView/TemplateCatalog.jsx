@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { PREBUILT_TEMPLATES, TEMPLATE_CATEGORIES } from "../utils/layoutSchema";
-import { Button, Surface } from "../ui";
+import { PREBUILT_TEMPLATES, TEMPLATE_CATEGORIES } from "../../utils/layoutSchema";
+import { Button, Surface } from "../../ui";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import CanvasPreview from "../components/CanvasPreview";
-import { API_BASE } from "../config/api";
+import CanvasPreview from "../../components/canvas/CanvasPreview";
+import { API_BASE } from "../../config/api";
 import "./TemplateCatalog.css";
 
 export default function TemplateCatalog() {

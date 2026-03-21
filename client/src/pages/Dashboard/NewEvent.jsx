@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { apiFetch } from "../utils/apiFetch";
-import { PREBUILT_TEMPLATES } from "../utils/layoutSchema";
-import { Surface, Button } from "../ui";
+import { apiFetch } from "../../utils/apiFetch";
+import { PREBUILT_TEMPLATES } from "../../utils/layoutSchema";
+import { Surface, Button } from "../../ui";
 import { CheckCircle2 } from "lucide-react";
-import CanvasPreview from "../components/CanvasPreview";
+import CanvasPreview from "../../components/canvas/CanvasPreview";
 import "./NewEvent.css";
 
 export default function NewEvent() {
