@@ -684,6 +684,7 @@ const MobileToolbar = ({
               <div style={{ padding: '8px 10px 4px', fontSize: '10px', color: 'var(--text-soft)', textAlign: 'center' }}>
                 {editorMode === 'envelope' ? "Personalizza la tua busta" : 
                  editorMode === 'background' ? "Personalizza lo scenario" : 
+                 editorMode === 'event_page' ? "Costruisci la landing page" :
                  "Seleziona o aggiungi un elemento"}
               </div>
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', width: '100%', padding: '4px 0' }}>
@@ -712,6 +713,14 @@ const MobileToolbar = ({
                         label="Scenario" 
                         variant={activeMobileTab === 'scenario_bg' ? 'primary' : 'ghost'}
                         onClick={() => setActiveMobileTab('scenario_bg')} 
+                      />
+                    </>
+                  ) : editorMode === 'event_page' ? (
+                    <>
+                      <MobileIconBtn 
+                        icon={Plus} 
+                        label="Aggiungi Sez." 
+                        onClick={() => alert("Moduli in arrivo!")} 
                       />
                     </>
                   ) : (

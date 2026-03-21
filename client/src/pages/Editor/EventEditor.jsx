@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../../utils/apiFetch";
-import { Home, LayoutDashboard, Save, Check, ImageIcon, Sparkles, Shapes, Undo2, X, ChevronUp } from "lucide-react";
+import { Home, LayoutDashboard, Save, Check, ImageIcon, Sparkles, Shapes, Undo2, X, ChevronUp, PanelTop } from "lucide-react";
 
 import "./EventEditor.css";
 import EditorStage from "./components/EditorStage";
@@ -229,6 +229,7 @@ export default function EventEditor() {
           <MobileIconBtn icon={ImageIcon} label="Invito" className="mobile-only" variant={editorMode === 'canvas' ? 'primary' : 'ghost'} onClick={() => { setEditorMode('canvas'); setSelectedLayerIds([]); setActiveMobileTab(null); setDisplayColorPicker(false); }} />
           <MobileIconBtn icon={Shapes} label="Busta" className="mobile-only" variant={editorMode === 'envelope' ? 'primary' : 'ghost'} onClick={() => { setEditorMode('envelope'); setSelectedLayerIds([]); setActiveMobileTab(null); setDisplayColorPicker(false); }} />
           <MobileIconBtn icon={Sparkles} label="Scenario" className="mobile-only" variant={editorMode === 'background' ? 'primary' : 'ghost'} onClick={() => { setEditorMode('background'); setActiveMobileTab(null); setDisplayColorPicker(false); setSelectedLayerIds([]); }} />
+          <MobileIconBtn icon={PanelTop} label="Pagina" className="mobile-only" variant={editorMode === 'event_page' ? 'primary' : 'ghost'} onClick={() => { setEditorMode('event_page'); setActiveMobileTab(null); setDisplayColorPicker(false); setSelectedLayerIds([]); }} />
           <div style={{ flex: 1 }} className="desktop-only text-center"><h1 style={{ fontSize: '1.2rem', margin: 0 }}>{event.title}</h1></div>
           <MobileIconBtn icon={Undo2} label="Annulla" onClick={undo} disabled={history.length === 0} />
           <MobileIconBtn icon={autoSaving ? Save : (isDirty ? Save : Check)} label={autoSaving ? "..." : (isDirty ? "Bozza" : "Salvato")} disabled style={{ color: autoSaving ? "#f4c46b" : (isDirty ? "salmon" : "#3ae6b3") }} />

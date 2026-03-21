@@ -14,14 +14,48 @@ export default function EnvelopeAnimation({
   onLinerChange = () => {},
   linerOpacity = 1,
   linerColor = null,
-  scale: externalScale = null
+  scale: externalScale = null,
+  isEventPage = false
 }) {
   const sceneRef = useRef(null);
   const [phase, setPhase] = useState(preview ? "extracted" : "closed"); 
+  const phaseRef = useRef(phase);
 
-  // Sync with manualPhase if provided
+  // Reliable Auto-Sequencer when manualPhase is not provided (standalone play)
   useEffect(() => {
-    if (manualPhase) setPhase(manualPhase);
+    let t;
+    if (!manualPhase) {
+       if (phase === "flap_open") {
+          t = setTimeout(() => { setPhase("extracting"); phaseRef.current = "extracting"; }, 800);
+       } else if (phase === "extracting") {
+          t = setTimeout(() => { setPhase("extracted"); phaseRef.current = "extracted"; }, 800);
+       } else if (phase === "extracted" && onOpenComplete) {
+          t = setTimeout(() => { onOpenComplete(); }, 800);
+       }
+    }
+    return () => clearTimeout(t);
+  }, [phase, manualPhase, onOpenComplete]);
+
+  // Sync with manualPhase if provided, with sequence support for 'extracted' target
+  useEffect(() => {
+    if (manualPhase) {
+      if (manualPhase === "extracted" && phaseRef.current === "closed") {
+         setPhase("flap_open"); phaseRef.current = "flap_open";
+         setTimeout(() => {
+            setPhase("extracting"); phaseRef.current = "extracting";
+            setTimeout(() => {
+               setPhase("extracted"); phaseRef.current = "extracted";
+            }, 800);
+         }, 800);
+      } else if (manualPhase === "closed") {
+         setPhase("closed"); phaseRef.current = "closed";
+      } else if (manualPhase === "extracting" && phaseRef.current === "closed") {
+         setPhase("flap_open"); phaseRef.current = "flap_open";
+         setTimeout(() => { setPhase("extracting"); phaseRef.current = "extracting"; }, 800);
+      } else {
+         setPhase(manualPhase); phaseRef.current = manualPhase;
+      }
+    }
   }, [manualPhase]);
 
   // Robust Wheel Handling (non-passive)
@@ -84,18 +118,9 @@ export default function EnvelopeAnimation({
   const pColor = pocketColor ? (pocketColor === "#111111" ? "#4a3328" : pocketColor) : envBg;
 
   const handleClick = () => {
-    if (editMode) return; // In edit mode, we control via buttons
+    if (editMode || manualPhase) return; // In edit mode, or if manually controlled, don't execute local open
     if (phase === "closed") {
-      setPhase("flap_open"); 
-      setTimeout(() => {
-        setPhase("extracting"); 
-        setTimeout(() => {
-          setPhase("extracted"); 
-          setTimeout(() => {
-             if (onOpenComplete) onOpenComplete();
-          }, 800);
-        }, 800); 
-      }, 800);
+      setPhase("flap_open"); phaseRef.current = "flap_open";
     }
   };
 
@@ -113,9 +138,9 @@ export default function EnvelopeAnimation({
            initial={{ y: 0, scale: 1 }}
            animate={{ 
              y: externalScale !== null 
-                ? ((phase === "flap_open" || phase === "extracting") ? 0.3 * (isRectangular ? 428.5 : 500) * externalScale : 0)
-                : (phase === "extracted" ? windowDims.h * 0.05 : (phase === "flap_open" || phase === "extracting" ? (windowDims.w <= 768 ? 65 : 20) : 0)),
-             scale: externalScale !== null ? externalScale : ((windowDims.w <= 768 && (phase === "flap_open" || phase === "extracting")) ? 0.85 : 1)
+                ? ((phase === "flap_open" || phase === "extracting") ? 0.3 * (isRectangular ? 428.5 : 500) * externalScale : (phase === "extracted" ? 40 : 0))
+                : (phase === "extracted" ? (isEventPage ? (windowDims.w >= 1024 ? windowDims.h * 0.12 : windowDims.h * 0.08) : (windowDims.w >= 1024 ? 20 : 50)) : (phase === "flap_open" || phase === "extracting" ? (windowDims.w <= 768 ? 65 : 10) : 0)),
+             scale: externalScale !== null ? externalScale : ((windowDims.w <= 768 && (phase === "flap_open" || phase === "extracting")) ? 0.85 : (phase === "extracted" ? (isEventPage ? (windowDims.w <= 768 ? 1.05 : 1.15) : (windowDims.w >= 1024 ? 1.0 : 1.15)) : 1))
            }}
            transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }} 
            style={{
@@ -292,24 +317,28 @@ export default function EnvelopeAnimation({
            
            {/* INVITATION CARD */}
            {!editMode && (
-             <div 
+             <motion.div 
                className={`envelope-card-wrapper phase-${phase}`}
-               style={{ zIndex: phase === "extracted" ? 8 : 3 }}
+               initial={{ z: 3 }}
+               animate={{ z: phase === "extracted" ? 50 : 3 }}
+               transition={{ duration: phase === "extracted" ? 0 : 0.2 }}
+               style={{ transformStyle: 'preserve-3d' }}
              >
                <motion.div className="envelope-card-content"
-                 initial={{ y: "0%", scale: 1, rotateZ: 0 }}
+                 initial={{ y: "0%", x: "0%", scale: 1, rotate: -90 }}
                  animate={{ 
-                   y: phase === "extracted" ? "-15%" : (phase === "extracting" ? "-120%" : "0%"),
+                   y: phase === "extracted" ? (isEventPage ? "5%" : "-25%") : (phase === "extracting" ? "-130%" : "0%"),
+                   x: phase === "extracted" ? (isEventPage ? "-4%" : "-35%") : "0%",
                    scale: 1,
-                   rotateZ: phase === "extracted" ? -90 : 0
+                   rotate: phase === "extracted" ? 0 : -90
                   }}
-                 transition={{ duration: phase === "extracted" ? 1.2 : 0.8, ease: "easeInOut" }}
+                 transition={{ duration: phase === "extracted" ? 1.0 : 0.8, ease: "easeInOut" }}
                >
                  <div className="envelope-card-scaler">
                     {children}
                  </div>
                </motion.div>
-             </div>
+             </motion.div>
            )}
 
            {/* FRONT OF ENVELOPE (POCKET) */}

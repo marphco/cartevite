@@ -93,9 +93,9 @@ const DesktopSidebar = ({
              </Button>
          </div>
          <Button 
-            variant="subtle" 
-            style={{ width: '100%', justifyContent: 'center', fontSize: '12px', borderStyle: 'dashed', opacity: 0.8 }}
-            onClick={() => alert("Funzionalità in arrivo!")}
+            variant={editorMode === 'event_page' ? 'primary' : 'subtle'} 
+            style={{ width: '100%', justifyContent: 'center', fontSize: '12px', marginTop: '4px', ...(editorMode === 'event_page' ? { boxShadow: '0 0 12px rgba(var(--accent-rgb), 0.4)' } : {}) }}
+            onClick={() => setEditorMode('event_page')}
           >
             Pagina Evento
           </Button>
@@ -579,8 +579,23 @@ const DesktopSidebar = ({
             </Surface>
             </>
            )}
+
+           {editorMode === 'event_page' && (
+             <Surface variant="soft" className="panel-section">
+               <p style={{ fontSize: '10px', color: 'var(--text-soft)', marginBottom: '0', lineHeight: '1.5', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: '3px solid var(--accent)' }}>
+                 Costruisci la pagina web pubblica del tuo evento aggiungendo intere nuove sezioni (Mappa, RSVP, Foto).
+               </p>
+               <h3 style={{ marginTop: '16px', marginBottom: '12px' }}>Gestione Sezioni</h3>
+               <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                 <Button variant="primary" style={{width: '100%', justifyContent: 'center'}} onClick={() => alert("Aggiunta moduli in arrivo nel prossimo step!")}>
+                   <Plus size={18} style={{marginRight: 8}}/> Aggiungi Sezione
+                 </Button>
+               </div>
+             </Surface>
+           )}
     </div>
   );
 };
+
 
 export default DesktopSidebar;

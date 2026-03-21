@@ -3,6 +3,8 @@ import { Sparkles } from "lucide-react";
 import EnvelopeAnimation from "../../../components/envelope/EnvelopeAnimation";
 import ReadOnlyCanvas from "../../../components/canvas/ReadOnlyCanvas";
 import EditableText from "./EditableText";
+import EventPageBuilder from "./EventPageBuilder";
+
 
 const EditorStage = ({
   stageRef,
@@ -76,31 +78,35 @@ const EditorStage = ({
       }}
     >
       {/* Sfondo colorato di base situato SOTTO l'immagine */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        backgroundColor: event.theme?.heroBgColor || 'var(--bg-body)',
-        zIndex: 0,
-        pointerEvents: 'none'
-      }} />
+      {editorMode !== 'event_page' && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: event.theme?.heroBgColor || 'var(--bg-body)',
+          zIndex: 0,
+          pointerEvents: 'none'
+        }} />
+      )}
 
       {/* Layer Sfondo Scenario con Opacità */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        backgroundColor: (event.theme?.heroBg && (event.theme.heroBg.startsWith('#') || event.theme.heroBg.startsWith('rgb'))) 
-          ? event.theme.heroBg 
-          : 'transparent',
-        backgroundImage: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) 
-          ? `url(${event.theme.heroBg})` 
-          : 'none',
-        backgroundSize: 'cover',
-        backgroundPosition: event.theme?.heroBgPosition || 'center',
-        opacity: (event.theme?.heroBgOpacity ?? 1),
-        zIndex: 0,
-        pointerEvents: 'none',
-        transition: 'opacity 0.3s ease'
-      }} />
+      {editorMode !== 'event_page' && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: (event.theme?.heroBg && (event.theme.heroBg.startsWith('#') || event.theme.heroBg.startsWith('rgb'))) 
+            ? event.theme.heroBg 
+            : 'transparent',
+          backgroundImage: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) 
+            ? `url(${event.theme.heroBg})` 
+            : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: event.theme?.heroBgPosition || 'center',
+          opacity: (event.theme?.heroBgOpacity ?? 1),
+          zIndex: 0,
+          pointerEvents: 'none',
+          transition: 'opacity 0.3s ease'
+        }} />
+      )}
 
       {editorMode === 'envelope' ? (
         <div className="envelope-preview-container" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -112,7 +118,7 @@ const EditorStage = ({
                pocketLinerImg={event.theme?.coverPocketLiner}
                canvasProps={canvasProps}
                editMode={true}
-               manualPhase={isEnvelopeOpen ? 'flap_open' : 'closed'}
+               manualPhase={isEnvelopeOpen ? 'extracted' : 'closed'}
                linerX={event.theme?.linerX || 0}
                linerY={event.theme?.linerY || 0}
                linerScale={event.theme?.linerScale || 1}
@@ -191,13 +197,22 @@ const EditorStage = ({
                 linerOpacity={event.theme?.linerOpacity ?? 1}
                 linerColor={event.theme?.coverLinerColor || '#ffffff'}
                 canvasProps={canvasProps}
-                manualPhase="flap_open"
+                manualPhase="extracted"
                 preview={true}
               >
               </EnvelopeAnimation>
             </div>
           </div>
         </div>
+      ) : editorMode === 'event_page' ? (
+        <EventPageBuilder 
+          event={event} 
+          canvasProps={canvasProps} 
+          layers={layers} 
+          isMobile={isMobile} 
+          scenarioScale={scenarioScale} 
+          updateTheme={updateTheme} 
+        />
       ) : (
         <div style={{ width: canvasProps.width * stageScale, height: canvasProps.height * stageScale, position: 'relative', margin: 'auto' }}>
           {/* Su Desktop mostriamo ancora il banner, ma su Mobile lo rimuoviamo per non coprire l'invito */}
