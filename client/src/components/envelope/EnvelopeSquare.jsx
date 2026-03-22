@@ -134,7 +134,7 @@ export default function EnvelopeSquare({
            className={`envelope-3d-scene ${envClass} ${isEditingLiner ? 'is-editing-liner' : ''}`}
            initial={{ y: 0, scale: 1 }}
            animate={{ 
-              y: (phase === "extracted" ? -100 : 0),
+              y: (phase === "extracted" ? -180 : 0),
               scale: externalScale !== null ? externalScale : (phase === "extracted" ? 1.15 : 1)
             }}
            transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }} 
