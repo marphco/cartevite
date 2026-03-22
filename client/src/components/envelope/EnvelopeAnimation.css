@@ -43,7 +43,7 @@
   touch-action: none;
 }
 
-.envelope-3d-scene.env-rectangular {
+.envelope-3d-scene.env-horizontal {
   --env-aspect-ratio: 1.4; /* Busta orizzontale */
   width: 600px;
 }

@@ -75,12 +75,20 @@ export function useFetchEvent(slug, searchParams, loadDraft, setDraftRestored, s
     return () => { cancelled = true; };
   }, [slug, loadDraft, searchParams, setDraftRestored, setIsDirty, setEvent, setLayers, setBlocks, setCanvasProps]);
 
-  return { loading, updateTheme: (newTheme, pushToHistory) => {
+  return { loading, updateEvent: (newData, pushToHistory) => {
     if (pushToHistory) pushToHistory();
-    setEvent(prev => ({
-      ...prev,
-      theme: { ...prev.theme, ...newTheme }
-    }));
+    setEvent(prev => {
+      const updated = { ...prev };
+      // Se newData contiene 'theme', facciamo il merge profondo del tema
+      if (newData.theme) {
+        updated.theme = { ...prev.theme, ...newData.theme };
+      }
+      return { ...updated, ...newData };
+    });
+    // Sincronizziamo anche lo stato blocks separato se presente nei dati
+    if (newData.blocks) {
+      setBlocks(newData.blocks);
+    }
     setIsDirty(true);
   }};
 }

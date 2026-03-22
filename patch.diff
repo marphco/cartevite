@@ -1,0 +1,461 @@
+diff --git a/client/src/components/envelope/EnvelopeAnimation.jsx b/client/src/components/envelope/EnvelopeAnimation.jsx
+index fc8d734..a346a0f 100644
+--- a/client/src/components/envelope/EnvelopeAnimation.jsx
++++ b/client/src/components/envelope/EnvelopeAnimation.jsx
+@@ -14,14 +14,48 @@ export default function EnvelopeAnimation({
+   onLinerChange = () => {},
+   linerOpacity = 1,
+   linerColor = null,
+-  scale: externalScale = null
++  scale: externalScale = null,
++  isEventPage = false
+ }) {
+   const sceneRef = useRef(null);
+   const [phase, setPhase] = useState(preview ? "extracted" : "closed"); 
++  const phaseRef = useRef(phase);
+ 
+-  // Sync with manualPhase if provided
++  // Reliable Auto-Sequencer when manualPhase is not provided (standalone play)
+   useEffect(() => {
+-    if (manualPhase) setPhase(manualPhase);
++    let t;
++    if (!manualPhase) {
++       if (phase === "flap_open") {
++          t = setTimeout(() => { setPhase("extracting"); phaseRef.current = "extracting"; }, 800);
++       } else if (phase === "extracting") {
++          t = setTimeout(() => { setPhase("extracted"); phaseRef.current = "extracted"; }, 800);
++       } else if (phase === "extracted" && onOpenComplete) {
++          t = setTimeout(() => { onOpenComplete(); }, 800);
++       }
++    }
++    return () => clearTimeout(t);
++  }, [phase, manualPhase, onOpenComplete]);
++
++  // Sync with manualPhase if provided, with sequence support for 'extracted' target
++  useEffect(() => {
++    if (manualPhase) {
++      if (manualPhase === "extracted" && phaseRef.current === "closed") {
++         setPhase("flap_open"); phaseRef.current = "flap_open";
++         setTimeout(() => {
++            setPhase("extracting"); phaseRef.current = "extracting";
++            setTimeout(() => {
++               setPhase("extracted"); phaseRef.current = "extracted";
++            }, 800);
++         }, 800);
++      } else if (manualPhase === "closed") {
++         setPhase("closed"); phaseRef.current = "closed";
++      } else if (manualPhase === "extracting" && phaseRef.current === "closed") {
++         setPhase("flap_open"); phaseRef.current = "flap_open";
++         setTimeout(() => { setPhase("extracting"); phaseRef.current = "extracting"; }, 800);
++      } else {
++         setPhase(manualPhase); phaseRef.current = manualPhase;
++      }
++    }
+   }, [manualPhase]);
+ 
+   // Robust Wheel Handling (non-passive)
+@@ -84,18 +118,9 @@ export default function EnvelopeAnimation({
+   const pColor = pocketColor ? (pocketColor === "#111111" ? "#4a3328" : pocketColor) : envBg;
+ 
+   const handleClick = () => {
+-    if (editMode) return; // In edit mode, we control via buttons
++    if (editMode || manualPhase) return; // In edit mode, or if manually controlled, don't execute local open
+     if (phase === "closed") {
+-      setPhase("flap_open"); 
+-      setTimeout(() => {
+-        setPhase("extracting"); 
+-        setTimeout(() => {
+-          setPhase("extracted"); 
+-          setTimeout(() => {
+-             if (onOpenComplete) onOpenComplete();
+-          }, 800);
+-        }, 800); 
+-      }, 800);
++      setPhase("flap_open"); phaseRef.current = "flap_open";
+     }
+   };
+ 
+@@ -113,9 +138,9 @@ export default function EnvelopeAnimation({
+            initial={{ y: 0, scale: 1 }}
+            animate={{ 
+              y: externalScale !== null 
+-                ? ((phase === "flap_open" || phase === "extracting") ? 0.3 * (isRectangular ? 428.5 : 500) * externalScale : 0)
+-                : (phase === "extracted" ? windowDims.h * 0.05 : (phase === "flap_open" || phase === "extracting" ? (windowDims.w <= 768 ? 65 : 20) : 0)),
+-             scale: externalScale !== null ? externalScale : ((windowDims.w <= 768 && (phase === "flap_open" || phase === "extracting")) ? 0.85 : 1)
++                ? ((phase === "flap_open" || phase === "extracting") ? 0.3 * (isRectangular ? 428.5 : 500) * externalScale : (phase === "extracted" ? 40 : 0))
++                : (phase === "extracted" ? (isEventPage ? (windowDims.w >= 1024 ? windowDims.h * 0.12 : windowDims.h * 0.08) : (windowDims.w >= 1024 ? 20 : 50)) : (phase === "flap_open" || phase === "extracting" ? (windowDims.w <= 768 ? 65 : 10) : 0)),
++             scale: externalScale !== null ? externalScale : ((windowDims.w <= 768 && (phase === "flap_open" || phase === "extracting")) ? 0.85 : (phase === "extracted" ? (isEventPage ? (windowDims.w <= 768 ? 1.05 : 1.15) : (windowDims.w >= 1024 ? 1.0 : 1.15)) : 1))
+            }}
+            transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }} 
+            style={{
+@@ -292,24 +317,28 @@ export default function EnvelopeAnimation({
+            
+            {/* INVITATION CARD */}
+            {!editMode && (
+-             <div 
++             <motion.div 
+                className={`envelope-card-wrapper phase-${phase}`}
+-               style={{ zIndex: phase === "extracted" ? 8 : 3 }}
++               initial={{ z: 3 }}
++               animate={{ z: phase === "extracted" ? 50 : 3 }}
++               transition={{ duration: phase === "extracted" ? 0 : 0.2 }}
++               style={{ transformStyle: 'preserve-3d' }}
+              >
+                <motion.div className="envelope-card-content"
+-                 initial={{ y: "0%", scale: 1, rotateZ: 0 }}
++                 initial={{ y: "0%", x: "0%", scale: 1, rotate: -90 }}
+                  animate={{ 
+-                   y: phase === "extracted" ? "-15%" : (phase === "extracting" ? "-120%" : "0%"),
++                   y: phase === "extracted" ? (isEventPage ? "5%" : "-25%") : (phase === "extracting" ? "-130%" : "0%"),
++                   x: phase === "extracted" ? (isEventPage ? "-4%" : "-35%") : "0%",
+                    scale: 1,
+-                   rotateZ: phase === "extracted" ? -90 : 0
++                   rotate: phase === "extracted" ? 0 : -90
+                   }}
+-                 transition={{ duration: phase === "extracted" ? 1.2 : 0.8, ease: "easeInOut" }}
++                 transition={{ duration: phase === "extracted" ? 1.0 : 0.8, ease: "easeInOut" }}
+                >
+                  <div className="envelope-card-scaler">
+                     {children}
+                  </div>
+                </motion.div>
+-             </div>
++             </motion.div>
+            )}
+ 
+            {/* FRONT OF ENVELOPE (POCKET) */}
+diff --git a/client/src/pages/Editor/EventEditor.jsx b/client/src/pages/Editor/EventEditor.jsx
+index bf663b7..93093e5 100644
+--- a/client/src/pages/Editor/EventEditor.jsx
++++ b/client/src/pages/Editor/EventEditor.jsx
+@@ -1,7 +1,7 @@
+ import { useEffect, useState, useRef, useCallback } from "react";
+ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+ import { apiFetch } from "../../utils/apiFetch";
+-import { Home, LayoutDashboard, Save, Check, ImageIcon, Sparkles, Shapes, Undo2, X, ChevronUp } from "lucide-react";
++import { Home, LayoutDashboard, Save, Check, ImageIcon, Sparkles, Shapes, Undo2, X, ChevronUp, PanelTop } from "lucide-react";
+ 
+ import "./EventEditor.css";
+ import EditorStage from "./components/EditorStage";
+@@ -229,6 +229,7 @@ export default function EventEditor() {
+           <MobileIconBtn icon={ImageIcon} label="Invito" className="mobile-only" variant={editorMode === 'canvas' ? 'primary' : 'ghost'} onClick={() => { setEditorMode('canvas'); setSelectedLayerIds([]); setActiveMobileTab(null); setDisplayColorPicker(false); }} />
+           <MobileIconBtn icon={Shapes} label="Busta" className="mobile-only" variant={editorMode === 'envelope' ? 'primary' : 'ghost'} onClick={() => { setEditorMode('envelope'); setSelectedLayerIds([]); setActiveMobileTab(null); setDisplayColorPicker(false); }} />
+           <MobileIconBtn icon={Sparkles} label="Scenario" className="mobile-only" variant={editorMode === 'background' ? 'primary' : 'ghost'} onClick={() => { setEditorMode('background'); setActiveMobileTab(null); setDisplayColorPicker(false); setSelectedLayerIds([]); }} />
++          <MobileIconBtn icon={PanelTop} label="Pagina" className="mobile-only" variant={editorMode === 'event_page' ? 'primary' : 'ghost'} onClick={() => { setEditorMode('event_page'); setActiveMobileTab(null); setDisplayColorPicker(false); setSelectedLayerIds([]); }} />
+           <div style={{ flex: 1 }} className="desktop-only text-center"><h1 style={{ fontSize: '1.2rem', margin: 0 }}>{event.title}</h1></div>
+           <MobileIconBtn icon={Undo2} label="Annulla" onClick={undo} disabled={history.length === 0} />
+           <MobileIconBtn icon={autoSaving ? Save : (isDirty ? Save : Check)} label={autoSaving ? "..." : (isDirty ? "Bozza" : "Salvato")} disabled style={{ color: autoSaving ? "#f4c46b" : (isDirty ? "salmon" : "#3ae6b3") }} />
+diff --git a/client/src/pages/Editor/components/DesktopSidebar.jsx b/client/src/pages/Editor/components/DesktopSidebar.jsx
+index e0137e2..c3f7aec 100644
+--- a/client/src/pages/Editor/components/DesktopSidebar.jsx
++++ b/client/src/pages/Editor/components/DesktopSidebar.jsx
+@@ -93,9 +93,9 @@ const DesktopSidebar = ({
+              </Button>
+          </div>
+          <Button 
+-            variant="subtle" 
+-            style={{ width: '100%', justifyContent: 'center', fontSize: '12px', borderStyle: 'dashed', opacity: 0.8 }}
+-            onClick={() => alert("Funzionalità in arrivo!")}
++            variant={editorMode === 'event_page' ? 'primary' : 'subtle'} 
++            style={{ width: '100%', justifyContent: 'center', fontSize: '12px', marginTop: '4px', ...(editorMode === 'event_page' ? { boxShadow: '0 0 12px rgba(var(--accent-rgb), 0.4)' } : {}) }}
++            onClick={() => setEditorMode('event_page')}
+           >
+             Pagina Evento
+           </Button>
+@@ -579,8 +579,23 @@ const DesktopSidebar = ({
+             </Surface>
+             </>
+            )}
++
++           {editorMode === 'event_page' && (
++             <Surface variant="soft" className="panel-section">
++               <p style={{ fontSize: '10px', color: 'var(--text-soft)', marginBottom: '0', lineHeight: '1.5', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: '3px solid var(--accent)' }}>
++                 Costruisci la pagina web pubblica del tuo evento aggiungendo intere nuove sezioni (Mappa, RSVP, Foto).
++               </p>
++               <h3 style={{ marginTop: '16px', marginBottom: '12px' }}>Gestione Sezioni</h3>
++               <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
++                 <Button variant="primary" style={{width: '100%', justifyContent: 'center'}} onClick={() => alert("Aggiunta moduli in arrivo nel prossimo step!")}>
++                   <Plus size={18} style={{marginRight: 8}}/> Aggiungi Sezione
++                 </Button>
++               </div>
++             </Surface>
++           )}
+     </div>
+   );
+ };
+ 
++
+ export default DesktopSidebar;
+diff --git a/client/src/pages/Editor/components/EditorStage.jsx b/client/src/pages/Editor/components/EditorStage.jsx
+index cd34fd8..dae32d5 100644
+--- a/client/src/pages/Editor/components/EditorStage.jsx
++++ b/client/src/pages/Editor/components/EditorStage.jsx
+@@ -3,6 +3,8 @@ import { Sparkles } from "lucide-react";
+ import EnvelopeAnimation from "../../../components/envelope/EnvelopeAnimation";
+ import ReadOnlyCanvas from "../../../components/canvas/ReadOnlyCanvas";
+ import EditableText from "./EditableText";
++import EventPageBuilder from "./EventPageBuilder";
++
+ 
+ const EditorStage = ({
+   stageRef,
+@@ -76,31 +78,35 @@ const EditorStage = ({
+       }}
+     >
+       {/* Sfondo colorato di base situato SOTTO l'immagine */}
+-      <div style={{
+-        position: 'absolute',
+-        inset: 0,
+-        backgroundColor: event.theme?.heroBgColor || 'var(--bg-body)',
+-        zIndex: 0,
+-        pointerEvents: 'none'
+-      }} />
++      {editorMode !== 'event_page' && (
++        <div style={{
++          position: 'absolute',
++          inset: 0,
++          backgroundColor: event.theme?.heroBgColor || 'var(--bg-body)',
++          zIndex: 0,
++          pointerEvents: 'none'
++        }} />
++      )}
+ 
+       {/* Layer Sfondo Scenario con Opacità */}
+-      <div style={{
+-        position: 'absolute',
+-        inset: 0,
+-        backgroundColor: (event.theme?.heroBg && (event.theme.heroBg.startsWith('#') || event.theme.heroBg.startsWith('rgb'))) 
+-          ? event.theme.heroBg 
+-          : 'transparent',
+-        backgroundImage: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) 
+-          ? `url(${event.theme.heroBg})` 
+-          : 'none',
+-        backgroundSize: 'cover',
+-        backgroundPosition: event.theme?.heroBgPosition || 'center',
+-        opacity: (event.theme?.heroBgOpacity ?? 1),
+-        zIndex: 0,
+-        pointerEvents: 'none',
+-        transition: 'opacity 0.3s ease'
+-      }} />
++      {editorMode !== 'event_page' && (
++        <div style={{
++          position: 'absolute',
++          inset: 0,
++          backgroundColor: (event.theme?.heroBg && (event.theme.heroBg.startsWith('#') || event.theme.heroBg.startsWith('rgb'))) 
++            ? event.theme.heroBg 
++            : 'transparent',
++          backgroundImage: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) 
++            ? `url(${event.theme.heroBg})` 
++            : 'none',
++          backgroundSize: 'cover',
++          backgroundPosition: event.theme?.heroBgPosition || 'center',
++          opacity: (event.theme?.heroBgOpacity ?? 1),
++          zIndex: 0,
++          pointerEvents: 'none',
++          transition: 'opacity 0.3s ease'
++        }} />
++      )}
+ 
+       {editorMode === 'envelope' ? (
+         <div className="envelope-preview-container" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+@@ -112,7 +118,7 @@ const EditorStage = ({
+                pocketLinerImg={event.theme?.coverPocketLiner}
+                canvasProps={canvasProps}
+                editMode={true}
+-               manualPhase={isEnvelopeOpen ? 'flap_open' : 'closed'}
++               manualPhase={isEnvelopeOpen ? 'extracted' : 'closed'}
+                linerX={event.theme?.linerX || 0}
+                linerY={event.theme?.linerY || 0}
+                linerScale={event.theme?.linerScale || 1}
+@@ -191,13 +197,22 @@ const EditorStage = ({
+                 linerOpacity={event.theme?.linerOpacity ?? 1}
+                 linerColor={event.theme?.coverLinerColor || '#ffffff'}
+                 canvasProps={canvasProps}
+-                manualPhase="flap_open"
++                manualPhase="extracted"
+                 preview={true}
+               >
+               </EnvelopeAnimation>
+             </div>
+           </div>
+         </div>
++      ) : editorMode === 'event_page' ? (
++        <EventPageBuilder 
++          event={event} 
++          canvasProps={canvasProps} 
++          layers={layers} 
++          isMobile={isMobile} 
++          scenarioScale={scenarioScale} 
++          updateTheme={updateTheme} 
++        />
+       ) : (
+         <div style={{ width: canvasProps.width * stageScale, height: canvasProps.height * stageScale, position: 'relative', margin: 'auto' }}>
+           {/* Su Desktop mostriamo ancora il banner, ma su Mobile lo rimuoviamo per non coprire l'invito */}
+diff --git a/client/src/pages/Editor/components/EventPageBuilder.jsx b/client/src/pages/Editor/components/EventPageBuilder.jsx
+new file mode 100644
+index 0000000..b4c9c11
+--- /dev/null
++++ b/client/src/pages/Editor/components/EventPageBuilder.jsx
+@@ -0,0 +1,135 @@
++import React, { useRef } from 'react';
++import EnvelopeAnimation from "../../../components/envelope/EnvelopeAnimation";
++import ReadOnlyCanvas from "../../../components/canvas/ReadOnlyCanvas";
++
++const EventPageBuilder = ({
++  event,
++  canvasProps,
++  layers,
++  isMobile,
++  scenarioScale,
++  updateTheme,
++  blocks,
++}) => {
++  const containerRef = useRef(null);
++
++  // Per ora costruiamo la "Hero Section" fissa come primo blocco.
++  // In futuro mapperemo `blocks` per renderizzare sezioni aggiuntive (RSVP, Mappa, Lista Nozze).
++
++  return (
++    <div 
++      className="event-page-builder-container custom-scrollbar" 
++      ref={containerRef}
++      style={{ 
++        width: '100%', 
++        height: '100%', 
++        overflowY: 'auto', 
++        overflowX: 'hidden',
++        background: 'var(--bg-body)',
++        position: 'relative'
++      }}
++    >
++      {/* =======================
++          HERO SECTION (Blocco 1)
++          ======================= */}
++      <div 
++        className="event-hero-section"
++        style={{
++          width: '100%',
++          minHeight: '100%',
++          position: 'relative',
++          display: 'flex',
++          alignItems: 'center',
++          justifyContent: 'center',
++          backgroundColor: (event?.theme?.heroBg && (event.theme.heroBg.startsWith('#') || event.theme.heroBg.startsWith('rgb'))) 
++            ? event.theme.heroBg 
++            : 'var(--bg-body)',
++          backgroundImage: (event?.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb') && event.theme.heroBg !== 'none') 
++            ? `url(${event.theme.heroBg})` 
++            : 'none',
++          backgroundSize: 'cover',
++          backgroundPosition: event?.theme?.heroBgPosition || 'center',
++          backgroundRepeat: 'no-repeat',
++          backgroundAttachment: 'local',
++          overflow: 'visible'
++        }}
++      >
++        {/* Overlay opacità, come in EditorStage */}
++        <div style={{
++          position: 'absolute',
++          inset: 0,
++          backgroundColor: event?.theme?.heroBgColor || 'var(--bg-body)',
++          opacity: 1 - (event?.theme?.heroBgOpacity ?? 1),
++          zIndex: 1,
++          pointerEvents: 'none'
++        }} />
++
++        {/* Envelope Animation centrata */}
++        <div style={{ 
++          position: 'relative', 
++          zIndex: 2,
++          transform: `scale(${isMobile ? 0.6 : 0.8})`,
++          transformOrigin: 'center center'
++        }}>
++          <EnvelopeAnimation 
++            envelopeColor={event?.theme?.coverBg || '#54392d'}
++            linerImg={event?.theme?.coverLiner === 'none' ? null : (event?.theme?.coverLiner || null)}
++            pocketColor={event?.theme?.coverPocketColor || event?.theme?.coverBg || '#54392d'}
++            pocketLinerImg={event?.theme?.coverPocketLiner}
++            linerX={event?.theme?.linerX || 0}
++            linerY={event?.theme?.linerY || 0}
++            linerScale={event?.theme?.linerScale || 1}
++            linerOpacity={event?.theme?.linerOpacity ?? 1}
++            linerColor={event?.theme?.coverLinerColor || '#ffffff'}
++            canvasProps={canvasProps}
++            manualPhase={null}
++            preview={false}
++            isEventPage={true}
++          >
++             <ReadOnlyCanvas layers={layers} canvasProps={canvasProps} />
++          </EnvelopeAnimation>
++        </div>
++
++        {/* Placeholder UI Builder controls for the Hero Section */}
++        <div style={{
++          position: 'absolute',
++          bottom: '20px',
++          left: '50%',
++          transform: 'translateX(-50%)',
++          zIndex: 50,
++          background: 'rgba(255,255,255,0.9)',
++          backdropFilter: 'blur(10px)',
++          padding: '8px 16px',
++          borderRadius: '100px',
++          fontSize: '12px',
++          fontWeight: 700,
++          color: 'var(--text-primary)',
++          boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
++        }}>
++          Hero Section (Visualizzazione Pagina)
++        </div>
++      </div>
++
++      {/* Aggiungeremo qui in futuro il bottone "+ Aggiungi Sezione" */}
++      <div style={{ padding: '60px 20px', textAlign: 'center' }}>
++          <p style={{ color: 'var(--text-soft)', fontSize: '13px', marginBottom: '16px' }}>
++             Questa è la pagina che i tuoi invitati vedranno scorrendo verso il basso.
++          </p>
++          <button style={{
++            padding: '12px 24px',
++            background: 'var(--surface-light)',
++            border: '2px dashed var(--border)',
++            borderRadius: '12px',
++            color: 'var(--text-primary)',
++            fontWeight: 700,
++            cursor: 'pointer'
++          }}>
++            + Aggiungi Sezione (Prossimamente)
++          </button>
++      </div>
++
++    </div>
++  );
++};
++
++export default EventPageBuilder;
+diff --git a/client/src/pages/Editor/components/MobileToolbar.jsx b/client/src/pages/Editor/components/MobileToolbar.jsx
+index 784fce5..79b88c3 100644
+--- a/client/src/pages/Editor/components/MobileToolbar.jsx
++++ b/client/src/pages/Editor/components/MobileToolbar.jsx
+@@ -684,6 +684,7 @@ const MobileToolbar = ({
+               <div style={{ padding: '8px 10px 4px', fontSize: '10px', color: 'var(--text-soft)', textAlign: 'center' }}>
+                 {editorMode === 'envelope' ? "Personalizza la tua busta" : 
+                  editorMode === 'background' ? "Personalizza lo scenario" : 
++                 editorMode === 'event_page' ? "Costruisci la landing page" :
+                  "Seleziona o aggiungi un elemento"}
+               </div>
+                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', width: '100%', padding: '4px 0' }}>
+@@ -714,6 +715,14 @@ const MobileToolbar = ({
+                         onClick={() => setActiveMobileTab('scenario_bg')} 
+                       />
+                     </>
++                  ) : editorMode === 'event_page' ? (
++                    <>
++                      <MobileIconBtn 
++                        icon={Plus} 
++                        label="Aggiungi Sez." 
++                        onClick={() => alert("Moduli in arrivo!")} 
++                      />
++                    </>
+                   ) : (
+                     <>
+                       <MobileIconBtn icon={Shapes} label="Sfondo" onClick={() => setActiveMobileTab("bg_invito")} />

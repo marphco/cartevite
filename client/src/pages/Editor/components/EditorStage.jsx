@@ -28,7 +28,7 @@ const EditorStage = ({
   setActiveMobileTab,
   setDisplayColorPicker,
   event,
-  updateTheme,
+  updateEvent,
   isEnvelopeOpen,
   envelopeScale,
   isEditingLiner,
@@ -112,6 +112,7 @@ const EditorStage = ({
         <div className="envelope-preview-container" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EnvelopeAnimation 
+               envelopeFormat={event.theme?.envelopeFormat || 'vertical'}
                envelopeColor={event.theme?.coverBg || '#54392d'}
                linerImg={event.theme?.coverLiner}
                pocketColor={event.theme?.coverPocketColor || event.theme?.coverBg || '#54392d'}
@@ -165,43 +166,57 @@ const EditorStage = ({
              transform: `scale(${scenarioScale})`,
              transformOrigin: 'center center',
              transition: 'all 0.3s ease'
-           }}>
-            <div style={{ 
+           }}>            <div style={{ 
               position: 'relative',
               pointerEvents: 'none', 
-              boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
               zIndex: 10,
               flexShrink: 0,
               width: canvasProps.width,
               height: canvasProps.height,
-              background: canvasProps.bgColor || '#fff'
+              background: canvasProps.bgColor || '#fff',
+              // Bilanciamento estremo: invito al 96% per massimo impatto visivo
+              transform: 'scale(0.96)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+              borderRadius: '4px'
             }}>
               <ReadOnlyCanvas layers={layers} canvasProps={canvasProps} />
             </div>
-
-            <div style={{ 
-              position: 'relative',
-              pointerEvents: 'none', 
-              zIndex: 5,
-              flexShrink: 0,
-               transform: 'translateX(-10%) translateY(25%) scale(1.5)',
-            }}>
-              <EnvelopeAnimation 
-                envelopeColor={event.theme?.coverBg || '#54392d'}
-                linerImg={event.theme?.coverLiner === 'none' ? null : (event.theme?.coverLiner || null)}
-                pocketColor={event.theme?.coverPocketColor || event.theme?.coverBg || '#54392d'}
-                pocketLinerImg={event.theme?.coverPocketLiner}
-                linerX={event.theme?.linerX || 0}
-                linerY={event.theme?.linerY || 0}
-                linerScale={event.theme?.linerScale || 1}
-                linerOpacity={event.theme?.linerOpacity ?? 1}
-                linerColor={event.theme?.coverLinerColor || '#ffffff'}
-                canvasProps={canvasProps}
-                manualPhase="extracted"
-                preview={true}
-              >
-              </EnvelopeAnimation>
-            </div>
+ 
+            {/* Calcolo scala dinamica: Invitation 96%, Envelope 102%
+                Massimo riempimento mantenendo la logica di contenimento (busta ~6% più grande). */}
+            {(() => {
+              const envFormat = event.theme?.envelopeFormat || 'vertical';
+              const baseW = envFormat === 'horizontal' ? 600 : 500;
+              // Busta al 102% della larghezza originale dell'invito
+              const envScenarioScale = (canvasProps.width * 1.02) / baseW;
+              
+              return (
+                <div style={{ 
+                  position: 'relative',
+                  pointerEvents: 'none', 
+                  zIndex: 5,
+                  flexShrink: 0,
+                  transform: `translateX(-25%) translateY(15%)`,
+                }}>
+                  <EnvelopeAnimation 
+                    envelopeFormat={envFormat}
+                    envelopeColor={event.theme?.coverBg || '#54392d'}
+                    linerImg={event.theme?.coverLiner === 'none' ? null : (event.theme?.coverLiner || null)}
+                    pocketColor={event.theme?.coverPocketColor || event.theme?.coverBg || '#54392d'}
+                    pocketLinerImg={event.theme?.coverPocketLiner}
+                    linerX={event.theme?.linerX || 0}
+                    linerY={event.theme?.linerY || 0}
+                    linerScale={event.theme?.linerScale || 1}
+                    linerOpacity={event.theme?.linerOpacity ?? 1}
+                    linerColor={event.theme?.coverLinerColor || '#ffffff'}
+                    canvasProps={canvasProps}
+                    manualPhase="extracted"
+                    preview={true}
+                    scale={envScenarioScale}
+                  />
+                </div>
+              );
+            })()}
           </div>
         </div>
       ) : editorMode === 'event_page' ? (
@@ -210,8 +225,7 @@ const EditorStage = ({
           canvasProps={canvasProps} 
           layers={layers} 
           isMobile={isMobile} 
-          scenarioScale={scenarioScale} 
-          updateTheme={updateTheme} 
+          updateEvent={updateEvent} 
         />
       ) : (
         <div style={{ width: canvasProps.width * stageScale, height: canvasProps.height * stageScale, position: 'relative', margin: 'auto' }}>

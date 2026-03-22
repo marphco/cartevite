@@ -1,8 +1,20 @@
 import { useEffect, useState, useRef } from "react";
+import { loadGoogleFont } from "../../pages/Editor/components/EditorHelpers";
 
 const ReadOnlyCanvas = ({ layers, canvasProps }) => {
   const [scale, setScale] = useState(1);
   const containerRef = useRef(null);
+  const [bgNaturalSize, setBgNaturalSize] = useState({ w: 0, h: 0 });
+
+  // Load Google Fonts for all layers
+  useEffect(() => {
+    layers.forEach(layer => {
+      const isText = layer.type === 'text' || !layer.type;
+      if (isText && layer.fontFamily) {
+        loadGoogleFont(layer.fontFamily);
+      }
+    });
+  }, [layers]);
 
   useEffect(() => {
     const updateScale = () => {
@@ -32,14 +44,34 @@ const ReadOnlyCanvas = ({ layers, canvasProps }) => {
          flexShrink: 0,
          transformOrigin: "center center",
          transform: `scale(${scale})`,
-         backgroundImage: canvasProps.bgImage ? `url(${canvasProps.bgImage})` : 'none',
-         backgroundColor: canvasProps.bgImage ? 'transparent' : '#fff',
-         backgroundSize: 'cover',
+         backgroundColor: canvasProps.bgColor || '#ffffff',
          position: 'relative',
          overflow: 'hidden',
          boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
          borderRadius: "4px"
        }}>
+          {/* Background Image Layer Sync with Editor */}
+          {canvasProps.bgImage && (
+            <div style={{
+              position: 'absolute',
+              left: (canvasProps.bgX || 0),
+              top: (canvasProps.bgY || 0),
+              width: bgNaturalSize.w * (canvasProps.bgScale || 1),
+              height: bgNaturalSize.h * (canvasProps.bgScale || 1),
+              opacity: canvasProps.bgOpacity ?? 1,
+              pointerEvents: 'none',
+              zIndex: 0
+            }}>
+              <img 
+                src={canvasProps.bgImage} 
+                alt="" 
+                style={{ width: '100%', height: '100%', display: 'block' }}
+                onLoad={(e) => {
+                  setBgNaturalSize({ w: e.target.naturalWidth, h: e.target.naturalHeight });
+                }}
+              />
+            </div>
+          )}
           {layers.map(layer => {
             const isText = layer.type === 'text' || !layer.type;
             return (

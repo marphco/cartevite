@@ -4,7 +4,7 @@ import {
   Palette, Image as ImageIcon, Move, Sparkles, Trash2, Mail, MailOpen, 
   Shapes, Type, ChevronUp, Minus, Plus, Circle, ArrowRight, 
   ArrowLeft, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, 
-  ArrowDownRight, ArrowDownLeft, Check, ChevronLeft
+  ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout
 } from 'lucide-react';
 import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
@@ -65,7 +65,7 @@ const MobileToolbar = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab }
+                  {activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab }
                 </span>
               )}
               <button className="mobile-tab-close" onClick={() => { 
@@ -478,6 +478,27 @@ const MobileToolbar = ({
               )}
 
 
+                {activeMobileTab === 'envelope_format' && (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <Button 
+                        variant={event.theme?.envelopeFormat === 'horizontal' ? 'primary' : 'subtle'} 
+                        style={{ flex: 1, justifyContent: 'center', fontSize: '12px', padding: '10px 0' }}
+                        onClick={() => updateTheme({ envelopeFormat: 'horizontal' })}
+                      >
+                        Orizzontale
+                      </Button>
+                      <Button 
+                        variant={event.theme?.envelopeFormat !== 'horizontal' ? 'primary' : 'subtle'} 
+                        style={{ flex: 1, justifyContent: 'center', fontSize: '12px', padding: '10px 0' }}
+                        onClick={() => updateTheme({ envelopeFormat: 'vertical' })}
+                      >
+                        Verticale
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {activeMobileTab === 'envelope_colors' && (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                      <div style={{ display: 'flex', gap: '8px' }}>
@@ -696,6 +717,9 @@ const MobileToolbar = ({
                         variant={isEnvelopeOpen ? 'primary' : 'ghost'}
                         onClick={() => setIsEnvelopeOpen(!isEnvelopeOpen)}
                       />
+                      {event.canvas?.width !== event.canvas?.height && (
+                        <MobileIconBtn icon={Layout} label="Formato" onClick={() => setActiveMobileTab("envelope_format")} />
+                      )}
                       <MobileIconBtn icon={Palette} label="Colori" onClick={() => setActiveMobileTab("envelope_colors")} />
                       <MobileIconBtn 
                         icon={Shapes} 

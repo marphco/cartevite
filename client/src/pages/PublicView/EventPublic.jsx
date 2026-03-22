@@ -5,6 +5,7 @@ import { apiFetch } from "../../utils/apiFetch";
 import { Surface, Button, Badge } from "../../ui";
 import EnvelopeAnimation from "../../components/envelope/EnvelopeAnimation";
 import ReadOnlyCanvas from "../../components/canvas/ReadOnlyCanvas";
+import { loadGoogleFont } from "../../pages/Editor/components/EditorHelpers";
 import { Calendar, MapPin, Users, Send } from "lucide-react";
 import "./EventPublic.css";
 
@@ -108,6 +109,12 @@ export default function EventPublic() {
     const fonts = event?.theme?.fonts || { heading: "Playfair Display", body: "Space Grotesk" };
     return { accent, bg, fonts };
   }, [event]);
+
+  // Load Theme Fonts
+  useEffect(() => {
+    if (pageTheme.fonts.heading) loadGoogleFont(pageTheme.fonts.heading);
+    if (pageTheme.fonts.body) loadGoogleFont(pageTheme.fonts.body);
+  }, [pageTheme]);
 
   if (loading) return <div className="event-public-page">Caricamento...</div>;
   if (!event) return <div className="event-public-page">Evento non trovato.</div>;
@@ -238,41 +245,50 @@ export default function EventPublic() {
         
         {/* HERO SECTION - Always 100vh or min-content to avoid overlap */}
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '20px 0' }}>
-          <EnvelopeAnimation
-            guestName={event.theme?.coverText}
-            envelopeColor={event.theme?.coverBg}
-            pocketColor={event.theme?.coverPocketColor}
-            linerImg={event.theme?.coverLiner}
-            pocketLinerImg={event.theme?.coverPocketLiner}
-            linerX={event.theme?.linerX || 0}
-            linerY={event.theme?.linerY || 0}
-            linerScale={event.theme?.linerScale || 1}
-            linerOpacity={event.theme?.linerOpacity ?? 1}
-            linerColor={event.theme?.coverLinerColor || '#ffffff'}
-            canvasProps={event.canvas}
-            onOpenComplete={() => {
-               // Optional: Scroll down to content when opened
-               window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
-            }}
-          >
-            {event.layers && event.canvas ? (
-              <ReadOnlyCanvas layers={event.layers} canvasProps={event.canvas} />
-            ) : (
-              <div className="hero-card">
-                <Badge variant="accent" style={{ backgroundColor: pageTheme.accent, color: "var(--bg-body)", border: "none" }}>Invito digitale</Badge>
-                <h1 style={{ fontFamily: pageTheme.fonts.heading }}>{event.title}</h1>
-                {event.dateTBD ? (
-                  <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
-                    <Calendar size={18} color={pageTheme.accent} /> Data da definire
-                  </p>
-                ) : event.date ? (
-                  <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
-                    <Calendar size={18} color={pageTheme.accent} /> {new Date(event.date).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })}
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </EnvelopeAnimation>
+          <div style={{ 
+            position: 'relative', 
+            zIndex: 2,
+            transform: `scale(${window.innerWidth <= 768 ? 0.6 : 0.8})`,
+            transformOrigin: 'center center'
+          }}>
+            <EnvelopeAnimation
+              envelopeFormat={event.theme?.envelopeFormat || 'vertical'}
+              guestName={event.theme?.coverText}
+              envelopeColor={event.theme?.coverBg}
+              pocketColor={event.theme?.coverPocketColor}
+              linerImg={event.theme?.coverLiner === 'none' ? null : (event.theme?.coverLiner || null)}
+              pocketLinerImg={event.theme?.coverPocketLiner}
+              linerX={event.theme?.linerX || 0}
+              linerY={event.theme?.linerY || 0}
+              linerScale={event.theme?.linerScale || 1}
+              linerOpacity={event.theme?.linerOpacity ?? 1}
+              linerColor={event.theme?.coverLinerColor || '#ffffff'}
+              canvasProps={event.canvas}
+              isEventPage={true}
+              onOpenComplete={() => {
+                // Optional: Scroll down to content when opened
+                window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
+              }}
+            >
+              {event.layers && event.canvas ? (
+                <ReadOnlyCanvas layers={event.layers} canvasProps={event.canvas} />
+              ) : (
+                <div className="hero-card">
+                  <Badge variant="accent" style={{ backgroundColor: pageTheme.accent, color: "var(--bg-body)", border: "none" }}>Invito digitale</Badge>
+                  <h1 style={{ fontFamily: pageTheme.fonts.heading }}>{event.title}</h1>
+                  {event.dateTBD ? (
+                    <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                      <Calendar size={18} color={pageTheme.accent} /> Data da definire
+                    </p>
+                  ) : event.date ? (
+                    <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                      <Calendar size={18} color={pageTheme.accent} /> {new Date(event.date).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </EnvelopeAnimation>
+          </div>
         </div>
 
         <div className="event-public-content" ref={containerRef} style={{ width: '100%', overflowX: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '100px' }}>

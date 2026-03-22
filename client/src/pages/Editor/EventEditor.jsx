@@ -68,7 +68,7 @@ export default function EventEditor() {
 
   // --- CUSTOM HOOKS (SNELLIMENTO) ---
   const { 
-    loading, updateTheme 
+    loading, updateEvent 
   } = useFetchEvent(slug, searchParams, loadDraft, setDraftRestored, setIsDirty, {
     setEvent, setLayers, setBlocks, setCanvasProps
   });
@@ -250,7 +250,7 @@ export default function EventEditor() {
           canvasProps={canvasProps} setCanvasProps={setCanvasProps} invitoBgInputRef={invitoBgInputRef}
           isEditingBackground={isEditingBackground} setIsEditingBackground={setIsEditingBackground}
           isEnvelopeOpen={isEnvelopeOpen} setIsEnvelopeOpen={setIsEnvelopeOpen}
-          updateTheme={updateTheme} event={event} textureInputRef={textureInputRef}
+          updateTheme={updateEvent} event={event} textureInputRef={textureInputRef}
           userLinerImages={userLinerImages} isEditingLiner={isEditingLiner} setIsEditingLiner={setIsEditingLiner}
           scenarioBgInputRef={scenarioBgInputRef} userScenarioBgImages={userScenarioBgImages}
           showMobileAnchorGrid={showMobileAnchorGrid} setShowMobileAnchorGrid={setShowMobileAnchorGrid}
@@ -263,7 +263,7 @@ export default function EventEditor() {
            isEditingLiner={isEditingLiner} setIsEditingLiner={setIsEditingLiner}
            displayColorPicker={displayColorPicker} setDisplayColorPicker={setDisplayColorPicker}
            showMobileAnchorGrid={showMobileAnchorGrid} setShowMobileAnchorGrid={setShowMobileAnchorGrid}
-           event={event} updateTheme={updateTheme} canvasProps={canvasProps} setCanvasProps={setCanvasProps}
+           event={event} updateTheme={updateEvent} canvasProps={canvasProps} setCanvasProps={setCanvasProps}
            userScenarioBgImages={userScenarioBgImages} setUserScenarioBgImages={() => {}} userLinerImages={userLinerImages}
            envelopeScale={envelopeScale} isMobile={isMobile} updateSelectedLayer={updateSelectedLayer}
            deleteSelectedLayers={deleteSelectedLayers} addTextLayer={addTextLayer}
@@ -271,15 +271,28 @@ export default function EventEditor() {
            scenarioBgInputRef={scenarioBgInputRef} invitoBgInputRef={invitoBgInputRef} textureInputRef={textureInputRef} fileInputRef={fileInputRef}
          />
         <EditorStage 
-          stageRef={stageRef} canvasRef={canvasRef} editorMode={editorMode} isMobile={isMobile}
-          isEditingBackground={isEditingBackground} canvasProps={canvasProps} setCanvasProps={setCanvasProps}
-          stageScale={stageScale} layers={layers} setLayers={setLayers}
-          selectedLayerIds={selectedLayerIds} setSelectedLayerIds={setSelectedLayerIds}
-          editingLayerId={editingLayerId} setEditingLayerId={setEditingLayerId}
-          hoveredLayerId={hoveredLayerId} setHoveredLayerId={setHoveredLayerId}
-          selectionBox={selectionBox} setSelectionBox={setSelectionBox}
-          selectionBoxRef={selectionBoxRef} setActiveMobileTab={setActiveMobileTab}
-          setDisplayColorPicker={setDisplayColorPicker} event={event} updateTheme={updateTheme}
+          stageRef={stageRef}
+          canvasRef={canvasRef}
+          editorMode={editorMode}
+          isMobile={isMobile}
+          isEditingBackground={isEditingBackground}
+          canvasProps={canvasProps}
+          setCanvasProps={setCanvasProps}
+          stageScale={stageScaleRef.current}
+          layers={layers}
+          setLayers={setLayers}
+          selectedLayerIds={selectedLayerIds}
+          setSelectedLayerIds={setSelectedLayerIds}
+          editingLayerId={editingLayerId}
+          setEditingLayerId={setEditingLayerId}
+          hoveredLayerId={hoveredLayerId}
+          selectionBox={selectionBox}
+          setSelectionBox={setSelectionBox}
+          selectionBoxRef={selectionBoxRef}
+          setActiveMobileTab={setActiveMobileTab}
+          setDisplayColorPicker={setDisplayColorPicker}
+          event={event}
+          updateEvent={updateEvent}
           isEnvelopeOpen={isEnvelopeOpen} setIsEnvelopeOpen={setIsEnvelopeOpen}
           envelopeScale={envelopeScale} isEditingLiner={isEditingLiner} setIsEditingLiner={setIsEditingLiner}
           scenarioScale={scenarioScale} handlePointerDown={handlePointerDown} handleResizePointerDown={handleResizePointerDown}

@@ -241,6 +241,27 @@ const DesktopSidebar = ({
                {isEnvelopeOpen ? <Mail size={18} style={{ marginRight: 8 }} /> : <MailOpen size={18} style={{ marginRight: 8 }} />} {isEnvelopeOpen ? 'Chiudi Busta' : 'Apri Busta'}
              </Button>
             <div>
+          {canvasProps?.width !== canvasProps?.height && (
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-soft)', marginBottom: '4px', display: 'block' }}>Formato Busta</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button 
+                  variant={event.theme?.envelopeFormat === 'horizontal' ? 'primary' : 'subtle'} 
+                  style={{ flex: 1, justifyContent: 'center', fontSize: '11px', padding: '6px 0' }}
+                  onClick={() => updateTheme({ envelopeFormat: 'horizontal' })}
+                >
+                  Orizzontale
+                </Button>
+                <Button 
+                  variant={event.theme?.envelopeFormat !== 'horizontal' ? 'primary' : 'subtle'} 
+                  style={{ flex: 1, justifyContent: 'center', fontSize: '11px', padding: '6px 0' }}
+                  onClick={() => updateTheme({ envelopeFormat: 'vertical' })}
+                >
+                  Verticale
+                </Button>
+              </div>
+            </div>
+          )}
               <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-soft)', marginBottom: '4px', display: 'block' }}>Colore Principale</label>
               <div 
                 onClick={() => setDisplayColorPicker(displayColorPicker === 'envelope' ? false : 'envelope')}
