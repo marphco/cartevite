@@ -318,14 +318,18 @@ export default function EnvelopeSquare({
                 className={`envelope-card-wrapper phase-${phase}`}
                 initial={{ z: 3 }}
                 animate={{ z: phase === "extracted" ? 50 : 3 }}
-                transition={{ duration: phase === "extracted" ? 0 : 0.2 }}
+                transition={{ 
+                  duration: phase === "extracted" ? 0.6 : 0.3, 
+                  ease: "easeOut",
+                  delay: phase === "extracted" ? 0.3 : 0
+                }}
                 style={{ transformStyle: 'preserve-3d' }}
               >
                 <motion.div className="envelope-card-content"
                    initial={{ y: "0%", x: "0%", scale: 1, rotate: startRot }}
                    animate={{ 
-                     y: phase === "extracted" ? (isEventPage ? "5%" : "-25%") : (phase === "extracting" ? "-130%" : "0%"),
-                     x: phase === "extracted" ? (isEventPage ? "-4%" : "-35%") : "0%",
+                     y: phase === "extracted" ? (isEventPage ? "12%" : "-25%") : (phase === "extracting" ? "-130%" : "0%"),
+                     x: phase === "extracted" ? (isEventPage ? "-6%" : "-35%") : "0%",
                      scale: 1,
                      rotate: phase === "extracted" ? endRot : startRot,
                      zIndex: phase === "extracted" ? 6 : 2

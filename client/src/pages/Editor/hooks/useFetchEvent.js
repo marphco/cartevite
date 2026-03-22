@@ -5,15 +5,26 @@ import { PREBUILT_TEMPLATES } from "../../../utils/layoutSchema";
 export const DEFAULT_THEME = {
   accent: "#f4c46b",
   background: "#050506",
-  heroBg: "/hero-bg-default.jpg", 
-  heroBgPosition: "center",
-  fonts: { heading: "Playfair Display", body: "Space Grotesk" },
   preset: "noir",
+  fonts: { heading: "Playfair Display", body: "Space Grotesk" },
+  // Scenario default
+  heroBg: null,
+  heroBgColor: "var(--bg-body)",
+  heroBgOpacity: 1,
+  heroBgPosition: "center",
+  // Envelope default
+  envelopeFormat: "vertical",
+  coverBg: "#54392d",
+  coverPocketColor: null,
+  coverLiner: null,
+  coverPocketLiner: null,
+  coverLinerColor: "#ffffff",
+  coverText: "",
+  // Liner default control
   linerX: 0,
   linerY: 0,
   linerScale: 1,
-  coverLiner: '/minimal_pink_liner.png',
-  coverPocketLiner: '/minimal_pink_liner.png'
+  linerOpacity: 1
 };
 
 const withTheme = (evt = {}) => ({
@@ -75,20 +86,12 @@ export function useFetchEvent(slug, searchParams, loadDraft, setDraftRestored, s
     return () => { cancelled = true; };
   }, [slug, loadDraft, searchParams, setDraftRestored, setIsDirty, setEvent, setLayers, setBlocks, setCanvasProps]);
 
-  return { loading, updateEvent: (newData, pushToHistory) => {
+  return { loading, updateTheme: (newTheme, pushToHistory) => {
     if (pushToHistory) pushToHistory();
-    setEvent(prev => {
-      const updated = { ...prev };
-      // Se newData contiene 'theme', facciamo il merge profondo del tema
-      if (newData.theme) {
-        updated.theme = { ...prev.theme, ...newData.theme };
-      }
-      return { ...updated, ...newData };
-    });
-    // Sincronizziamo anche lo stato blocks separato se presente nei dati
-    if (newData.blocks) {
-      setBlocks(newData.blocks);
-    }
+    setEvent(prev => ({
+      ...prev,
+      theme: { ...prev.theme, ...newTheme }
+    }));
     setIsDirty(true);
   }};
 }

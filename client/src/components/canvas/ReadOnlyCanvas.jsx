@@ -36,6 +36,35 @@ const ReadOnlyCanvas = ({ layers, canvasProps }) => {
     return () => window.removeEventListener('resize', updateScale);
   }, [canvasProps.width, canvasProps.height]);
 
+  // Calculate effective background properties (logic sync with EditorStage)
+  const effectiveBg = (() => {
+    if (!canvasProps.bgImage || bgNaturalSize.w === 0) return null;
+    
+    // Se abbiamo i dati salvati e validi, usiamoli
+    if (canvasProps.bgScale && canvasProps.bgX !== undefined && canvasProps.bgY !== undefined) {
+      return {
+        x: canvasProps.bgX,
+        y: canvasProps.bgY,
+        w: bgNaturalSize.w * canvasProps.bgScale,
+        h: bgNaturalSize.h * canvasProps.bgScale
+      };
+    }
+
+    // Altrimenti: Fallback Cover (come fa l'Editor al primo caricamento)
+    const cw = canvasProps.width;
+    const ch = canvasProps.height;
+    const nw = bgNaturalSize.w;
+    const nh = bgNaturalSize.h;
+    
+    const scale = Math.max(cw / nw, ch / nh);
+    return {
+      x: (cw - nw * scale) / 2,
+      y: (ch - nh * scale) / 2,
+      w: nw * scale,
+      h: nh * scale
+    };
+  })();
+
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
        <div style={{
@@ -50,14 +79,14 @@ const ReadOnlyCanvas = ({ layers, canvasProps }) => {
          boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
          borderRadius: "4px"
        }}>
-          {/* Background Image Layer Sync with Editor */}
+           {/* Background Image Layer Sync with Editor */}
           {canvasProps.bgImage && (
             <div style={{
               position: 'absolute',
-              left: (canvasProps.bgX || 0),
-              top: (canvasProps.bgY || 0),
-              width: bgNaturalSize.w * (canvasProps.bgScale || 1),
-              height: bgNaturalSize.h * (canvasProps.bgScale || 1),
+              left: effectiveBg ? effectiveBg.x : (canvasProps.bgX ?? 0),
+              top: effectiveBg ? effectiveBg.y : (canvasProps.bgY ?? 0),
+              width: effectiveBg ? effectiveBg.w : (bgNaturalSize.w * (canvasProps.bgScale || 1)),
+              height: effectiveBg ? effectiveBg.h : (bgNaturalSize.h * (canvasProps.bgScale || 1)),
               opacity: canvasProps.bgOpacity ?? 1,
               pointerEvents: 'none',
               zIndex: 0
@@ -72,45 +101,50 @@ const ReadOnlyCanvas = ({ layers, canvasProps }) => {
               />
             </div>
           )}
+
+          {/* Rendering dei Layer (Sincronizzato con EditorStage) */}
           {layers.map(layer => {
             const isText = layer.type === 'text' || !layer.type;
+            const lx = layer.x === 'center' || isNaN(layer.x) ? '50%' : (layer.x + 'px');
+            const ly = layer.y === 'center' || isNaN(layer.y) ? '50%' : (layer.y + 'px');
+
             return (
               <div 
-               key={layer.id} 
-               style={{
-                 position: 'absolute',
-                 left: layer.x === 'center' || isNaN(layer.x) ? '50%' : (layer.x + 'px'),
-                 top: layer.y === 'center' || isNaN(layer.y) ? '50%' : (layer.y + 'px'),
-                 transform: 'translate(-50%, -50%)',
-                 width: isText ? 'max-content' : (layer.w + 'px'),
-                 height: isText ? 'auto' : (layer.h + 'px'),
-                 fontSize: (layer.fontSize || 32) + 'px',
-                 fontFamily: layer.fontFamily,
-                 fontWeight: layer.fontWeight || "normal",
-                 fontStyle: layer.fontStyle || "normal",
-                 textDecoration: layer.textDecoration || "none",
-                 letterSpacing: (layer.letterSpacing || 0) + 'px',
-                 lineHeight: layer.lineHeight || 1.2,
-                 color: layer.color,
-                 textAlign: layer.textAlign,
-                 zIndex: layer.z || 1,
-                 display: 'block'
-               }}
-             >
-               {isText ? (
-                 <div 
-                   style={{ outline: 'none', whiteSpace: 'nowrap', paddingBottom: '0.15em' }}
-                   dangerouslySetInnerHTML={{ __html: layer.text }} 
-                 />
-               ) : (
-                 <img 
-                   src={layer.src} 
-                   style={{ width: layer.w || '100%', height: layer.h || '100%', objectFit: 'contain', display: 'block' }} 
-                   alt="" 
-                 />
-               )}
+                key={layer.id} 
+                style={{
+                  position: 'absolute',
+                  left: lx,
+                  top: ly,
+                  transform: 'translate(-50%, -50%)',
+                  width: isText ? 'max-content' : ((layer.w || 100) + 'px'),
+                  height: isText ? 'auto' : ((layer.h || 100) + 'px'),
+                  fontSize: (layer.fontSize || 32) + 'px',
+                  fontFamily: layer.fontFamily,
+                  fontWeight: layer.fontWeight || "normal",
+                  fontStyle: layer.fontStyle || "normal",
+                  textDecoration: layer.textDecoration || "none",
+                  letterSpacing: (layer.letterSpacing || 0) + 'px',
+                  lineHeight: layer.lineHeight || 1.2,
+                  color: layer.color,
+                  textAlign: layer.textAlign,
+                  zIndex: layer.z || 1,
+                  display: 'block'
+                }}
+              >
+                {isText ? (
+                  <div 
+                    style={{ outline: 'none', whiteSpace: 'nowrap', paddingBottom: '0.15em' }}
+                    dangerouslySetInnerHTML={{ __html: layer.text }} 
+                  />
+                ) : (
+                  <img 
+                    src={layer.src} 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} 
+                    alt="" 
+                  />
+                )}
               </div>
-            )
+            );
           })}
        </div>
     </div>

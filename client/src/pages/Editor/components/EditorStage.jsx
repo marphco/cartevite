@@ -28,7 +28,7 @@ const EditorStage = ({
   setActiveMobileTab,
   setDisplayColorPicker,
   event,
-  updateEvent,
+  updateTheme,
   isEnvelopeOpen,
   envelopeScale,
   isEditingLiner,
@@ -225,7 +225,8 @@ const EditorStage = ({
           canvasProps={canvasProps} 
           layers={layers} 
           isMobile={isMobile} 
-          updateEvent={updateEvent} 
+          scenarioScale={scenarioScale} 
+          updateTheme={updateTheme} 
         />
       ) : (
         <div style={{ width: canvasProps.width * stageScale, height: canvasProps.height * stageScale, position: 'relative', margin: 'auto' }}>

@@ -17,10 +17,14 @@ const BlockSchema = new mongoose.Schema(
 const LayerSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
-    type: { type: String, required: true, default: "text" },
+    type: { type: String, required: true, default: "text" }, // "text", "image"
     text: { type: String, default: "" },
+    src: { type: String, default: "" }, // Per i layer immagine
     x: { type: mongoose.Schema.Types.Mixed, default: "center" },
     y: { type: mongoose.Schema.Types.Mixed, default: "center" },
+    w: { type: Number }, // Larghezza per immagini
+    h: { type: Number }, // Altezza per immagini
+    z: { type: Number, default: 1 },
     fontSize: { type: Number, default: 24 },
     fontFamily: { type: String, default: "sans-serif" },
     fontWeight: { type: String, default: "normal" },
@@ -30,7 +34,9 @@ const LayerSchema = new mongoose.Schema(
     lineHeight: { type: Number, default: 1.2 },
     color: { type: String, default: "#000000" },
     textAlign: { type: String, default: "center" },
-    width: { type: mongoose.Schema.Types.Mixed, default: "max-content" },
+    opacity: { type: Number, default: 1 },
+    lockRatio: { type: Boolean, default: false },
+    width: { type: mongoose.Schema.Types.Mixed, default: "max-content" }, // Deprecating or keeping for compat
   },
   { _id: false }
 );
@@ -45,6 +51,10 @@ const EventSchema = new mongoose.Schema(
     status: { type: String, enum: ["draft", "published"], default: "draft" },
     canvas: {
       bgImage: { type: String, default: null },
+      bgColor: { type: String, default: "#ffffff" },
+      bgX: { type: Number, default: 0 },
+      bgY: { type: Number, default: 0 },
+      bgScale: { type: Number, default: 1 },
       width: { type: Number, default: 800 },
       height: { type: Number, default: 1000 },
     },
@@ -60,6 +70,24 @@ const EventSchema = new mongoose.Schema(
             heading: { type: String, default: "Playfair Display" },
             body: { type: String, default: "Space Grotesk" },
           },
+          // Scenario params
+          heroBg: { type: String, default: null },
+          heroBgColor: { type: String, default: "var(--bg-body)" },
+          heroBgOpacity: { type: Number, default: 1 },
+          heroBgPosition: { type: String, default: "center" },
+          // Envelope params
+          envelopeFormat: { type: String, default: "vertical" },
+          coverBg: { type: String, default: "#54392d" },
+          coverPocketColor: { type: String, default: null },
+          coverLiner: { type: String, default: null },
+          coverPocketLiner: { type: String, default: null },
+          coverLinerColor: { type: String, default: "#ffffff" },
+          coverText: { type: String, default: "" },
+          // Liner detailed control
+          linerX: { type: Number, default: 0 },
+          linerY: { type: Number, default: 0 },
+          linerScale: { type: Number, default: 1 },
+          linerOpacity: { type: Number, default: 1 }
         },
         { _id: false }
       ),

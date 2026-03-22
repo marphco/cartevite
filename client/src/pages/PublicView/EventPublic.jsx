@@ -233,7 +233,7 @@ export default function EventPublic() {
         inset: 0,
         zIndex: 0,
         backgroundImage: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) 
-          ? `url(${event.theme.heroBg})` 
+          ? `url(${resolveImageUrl(event.theme.heroBg)})` 
           : 'none',
         backgroundSize: 'cover',
         backgroundPosition: event.theme?.heroBgPosition || 'center',
@@ -256,8 +256,8 @@ export default function EventPublic() {
               guestName={event.theme?.coverText}
               envelopeColor={event.theme?.coverBg}
               pocketColor={event.theme?.coverPocketColor}
-              linerImg={event.theme?.coverLiner === 'none' ? null : (event.theme?.coverLiner || null)}
-              pocketLinerImg={event.theme?.coverPocketLiner}
+              linerImg={event.theme?.coverLiner === 'none' ? null : (event.theme?.coverLiner ? resolveImageUrl(event.theme.coverLiner) : null)}
+              pocketLinerImg={event.theme?.coverPocketLiner ? resolveImageUrl(event.theme.coverPocketLiner) : null}
               linerX={event.theme?.linerX || 0}
               linerY={event.theme?.linerY || 0}
               linerScale={event.theme?.linerScale || 1}
