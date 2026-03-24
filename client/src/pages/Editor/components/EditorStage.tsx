@@ -4,7 +4,7 @@ import EnvelopeAnimation from "../../../components/envelope/EnvelopeAnimation";
 import ReadOnlyCanvas from "../../../components/canvas/ReadOnlyCanvas";
 import EditableText from "./EditableText";
 import EventPageBuilder from "./EventPageBuilder";
-import type { Layer, CanvasProps, SelectionBox, SnapGuide } from "../../../types/editor";
+import type { Layer, CanvasProps, SelectionBox, SnapGuide, Block } from "../../../types/editor";
 
 interface EditorStageProps {
   stageRef: React.RefObject<HTMLDivElement | null>;
@@ -47,6 +47,8 @@ interface EditorStageProps {
   setIsFontExpanded: (expanded: boolean) => void;
   stateBeforeActionRef: React.MutableRefObject<any>;
   latestStateRef: React.MutableRefObject<any>;
+  blocks: Block[];
+  setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
 }
 
 const EditorStage: React.FC<EditorStageProps> = ({
@@ -89,7 +91,9 @@ const EditorStage: React.FC<EditorStageProps> = ({
   setIsDirty,
   setIsFontExpanded,
   stateBeforeActionRef,
-  latestStateRef
+  latestStateRef,
+  blocks,
+  setBlocks
 }) => {
 
   return (
@@ -225,7 +229,8 @@ const EditorStage: React.FC<EditorStageProps> = ({
           isMobile={isMobile} 
           scenarioScale={scenarioScale} 
           updateTheme={updateTheme} 
-          blocks={event.blocks || []}
+          blocks={blocks || []}
+          pushToHistory={pushToHistory}
         />
       ) : (
         <div style={{ 

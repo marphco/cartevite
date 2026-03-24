@@ -312,6 +312,7 @@ export default function EventEditor() {
           snapGuides={snapGuides} setSnapGuides={setSnapGuides}
           pushToHistory={pushToHistory} setIsDirty={setIsDirty} setIsFontExpanded={setIsFontExpanded}
           stateBeforeActionRef={stateBeforeActionRef} latestStateRef={latestStateRef}
+          blocks={blocks} setBlocks={setBlocks}
         />
         </div>
       </div>

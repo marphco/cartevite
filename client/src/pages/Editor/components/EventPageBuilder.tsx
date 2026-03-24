@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import EnvelopeAnimation from "../../../components/envelope/EnvelopeAnimation";
 import ReadOnlyCanvas from "../../../components/canvas/ReadOnlyCanvas";
-import type { Layer, CanvasProps } from "../../../types/editor";
+import BuilderSection from "./BuilderSection";
+import type { Layer, CanvasProps, Block } from "../../../types/editor";
 
 interface EventPageBuilderProps {
   event: any;
@@ -10,10 +11,11 @@ interface EventPageBuilderProps {
   isMobile: boolean;
   scenarioScale: number;
   updateTheme: (updates: any) => void;
-  blocks: any[];
+  blocks: Block[];
+  pushToHistory: () => void;
 }
 
-const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
+export const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
   event,
   canvasProps,
   layers,
@@ -21,16 +23,23 @@ const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
   scenarioScale,
   updateTheme,
   blocks,
+  pushToHistory
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
 
-  // Per ora costruiamo la "Hero Section" fissa come primo blocco.
-  // In futuro mapperemo `blocks` per renderizzare sezioni aggiuntive (RSVP, Mappa, Lista Nozze).
+  const handleHeightChange = (index: number, newHeight: number) => {
+    const newBlocks = [...blocks];
+    // Use any as intermediate to bypass exactOptionalPropertyTypes spread issues
+    newBlocks[index] = { ...newBlocks[index], height: newHeight } as any;
+    updateTheme({ blocks: newBlocks });
+  };
 
   return (
     <div 
       className="event-page-builder-container custom-scrollbar" 
       ref={containerRef}
+      onClick={() => setSelectedBlockId(null)}
       style={{ 
         width: '100%', 
         height: '100%', 
@@ -65,7 +74,6 @@ const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
           overflow: 'visible'
         }}
       >
-        {/* Overlay opacità, come in EditorStage */}
         <div style={{
           position: 'absolute',
           inset: 0,
@@ -75,7 +83,6 @@ const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
           pointerEvents: 'none'
         }} />
 
-        {/* Envelope Animation centrata */}
         <div style={{ 
           position: 'relative', 
           zIndex: 2,
@@ -101,15 +108,55 @@ const EventPageBuilder: React.FC<EventPageBuilderProps> = ({
              <ReadOnlyCanvas layers={layers} canvasProps={canvasProps} />
           </EnvelopeAnimation>
         </div>
-
-
       </div>
 
-      {/* Aggiungeremo qui in futuro il bottone "+ Aggiungi Sezione" */}
+      {/* =======================
+          DYNAMIC SECTIONS (Blocks)
+          ======================= */}
+      <div className="dynamic-sections-container">
+        {blocks.map((block, idx) => (
+          <BuilderSection 
+            key={block.id || idx}
+            block={block}
+            index={idx}
+            isSelected={selectedBlockId === block.id}
+            onClick={() => setSelectedBlockId(block.id || null)}
+            onHeightChange={(h) => handleHeightChange(idx, h)}
+            onHeightChangeComplete={() => pushToHistory()}
+          />
+        ))}
+      </div>
+
+      {/* BUtton Aggiungi Sezione placeholder */}
       <div style={{ padding: '60px 20px', textAlign: 'center' }}>
           <p style={{ color: 'var(--text-soft)', fontSize: '13px', marginBottom: '16px' }}>
              Questa è la pagina che i tuoi invitati vedranno scorrendo verso il basso.
           </p>
+          <button 
+            style={{ 
+              padding: '10px 20px', 
+              borderRadius: '30px', 
+              border: '1px dashed var(--accent)', 
+              backgroundColor: 'transparent',
+              color: 'var(--accent)',
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
+            onClick={() => {
+              const newBlocks = [...blocks, { 
+                id: 'block-' + Date.now(), 
+                type: 'custom',
+                y: 0, // Required by Block interface
+                title: 'Nuova Sezione', 
+                height: 400, 
+                bgColor: '#ffffff' 
+              } as Block];
+              updateTheme({ blocks: newBlocks });
+              pushToHistory();
+            }}
+          >
+            + Aggiungi Sezione
+          </button>
       </div>
     </div>
   );
