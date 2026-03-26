@@ -165,9 +165,9 @@ export interface PrebuiltTemplate {
     bgImage: string;
     width: number;
     height: number;
-    bgX: number;
-    bgY: number;
-    bgScale: number;
+    bgX?: number;
+    bgY?: number;
+    bgScale?: number;
   };
   theme: {
     preset: string;
@@ -189,10 +189,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     canvas: {
       bgImage: "/templates/wedding_floral.png",
       width: 800,
-      height: 800,
-      bgX: 0,
-      bgY: 0,
-      bgScale: 1
+      height: 800
     },
     theme: {
       preset: "garden",
@@ -218,10 +215,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     canvas: {
       bgImage: "/templates/wedding_minimal.png",
       width: 800,
-      height: 800,
-      bgX: 0,
-      bgY: 0,
-      bgScale: 1
+      height: 800
     },
     theme: {
       preset: "noir",
@@ -246,10 +240,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     canvas: {
       bgImage: "/templates/wedding_ornate.png",
       width: 800,
-      height: 800,
-      bgX: 0,
-      bgY: 0,
-      bgScale: 1
+      height: 800
     },
     theme: {
       preset: "noir",
@@ -276,10 +267,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     canvas: {
       bgImage: "/templates/party_retro.png",
       width: 800,
-      height: 800,
-      bgX: 0,
-      bgY: 0,
-      bgScale: 1
+      height: 800
     },
     theme: {
       preset: "noir",
@@ -307,10 +295,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     canvas: {
       bgImage: "/templates/business_corporate.png",
       width: 800,
-      height: 800,
-      bgX: 0,
-      bgY: 0,
-      bgScale: 1
+      height: 800
     },
     theme: {
       preset: "noir",
@@ -338,10 +323,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     canvas: {
       bgImage: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=800",
       width: 800,
-      height: 1000,
-      bgX: 0,
-      bgY: 0,
-      bgScale: 1.25
+      height: 1000
     },
     theme: {
       preset: "garden",
@@ -352,7 +334,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     layers: [
       { id: "l1", type: "text", text: "Siamo felici di annunciare il battesimo di", x: "center", y: 160, fontSize: 20, fontFamily: "Inter", fontWeight: "300", color: "#555555", textAlign: "center", width: "max-content" },
       { id: "l2", type: "text", text: "Leonardo", x: "center", y: 268, fontSize: 96, fontFamily: "Alex Brush", fontWeight: "normal", color: "#a0cecb", textAlign: "center", width: "max-content" },
-      { id: "l3", type: "text", text: "Domenica 18 Ottobre 2026\nChiesa di San Lorenzo, ore 11:00\nSeguirà rinfresco presso Villa Flora.", x: "center", y: 760, fontSize: 20, fontFamily: "Inter", fontWeight: "normal", color: "#444444", textAlign: "center", width: "max-content" }
+      { id: "l3", type: "text", text: "Domenica 18 Ottobre 2026\nChiesa di San Lorenzo\nore 11,00\n\nSeguirà rinfresco presso Villa Flora.", x: "center", y: 760, fontSize: 26, fontFamily: "Inter", fontWeight: "normal", color: "#444444", textAlign: "center", width: "max-content" }
     ],
     blocks: [
       { id: "r1", type: "rsvp", order: 1, props: {} }

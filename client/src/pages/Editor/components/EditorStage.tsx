@@ -376,14 +376,15 @@ const EditorStage: React.FC<EditorStageProps> = ({
                <div style={{ position: 'absolute', left: canvasProps.bgX || 0, top: canvasProps.bgY || 0, width: bgNaturalSize.w * (canvasProps.bgScale || 1), height: bgNaturalSize.h * (canvasProps.bgScale || 1), opacity: canvasProps.bgOpacity ?? 1, pointerEvents: 'none', zIndex: 0, touchAction: 'none' }}>
                <img src={canvasProps.bgImage} alt="Sfondo" style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }} onLoad={(e) => {
                       const target = e.target as HTMLImageElement; setBgNaturalSize({ w: target.naturalWidth, h: target.naturalHeight });
-                      // Se mancano i dati di posizionamento (o sono i default incompleti), calcoliamo il centering "cover"
-                      if (canvasProps.bgScale === undefined || canvasProps.bgX === undefined || canvasProps.bgY === undefined) {
+                      // Se mancano i dati di posizionamento o sono i default sospetti (0,0,1), calcoliamo il centering "cover"
+                      const isInitialDefault = canvasProps.bgX === 0 && canvasProps.bgY === 0 && (canvasProps.bgScale === 1 || !canvasProps.bgScale);
+                      if (canvasProps.bgScale === undefined || canvasProps.bgX === undefined || canvasProps.bgY === undefined || isInitialDefault) {
                         const scale = Math.max(canvasProps.width / target.naturalWidth, canvasProps.height / target.naturalHeight);
                         setCanvasProps(prev => ({ 
                           ...prev, 
-                          bgX: prev.bgX ?? (canvasProps.width - target.naturalWidth * scale) / 2, 
-                          bgY: prev.bgY ?? (canvasProps.height - target.naturalHeight * scale) / 2, 
-                          bgScale: prev.bgScale ?? scale, 
+                          bgX: (prev.bgX === undefined || prev.bgX === null || isInitialDefault) ? (canvasProps.width - target.naturalWidth * scale) / 2 : prev.bgX, 
+                          bgY: (prev.bgY === undefined || prev.bgY === null || isInitialDefault) ? (canvasProps.height - target.naturalHeight * scale) / 2 : prev.bgY, 
+                          bgScale: (prev.bgScale === undefined || prev.bgScale === null || isInitialDefault) ? scale : prev.bgScale, 
                           bgOpacity: prev.bgOpacity ?? 1 
                         }));
                       }
@@ -443,7 +444,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
                       </>
                    )}
                    {(!layer.type || layer.type === 'text') && (
-                      <EditableText id={`layer-content-${layer.id}`} className="layer-content" text={layer.text || ""} isEditing={isEditing} onSync={(val) => { setLayers(layers.map(l => l.id === layer.id ? { ...l, text: val } : l)); setIsDirty(true); }} onBlur={(val) => { let updatedText = val; if (!updatedText || updatedText === "<br>") updatedText = "Testo Vuoto"; setLayers(layers.map(l => l.id === layer.id ? { ...l, text: updatedText } : l)); setIsDirty(true); setEditingLayerId(null); }} onFocus={() => pushToHistory()} onDoubleClick={(e) => { e.stopPropagation(); setEditingLayerId(layer.id); }} onPointerDown={(e) => { if (isEditing) e.stopPropagation(); }} style={{ outline: "none", minWidth: "20px", minHeight: "1em", cursor: isEditing ? "text" : (isSelected ? "grab" : "pointer"), pointerEvents: "auto", userSelect: isEditing ? "auto" : "none", whiteSpace: "nowrap", paddingBottom: "0.15em" }} />
+                      <EditableText id={`layer-content-${layer.id}`} className="layer-content" text={layer.text || ""} isEditing={isEditing} onSync={(val) => { setLayers(layers.map(l => l.id === layer.id ? { ...l, text: val } : l)); setIsDirty(true); }} onBlur={(val) => { let updatedText = val; if (!updatedText || updatedText === "<br>") updatedText = "Testo Vuoto"; setLayers(layers.map(l => l.id === layer.id ? { ...l, text: updatedText } : l)); setIsDirty(true); setEditingLayerId(null); }} onFocus={() => pushToHistory()} onDoubleClick={(e) => { e.stopPropagation(); setEditingLayerId(layer.id); }} onPointerDown={(e) => { if (isEditing) e.stopPropagation(); }} style={{ outline: "none", minWidth: "20px", minHeight: "1em", cursor: isEditing ? "text" : (isSelected ? "grab" : "pointer"), pointerEvents: "auto", userSelect: isEditing ? "auto" : "none", whiteSpace: "pre-wrap", paddingBottom: "0.15em" }} />
                     )}
                    {layer.type === 'image' && (
                      <img src={layer.src} style={{ width: (layer.w || 100) + 'px', height: (layer.h || 100) + 'px', objectFit: 'contain', pointerEvents: 'none', display: 'block', userSelect: 'none', WebkitUserDrag: 'none', opacity: layer.opacity !== undefined ? layer.opacity : 1 } as React.CSSProperties} alt="" draggable="false" />

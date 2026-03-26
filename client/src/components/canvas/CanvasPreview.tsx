@@ -35,14 +35,33 @@ export default function CanvasPreview({ canvas, layers }: CanvasPreviewProps) {
       containerType: "inline-size", 
       width: "100%", 
       aspectRatio: `${width} / ${height}`,
-      backgroundImage: canvas.bgImage ? `url(${canvas.bgImage})` : 'none',
-      backgroundColor: canvas.bgImage ? 'transparent' : '#fff',
-      backgroundSize: "cover",
-      backgroundPosition: "center",
+      backgroundColor: canvas.bgImage ? 'transparent' : (canvas.bgColor || '#fff'),
       position: "relative",
       overflow: "hidden",
       borderRadius: "var(--radius-md) var(--radius-md) 0 0"
     } as React.CSSProperties}>
+      {canvas.bgImage && (
+        <div style={{
+          position: "absolute",
+          left: `${((canvas.bgX || 0) / width) * 100}%`,
+          top: `${((canvas.bgY || 0) / height) * 100}%`,
+          // Note: we can't easily get natural size here, so we might still need cover fallback 
+          // OR we trust the browser if the editor has already calculated and saved the values.
+          // For now, let's use a robust implementation using object-fit if no scale/offsets, 
+          // but if they exist, use them as percentages of the canvas.
+          width: canvas.bgScale ? `${(canvas.bgScale * 100)}%` : '100%',
+          height: canvas.bgScale ? 'auto' : '100%',
+          display: 'block',
+          zIndex: 0,
+          pointerEvents: 'none'
+        } as React.CSSProperties}>
+          <img src={canvas.bgImage} style={{ 
+            width: canvas.bgScale ? '100%' : '100%', 
+            height: canvas.bgScale ? 'auto' : '100%', 
+            objectFit: canvas.bgScale ? 'initial' : 'cover'
+          }} alt="" />
+        </div>
+      )}
       {(layers || []).map(layer => {
         const lWidth = layer.width || layer.w;
         const isMaxContent = lWidth === 'max-content';
@@ -65,7 +84,7 @@ export default function CanvasPreview({ canvas, layers }: CanvasPreviewProps) {
             lineHeight: layer.lineHeight || 1.2,
             color: layer.color,
             textAlign: layer.textAlign,
-            whiteSpace: isMaxContent ? 'nowrap' : 'pre-wrap',
+            whiteSpace: 'pre-wrap',
           } as React.CSSProperties}>
             {layer.text}
           </div>
