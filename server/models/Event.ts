@@ -83,9 +83,9 @@ const eventSchema = new Schema(
     canvas: {
       bgImage: { type: String, default: null },
       bgColor: { type: String, default: "#ffffff" },
-      bgX: { type: Number, default: 0 },
-      bgY: { type: Number, default: 0 },
-      bgScale: { type: Number, default: 1 },
+      bgX: { type: Number },
+      bgY: { type: Number },
+      bgScale: { type: Number },
       width: { type: Number, default: 800 },
       height: { type: Number, default: 1000 },
     },

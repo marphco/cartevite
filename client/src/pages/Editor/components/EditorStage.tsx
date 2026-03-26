@@ -374,11 +374,18 @@ const EditorStage: React.FC<EditorStageProps> = ({
               )}
              {canvasProps.bgImage && (
                <div style={{ position: 'absolute', left: canvasProps.bgX || 0, top: canvasProps.bgY || 0, width: bgNaturalSize.w * (canvasProps.bgScale || 1), height: bgNaturalSize.h * (canvasProps.bgScale || 1), opacity: canvasProps.bgOpacity ?? 1, pointerEvents: 'none', zIndex: 0, touchAction: 'none' }}>
-                 <img src={canvasProps.bgImage} alt="Sfondo" style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }} onLoad={(e) => {
+               <img src={canvasProps.bgImage} alt="Sfondo" style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }} onLoad={(e) => {
                       const target = e.target as HTMLImageElement; setBgNaturalSize({ w: target.naturalWidth, h: target.naturalHeight });
-                      if (canvasProps.bgX === undefined || canvasProps.bgY === undefined) {
+                      // Se mancano i dati di posizionamento (o sono i default incompleti), calcoliamo il centering "cover"
+                      if (canvasProps.bgScale === undefined || canvasProps.bgX === undefined || canvasProps.bgY === undefined) {
                         const scale = Math.max(canvasProps.width / target.naturalWidth, canvasProps.height / target.naturalHeight);
-                        setCanvasProps(prev => ({ ...prev, bgX: (canvasProps.width - target.naturalWidth * scale) / 2, bgY: (canvasProps.height - target.naturalHeight * scale) / 2, bgScale: scale, bgOpacity: prev.bgOpacity ?? 1 }));
+                        setCanvasProps(prev => ({ 
+                          ...prev, 
+                          bgX: prev.bgX ?? (canvasProps.width - target.naturalWidth * scale) / 2, 
+                          bgY: prev.bgY ?? (canvasProps.height - target.naturalHeight * scale) / 2, 
+                          bgScale: prev.bgScale ?? scale, 
+                          bgOpacity: prev.bgOpacity ?? 1 
+                        }));
                       }
                   }} />
                  {isEditingBackground && (
