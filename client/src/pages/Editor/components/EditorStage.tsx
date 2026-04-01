@@ -105,7 +105,75 @@ const EditorStage: React.FC<EditorStageProps> = ({
         position: 'relative'
       }}
       onPointerDown={(e) => {
-         if (window.innerWidth <= 768 || editorMode !== 'canvas' || isEditingBackground) return;
+         if (window.innerWidth <= 768 || editorMode !== 'canvas') return;
+         
+         if (isEditingBackground) {
+           // Logica di trascinamento sfondo spostata qui per funzionare su tutto lo stage
+           e.stopPropagation();
+           const stageElement = e.currentTarget as HTMLElement;
+           stageElement.setPointerCapture(e.pointerId);
+           
+           if (!(window as any)._bgPointers) (window as any)._bgPointers = new Map();
+           (window as any)._bgPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+           
+           const initX = canvasProps.bgX || 0;
+           const initY = canvasProps.bgY || 0;
+           const initScale = canvasProps.bgScale || 1;
+           const startX = e.clientX;
+           const startY = e.clientY;
+           let initialDist = 0;
+
+           const handleMove = (moveEvent: PointerEvent) => {
+              const bgPointers = (window as any)._bgPointers;
+              if (!bgPointers || !bgPointers.has(moveEvent.pointerId)) return;
+              bgPointers.set(moveEvent.pointerId, { x: moveEvent.clientX, y: moveEvent.clientY });
+              const pointers = Array.from(bgPointers.values()) as {x: number, y: number}[];
+              
+              if (pointers.length === 2) {
+                 const p0 = pointers[0]; const p1 = pointers[1];
+                 if (p0 && p1) {
+                   const dist = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2));
+                   if (initialDist === 0) { initialDist = dist; return; }
+                   const scaleFactor = dist / initialDist;
+                   const newScale = Math.max(0.1, initScale * scaleFactor);
+                   setCanvasProps(prev => ({ ...prev, bgScale: newScale }));
+                 }
+              } else if (pointers.length === 1 && bgPointers.get(e.pointerId)) {
+                 const dx = (moveEvent.clientX - startX) / stageScale;
+                 const dy = (moveEvent.clientY - startY) / stageScale;
+                 let nx = initX + dx; let ny = initY + dy;
+                 const curW = bgNaturalSize.w * (canvasProps.bgScale || 1);
+                 const curH = bgNaturalSize.h * (canvasProps.bgScale || 1);
+                 const SNAP_THRESHOLD = 15; const newGuides = [];
+                 if (Math.abs(nx) < SNAP_THRESHOLD) { nx = 0; newGuides.push({ axis: 'x', position: 0 } as SnapGuide); }
+                 else if (Math.abs(nx + curW - canvasProps.width) < SNAP_THRESHOLD) { nx = canvasProps.width - curW; newGuides.push({ axis: 'x', position: canvasProps.width } as SnapGuide); }
+                 else if (Math.abs(nx + curW/2 - canvasProps.width/2) < SNAP_THRESHOLD) { nx = (canvasProps.width - curW) / 2; newGuides.push({ axis: 'x', position: canvasProps.width/2 } as SnapGuide); }
+                 if (Math.abs(ny) < SNAP_THRESHOLD) { ny = 0; newGuides.push({ axis: 'y', position: 0 } as SnapGuide); }
+                 else if (Math.abs(ny + curH - canvasProps.height) < SNAP_THRESHOLD) { ny = canvasProps.height - curH; newGuides.push({ axis: 'y', position: canvasProps.height } as SnapGuide); }
+                 else if (Math.abs(ny + curH/2 - canvasProps.height/2) < SNAP_THRESHOLD) { ny = (canvasProps.height - curH) / 2; newGuides.push({ axis: 'y', position: canvasProps.height/2 } as SnapGuide); }
+                 setSnapGuides(newGuides); setCanvasProps(prev => ({ ...prev, bgX: nx, bgY: ny }));
+              }
+           };
+
+           const handleUp = (upEvent: PointerEvent) => {
+              const bgPointers = (window as any)._bgPointers;
+              if (bgPointers) bgPointers.delete(upEvent.pointerId);
+              if (!bgPointers || bgPointers.size === 0) {
+                 setSnapGuides([]); 
+                 window.removeEventListener('pointermove', handleMove as any); 
+                 window.removeEventListener('pointerup', handleUp as any); 
+                 window.removeEventListener('pointercancel', handleUp as any); 
+                 pushToHistory(); 
+                 setIsDirty(true);
+              }
+           };
+
+           window.addEventListener('pointermove', handleMove as any); 
+           window.addEventListener('pointerup', handleUp as any); 
+           window.addEventListener('pointercancel', handleUp as any);
+           return;
+         }
+
          if ((e.target as HTMLElement).classList.contains('editor-canvas-stage')) {
              setSelectedLayerIds([]);
              setEditingLayerId(null);
@@ -272,54 +340,9 @@ const EditorStage: React.FC<EditorStageProps> = ({
               onPointerDown={(e) =>  {
                 stateBeforeActionRef.current = latestStateRef.current;
                 if (isEditingBackground) {
-                  e.stopPropagation();
-                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                  if (!(window as any)._bgPointers) (window as any)._bgPointers = new Map();
-                  (window as any)._bgPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-                  const initX = canvasProps.bgX || 0;
-                  const initY = canvasProps.bgY || 0;
-                  const initScale = canvasProps.bgScale || 1;
-                  const startX = e.clientX;
-                  const startY = e.clientY;
-                  let initialDist = 0;
-                  const handleMove = (moveEvent: PointerEvent) => {
-                     const bgPointers = (window as any)._bgPointers;
-                     if (!bgPointers || !bgPointers.has(moveEvent.pointerId)) return;
-                     bgPointers.set(moveEvent.pointerId, { x: moveEvent.clientX, y: moveEvent.clientY });
-                     const pointers = Array.from(bgPointers.values()) as {x: number, y: number}[];
-                     if (pointers.length === 2) {
-                        const p0 = pointers[0]; const p1 = pointers[1];
-                        if (p0 && p1) {
-                          const dist = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2));
-                          if (initialDist === 0) { initialDist = dist; return; }
-                          const scaleFactor = dist / initialDist;
-                          const newScale = Math.max(0.1, initScale * scaleFactor);
-                          setCanvasProps(prev => ({ ...prev, bgScale: newScale }));
-                        }
-                     } else if (pointers.length === 1 && bgPointers.get(e.pointerId)) {
-                        const dx = (moveEvent.clientX - startX) / stageScale;
-                        const dy = (moveEvent.clientY - startY) / stageScale;
-                        let nx = initX + dx; let ny = initY + dy;
-                        const curW = bgNaturalSize.w * (canvasProps.bgScale || 1);
-                        const curH = bgNaturalSize.h * (canvasProps.bgScale || 1);
-                        const SNAP_THRESHOLD = 15; const newGuides = [];
-                        if (Math.abs(nx) < SNAP_THRESHOLD) { nx = 0; newGuides.push({ axis: 'x', position: 0 } as SnapGuide); }
-                        else if (Math.abs(nx + curW - canvasProps.width) < SNAP_THRESHOLD) { nx = canvasProps.width - curW; newGuides.push({ axis: 'x', position: canvasProps.width } as SnapGuide); }
-                        else if (Math.abs(nx + curW/2 - canvasProps.width/2) < SNAP_THRESHOLD) { nx = (canvasProps.width - curW) / 2; newGuides.push({ axis: 'x', position: canvasProps.width/2 } as SnapGuide); }
-                        if (Math.abs(ny) < SNAP_THRESHOLD) { ny = 0; newGuides.push({ axis: 'y', position: 0 } as SnapGuide); }
-                        else if (Math.abs(ny + curH - canvasProps.height) < SNAP_THRESHOLD) { ny = canvasProps.height - curH; newGuides.push({ axis: 'y', position: canvasProps.height } as SnapGuide); }
-                        else if (Math.abs(ny + curH/2 - canvasProps.height/2) < SNAP_THRESHOLD) { ny = (canvasProps.height - curH) / 2; newGuides.push({ axis: 'y', position: canvasProps.height/2 } as SnapGuide); }
-                        setSnapGuides(newGuides); setCanvasProps(prev => ({ ...prev, bgX: nx, bgY: ny }));
-                     }
-                  };
-                  const handleUp = (upEvent: PointerEvent) => {
-                     const bgPointers = (window as any)._bgPointers;
-                     if (bgPointers) bgPointers.delete(upEvent.pointerId);
-                     if (!bgPointers || bgPointers.size === 0) {
-                        setSnapGuides([]); window.removeEventListener('pointermove', handleMove as any); window.removeEventListener('pointerup', handleUp as any); window.removeEventListener('pointercancel', handleUp as any); pushToHistory(); setIsDirty(true);
-                     }
-                  };
-                  window.addEventListener('pointermove', handleMove as any); window.addEventListener('pointerup', handleUp as any); window.addEventListener('pointercancel', handleUp as any); return;
+                  // Lasciamo che l'evento faccia bubbling verso editor-canvas-stage 
+                  // che ora gestisce il drag dello sfondo.
+                  return;
                 }
                 if ((e.target as HTMLElement).closest('.canvas-layer')) return;
                 if (editingLayerId) {
@@ -436,7 +459,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
                       </>
                    )}
                    {(!layer.type || layer.type === 'text') && (
-                      <EditableText id={`layer-content-${layer.id}`} className="layer-content" text={layer.text || ""} isEditing={isEditing} onSync={(val) => { setLayers(layers.map(l => l.id === layer.id ? { ...l, text: val } : l)); setIsDirty(true); }} onBlur={(val) => { let updatedText = val; if (!updatedText || updatedText === "<br>") updatedText = "Testo Vuoto"; setLayers(layers.map(l => l.id === layer.id ? { ...l, text: updatedText } : l)); setIsDirty(true); setEditingLayerId(null); }} onFocus={() => pushToHistory()} onDoubleClick={(e) => { e.stopPropagation(); setEditingLayerId(layer.id); }} onPointerDown={(e) => { if (isEditing) e.stopPropagation(); }} style={{ outline: "none", minWidth: "20px", minHeight: "1em", cursor: isEditing ? "text" : (isSelected ? "grab" : "pointer"), pointerEvents: "auto", userSelect: isEditing ? "auto" : "none", whiteSpace: "nowrap", paddingBottom: "0.15em" }} />
+                      <EditableText id={`layer-content-${layer.id}`} className="layer-content" text={layer.text || ""} isEditing={isEditing} onSync={(val) => { setLayers(layers.map(l => l.id === layer.id ? { ...l, text: val } : l)); setIsDirty(true); }} onBlur={(val) => { let updatedText = val; if (!updatedText || updatedText === "<br>") updatedText = "Testo Vuoto"; setLayers(layers.map(l => l.id === layer.id ? { ...l, text: updatedText } : l)); setIsDirty(true); setEditingLayerId(null); }} onFocus={() => pushToHistory()} onDoubleClick={(e) => { e.stopPropagation(); setEditingLayerId(layer.id); }} onPointerDown={(e) => { if (isEditing) e.stopPropagation(); }} style={{ outline: "none", minWidth: "20px", minHeight: "1em", cursor: isEditing ? "text" : (isSelected ? "grab" : "pointer"), pointerEvents: isEditingBackground ? "none" : "auto", userSelect: isEditing ? "auto" : "none", whiteSpace: "nowrap", paddingBottom: "0.15em" }} />
                     )}
                    {layer.type === 'image' && (
                      <img src={layer.src} style={{ width: (layer.w || 100) + 'px', height: (layer.h || 100) + 'px', objectFit: 'contain', pointerEvents: 'none', display: 'block', userSelect: 'none', WebkitUserDrag: 'none', opacity: layer.opacity !== undefined ? layer.opacity : 1 } as React.CSSProperties} alt="" draggable="false" />
