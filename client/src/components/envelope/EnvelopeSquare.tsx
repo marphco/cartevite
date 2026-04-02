@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Sparkles, MailOpen, RotateCcw } from "lucide-react";
 import "./EnvelopeAnimation.css";
 
 interface EnvelopeSquareProps {
@@ -502,15 +502,42 @@ export default function EnvelopeSquare({
                </div>
             </motion.div>
 
-            <AnimatePresence>
-              {phase === "closed" && !editMode && (
-                <motion.div className="envelope-hint" exit={{ opacity: 0 }} animate={{y:[0,-5,0]}} transition={{repeat:Infinity,duration:2}}>
-                  Tocca la busta per aprire
-                </motion.div>
-              )}
-            </AnimatePresence>
-            
           </motion.div>
+
+          <AnimatePresence>
+            {phase === "closed" && !editMode && !manualPhase && (
+              <motion.button 
+                className="envelope-action-btn"
+                initial={{ opacity: 0, y: 10, x: "-50%" }}
+                animate={{ opacity: 1, y: 0, x: "-50%" }}
+                exit={{ opacity: 0, scale: 0.9, x: "-50%" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPhase("flap_open");
+                }}
+              >
+                <MailOpen size={18} />
+                Apri Invito
+              </motion.button>
+            )}
+
+            {phase === "extracted" && !editMode && !manualPhase && (
+              <motion.button 
+                className="envelope-replay-btn"
+                initial={{ opacity: 0, scale: 0.5, x: "-50%" }}
+                animate={{ opacity: 1, scale: 1, x: "-50%" }}
+                exit={{ opacity: 0, scale: 0.5, x: "-50%" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPhase("closed");
+                }}
+                title="Rivedi animazione"
+              >
+                <RotateCcw size={14} />
+                Replay
+              </motion.button>
+            )}
+          </AnimatePresence>
        </div>
     </div>
   );

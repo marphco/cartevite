@@ -396,7 +396,86 @@
   font-family: var(--font-body, sans-serif);
   font-size: 0.9rem;
   letter-spacing: 1px;
-}.custom-slider {
+}
+
+/* 5. CONTROLLI PREMIUM (OPEN & REPLAY) */
+.envelope-action-btn {
+  position: absolute;
+  bottom: -140px; /* Spostato molto più giù per evitare sovrapposizioni con l'aletta */
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 10px 24px;
+  border-radius: 99px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 200;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.envelope-action-btn:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 10px 25px rgba(5, 150, 105, 0.2);
+  background: #ffffff;
+}
+
+.envelope-replay-btn {
+  position: absolute;
+  bottom: -240px; /* Molto più in basso per stare SOTTO l'invito estratto e scalato */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(5px);
+  color: var(--text-soft);
+  border: 1px solid rgba(0,0,0,0.1);
+  padding: 8px 20px;
+  border-radius: 99px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  z-index: 200;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.envelope-replay-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: #ffffff;
+  transform: translateX(-50%) translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+/* 6. MOBILE OPTIMIZATION (TOUCH TARGETS) */
+@media (max-width: 768px) {
+  .envelope-action-btn {
+    padding: 14px 32px;
+    font-size: 0.95rem;
+    bottom: -150px;
+  }
+  .envelope-replay-btn {
+    padding: 12px 28px;
+    font-size: 0.9rem;
+    bottom: -180px; /* Più stretto su mobile per stare nello schermo */
+  }
+}
+
+.custom-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
