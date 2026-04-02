@@ -204,16 +204,11 @@ const EditorStage: React.FC<EditorStageProps> = ({
         }} />
       )}
 
-      {editorMode !== 'event_page' && (
+      {editorMode !== 'event_page' && event.theme?.heroBg && event.theme.heroBg !== 'none' && !event.theme.heroBg.startsWith('#') && (
         <div style={{
           position: 'absolute',
           inset: 0,
-          backgroundColor: (event.theme?.heroBg && (event.theme.heroBg.startsWith('#') || event.theme.heroBg.startsWith('rgb'))) 
-            ? event.theme.heroBg 
-            : 'transparent',
-          backgroundImage: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) 
-            ? `url(${event.theme.heroBg})` 
-            : 'none',
+          backgroundImage: `url(${event.theme.heroBg})`,
           backgroundSize: 'cover',
           backgroundPosition: event.theme?.heroBgPosition || 'center',
           opacity: (event.theme?.heroBgOpacity ?? 1),
@@ -234,6 +229,8 @@ const EditorStage: React.FC<EditorStageProps> = ({
                pocketLinerImg={event.theme?.coverPocketLiner}
                canvasProps={canvasProps}
                editMode={true}
+               isBuilder={true}
+               isMobile={isMobile}
                manualPhase={isEnvelopeOpen ? 'extracted' : 'closed'}
                linerX={event.theme?.linerX || 0}
                linerY={event.theme?.linerY || 0}
@@ -282,6 +279,8 @@ const EditorStage: React.FC<EditorStageProps> = ({
                     canvasProps={canvasProps}
                     manualPhase="extracted"
                     preview={true}
+                    isBuilder={true}
+                    isMobile={isMobile}
                     scale={envScenarioScale}
                   />
                 </div>

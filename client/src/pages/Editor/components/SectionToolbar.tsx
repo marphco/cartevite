@@ -27,9 +27,9 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
       className={`section-floating-toolbar ${layout}`}
       style={{
         position: 'absolute',
-        // Fused: Su mobile sovrapponiamo il bordo superiore
-        top: isHorizontal ? '-28px' : '0', // Un po' più su per fare spazio al triangolo
-        right: isHorizontal ? 'auto' : '-65px', // La "via di mezzo" perfetta
+        // Ripristinato all'esterno come originariamente richiesto
+        top: isHorizontal ? '-28px' : '0', 
+        right: isHorizontal ? 'auto' : '-65px',
         left: isHorizontal ? '50%' : 'auto',
         transform: isHorizontal ? 'translateX(-50%)' : 'none',
         display: 'flex',

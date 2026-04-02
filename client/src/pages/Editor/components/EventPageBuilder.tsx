@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import EnvelopeAnimation from "../../../components/envelope/EnvelopeAnimation";
 import ReadOnlyCanvas from "../../../components/canvas/ReadOnlyCanvas";
 import BuilderSection from "./BuilderSection";
+import { ScrollHint } from "../../../components/ui/ScrollHint";
 import type { Layer, CanvasProps, Block } from "../../../types/editor";
 
 interface EventPageBuilderProps {
@@ -29,6 +30,7 @@ export function EventPageBuilder({
 }: EventPageBuilderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [isInvitationOpened, setIsInvitationOpened] = useState(false);
 
   const handleHeightChange = (index: number, newHeight: number) => {
     const newBlocks = [...blocks];
@@ -97,39 +99,25 @@ export function EventPageBuilder({
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        padding: isMobile ? '0' : '0 80px 0 30px' // Padding destro aumentato a 80px per dare stacco alla toolbar
+        alignItems: 'stretch',
+        padding: isMobile ? '0' : '0 100px 0 30px' // Aumentato padding destro per alloggiare la toolbar esterna
       }}
     >
-      <div 
-        className="event-page-width-constraint"
-        style={{
-          width: '100%',
-          maxWidth: isMobile ? '100%' : '900px', // Bilanciamento perfetto per schermi a metà
-          position: 'relative',
-          backgroundColor: 'var(--bg-surface)',
-          boxShadow: isMobile ? 'none' : '0 0 40px rgba(0,0,0,0.05)',
-          minHeight: '100%',
-          zIndex: 1
-        }}
-      >
       {/* =======================
-          HERO SECTION (Blocco 1)
+          HERO SECTION (Blocco 1) - FULL WIDTH
           ======================= */}
       <div 
         className="event-hero-section"
         style={{
           width: '100%',
-          minHeight: isMobile ? '100%' : '950px', // Ripristino spazio generoso per proteggere l'aletta
-          maxHeight: isMobile ? 'none' : '1100px',
+          maxWidth: isMobile ? '100%' : '900px', // Limita la larghezza per matchare le sezioni
+          margin: '0 auto', // Centra la hero
+          minHeight: isMobile ? '100vh' : '100vh',
           position: 'relative',
           display: 'flex',
-          alignItems: 'center', // Centramento solido
+          alignItems: 'center',
           justifyContent: 'center',
-          paddingTop: isMobile ? '0' : '100px', // Ripristino 100px per sicurezza totale contro il clipping
-          backgroundColor: (event?.theme?.heroBg && (event.theme.heroBg.startsWith('#') || event.theme.heroBg.startsWith('rgb'))) 
-            ? event.theme.heroBg 
-            : 'var(--bg-body)',
+          backgroundColor: event?.theme?.heroBgColor || 'var(--bg-body)',
           backgroundImage: (event?.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb') && event.theme.heroBg !== 'none') 
             ? `url(${event.theme.heroBg})` 
             : 'none',
@@ -137,22 +125,24 @@ export function EventPageBuilder({
           backgroundPosition: event?.theme?.heroBgPosition || 'center',
           backgroundRepeat: 'no-repeat',
           backgroundAttachment: 'local',
-          overflow: 'visible'
+          overflow: 'visible' 
         }}
       >
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundColor: event?.theme?.heroBgColor || 'var(--bg-body)',
-          opacity: 1 - (event?.theme?.heroBgOpacity ?? 1),
-          zIndex: 1,
-          pointerEvents: 'none'
-        }} />
+        {/* Overlay solo se c'è un'immagine di sfondo */}
+        {(event?.theme?.heroBg && event.theme.heroBg !== 'none' && !event.theme.heroBg.startsWith('#')) && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: event?.theme?.heroBgColor || 'transparent',
+            opacity: 1 - (event?.theme?.heroBgOpacity ?? 1),
+            zIndex: 1,
+            pointerEvents: 'none'
+          }} />
+        )}
 
         <div style={{ 
           position: 'relative', 
           zIndex: 2,
-          // Rimosso il transform scale manuale per delegare interamente alla busta
           transform: isMobile ? 'scale(0.6)' : 'none', 
           transformOrigin: 'center center'
         }}>
@@ -169,14 +159,34 @@ export function EventPageBuilder({
             linerColor={event?.theme?.coverLinerColor || '#ffffff'}
             canvasProps={canvasProps}
             manualPhase={null}
-            preview={false}
             isEventPage={true}
             isBuilder={true}
+            isMobile={isMobile}
+            onOpenComplete={() => setIsInvitationOpened(true)}
           >
              <ReadOnlyCanvas layers={layers} canvasProps={canvasProps} />
           </EnvelopeAnimation>
         </div>
+        {/* SCROLL HINT (Ancorato alla base della Hero per centratura e visibilità) */}
+        {isInvitationOpened && <ScrollHint isMobile={isMobile} color={event?.theme?.accentColor || 'var(--accent)'} />}
       </div>
+
+      {/* =======================
+          CONSTRAINED CONTENT (Blocks)
+          ======================= */}
+      <div 
+        className="event-page-width-constraint"
+        style={{
+          width: '100%',
+          maxWidth: isMobile ? '100%' : '900px', 
+          margin: '0 auto', // Centra il contenuto rispetto alla hero full-width
+          position: 'relative',
+          backgroundColor: '#ffffff',
+          boxShadow: isMobile ? 'none' : '0 0 40px rgba(0,0,0,0.05)',
+          minHeight: '100%',
+          zIndex: 5
+        }}
+      >
 
       {/* =======================
           DYNAMIC SECTIONS (Blocks)
@@ -233,7 +243,7 @@ export function EventPageBuilder({
             + Aggiungi Sezione
           </button>
       </div>
-     </div>
+      </div>
     </div>
   );
 };

@@ -6,8 +6,9 @@ import { Surface, Button, Badge } from "../../ui";
 import EnvelopeAnimation from "../../components/envelope/EnvelopeAnimation";
 import ReadOnlyCanvas from "../../components/canvas/ReadOnlyCanvas";
 import { loadGoogleFont } from "../../pages/Editor/components/EditorHelpers";
-import { Calendar, MapPin, Send } from "lucide-react";
+import { Calendar, MapPin, Send, Mouse, ChevronDown } from "lucide-react";
 import "./EventPublic.css";
+import ScrollHint from "../../components/ui/ScrollHint";
 import type { EventData, Block } from "../../types/editor";
 
 export default function EventPublic() {
@@ -25,6 +26,7 @@ export default function EventPublic() {
   const [rsvpPhone, setRsvpPhone] = useState("");
   const [editLink, setEditLink] = useState("");
   const [rsvpWasUpdated, setRsvpWasUpdated] = useState(false);
+  const [isInvitationOpened, setIsInvitationOpened] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageScale, setStageScale] = useState(1);
@@ -217,38 +219,52 @@ export default function EventPublic() {
   );
 
   return (
-    <div className="event-public-page" style={{ backgroundColor: pageTheme.bg, position: 'relative', overflow: 'hidden' }}>
-      {/* Sfondo Scenario */}
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: event.theme?.heroBgColor || 'var(--bg-body)',
-        zIndex: 0,
-        pointerEvents: 'none'
-      }} />
+    <div className="event-public-page" style={{ 
+      backgroundColor: '#ffffff', // Sezioni successive bianche
+      position: 'relative', 
+      overflowX: 'hidden' 
+    }}>
+      {/* 1. HERO SECTION - FULL WIDTH, NO MARGINS */}
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        width: '100%', 
+        padding: '0', 
+        position: 'relative', 
+        overflow: 'hidden'
+      }}>
+        {/* Sfondo Scenario (Hero Background) */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: event.theme?.heroBgColor || 'var(--bg-body)',
+          zIndex: 0,
+          pointerEvents: 'none'
+        }} />
 
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 0,
-        backgroundImage: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) 
-          ? `url(${resolveImageUrl(event.theme.heroBg)})` 
-          : 'none',
-        backgroundSize: 'cover',
-        backgroundPosition: event.theme?.heroBgPosition || 'center',
-        opacity: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) ? (event.theme?.heroBgOpacity ?? 1) : 0,
-        pointerEvents: 'none'
-      }} />
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 0,
+          backgroundImage: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) 
+            ? `url(${resolveImageUrl(event.theme.heroBg)})` 
+            : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: event.theme?.heroBgPosition || 'center',
+          opacity: (event.theme?.heroBg && !event.theme.heroBg.startsWith('#') && !event.theme.heroBg.startsWith('rgb')) ? (event.theme?.heroBgOpacity ?? 1) : 0,
+          pointerEvents: 'none'
+        }} />
 
-      <div className="event-public-shell" style={{ fontFamily: pageTheme.fonts.body, position: 'relative', zIndex: 1, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '20px 0' }}>
-           <div style={{
-             position: 'relative',
-             zIndex: 2,
-             transform: `scale(${window.innerWidth <= 768 ? 0.6 : 0.88})`,
-             transformOrigin: 'center center'
-           }}>
+         {/* Envelope Container con Scaling */}
+         <div style={{
+           position: 'relative',
+           zIndex: 2,
+           transform: `scale(${window.innerWidth <= 768 ? 0.6 : 0.88})`,
+           transformOrigin: 'center center'
+         }}>
             <EnvelopeAnimation
               envelopeFormat={event.theme?.envelopeFormat || 'vertical'}
               guestName={event.theme?.coverText || ''}
@@ -264,7 +280,7 @@ export default function EventPublic() {
               canvasProps={event.canvas || null}
               isEventPage={true}
               onOpenComplete={() => {
-                window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
+                setIsInvitationOpened(true);
               }}
             >
               {event.layers && event.canvas ? (
@@ -286,152 +302,125 @@ export default function EventPublic() {
               )}
             </EnvelopeAnimation>
           </div>
-        </div>
+          
+          {/* SCROLL HINT (Discreto e Disegnato sulla Viewport) */}
+          {isInvitationOpened && <ScrollHint isMobile={window.innerWidth <= 768} color={pageTheme.accent} />}
+      </div>
 
-        <div className="event-public-content" ref={containerRef} style={{ width: '100%', overflowX: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '100px' }}>
+      {/* 2. CONTENT SHELL - CONSTRAINED WIDTH FOR BLOCKS */}
+      <div className="event-public-shell" style={{ fontFamily: pageTheme.fonts.body, position: 'relative', zIndex: 1, padding: '40px 20px' }}>
+        <div className="event-public-content" ref={containerRef} style={{ width: '100%', overflowX: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           {orderedBlocks.length === 0 ? (
-          <Surface variant="glass" style={{ marginTop: "2rem" }}>
-            <p style={{ margin: 0, color: "var(--text-muted)" }}>
-              Il creatore dell'evento sta ancora preparando i contenuti.
-            </p>
-          </Surface>
-        ) : (
-          <div 
-            className="page-canvas-area public-view"
-            style={{
-              position: 'relative',
-              width: event.canvas?.width || 800,
-              height: Math.max(1200, Math.max(...orderedBlocks.map(b => ((b.y || 0) + (b.height || 400)))) + 200),
-              transform: `scale(${stageScale})`,
-              transformOrigin: 'top center',
-              margin: '0 auto',
-              background: 'transparent'
-            }}
-          >
-          {orderedBlocks.map((block) => {
-            const layoutPreset = block.props?.layoutPreset || "single";
-            
-            return (
-              <div 
-                key={block.id || block._id}
-                className={`page-block-wrapper event-section block-type-${block.type} layout-${layoutPreset}`}
-                style={{
-                   position: 'absolute',
-                   left: block.x || ((event.canvas?.width || 800) / 2),
-                   top: block.y || 0,
-                   width: block.width || ((event.canvas?.width || 800) - 40),
-                   height: block.height || 'auto',
-                   transform: 'translateX(-50%)',
-                   background: ['map', 'rsvp'].includes(block.type) ? 'var(--surface)' : 'transparent',
-                   borderRadius: ['map', 'rsvp'].includes(block.type) ? '16px' : '0',
-                   padding: ['map', 'rsvp'].includes(block.type) ? '30px' : '0',
-                   boxShadow: ['map', 'rsvp'].includes(block.type) ? '0 4px 20px rgba(0,0,0,0.1)' : 'none',
-                   border: ['map', 'rsvp'].includes(block.type) ? '1px solid var(--border)' : 'none' 
-                } as React.CSSProperties}
-              >
-                {block.type === "text" && (
-                  <>
-                    {block.props.heading && <h2 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '12px', fontFamily: pageTheme.fonts.heading, color: 'var(--text-main)' }}>{block.props.heading}</h2>}
-                    {block.props.body && <p style={{ fontSize: '15px', color: 'var(--text-soft)', lineHeight: 1.6, fontFamily: pageTheme.fonts.body, whiteSpace: 'pre-wrap' }}>{block.props.body}</p>}
-                  </>
-                )}
+            <Surface variant="glass" style={{ marginTop: "2rem" }}>
+              <p style={{ margin: 0, color: "var(--text-muted)" }}>
+                Il creatore dell'evento sta ancora preparando i contenuti.
+              </p>
+            </Surface>
+          ) : (
+            <div 
+              className="page-canvas-area public-view"
+              style={{
+                position: 'relative',
+                width: event.canvas?.width || 800,
+                height: Math.max(1200, Math.max(...orderedBlocks.map(b => ((b.y || 0) + (b.height || 400)))) + 200),
+                transform: `scale(${stageScale})`,
+                transformOrigin: 'top center',
+                margin: '0 auto',
+                background: 'transparent'
+              }}
+            >
+              {orderedBlocks.map((block) => {
+                const layoutPreset = block.props?.layoutPreset || "single";
+                
+                return (
+                  <div 
+                    key={block.id || block._id}
+                    className={`page-block-wrapper event-section block-type-${block.type} layout-${layoutPreset}`}
+                    style={{
+                       position: 'absolute',
+                       left: block.x || ((event.canvas?.width || 800) / 2),
+                       top: block.y || 0,
+                       width: block.width || ((event.canvas?.width || 800) - 40),
+                       height: block.height || 'auto',
+                       transform: 'translateX(-50%)',
+                       background: ['map', 'rsvp'].includes(block.type) ? 'var(--surface)' : 'transparent',
+                       borderRadius: ['map', 'rsvp'].includes(block.type) ? '16px' : '0',
+                       padding: ['map', 'rsvp'].includes(block.type) ? '30px' : '0',
+                       boxShadow: ['map', 'rsvp'].includes(block.type) ? '0 4px 20px rgba(0,0,0,0.1)' : 'none',
+                       border: ['map', 'rsvp'].includes(block.type) ? '1px solid var(--border)' : 'none' 
+                    } as React.CSSProperties}
+                  >
+                    {block.type === "text" && (
+                      <>
+                        {block.props.heading && <h2 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '12px', fontFamily: pageTheme.fonts.heading, color: 'var(--text-main)' }}>{block.props.heading}</h2>}
+                        {block.props.body && <p style={{ fontSize: '15px', color: 'var(--text-soft)', lineHeight: 1.6, fontFamily: pageTheme.fonts.body, whiteSpace: 'pre-wrap' }}>{block.props.body}</p>}
+                      </>
+                    )}
 
-                {block.type === "map" && (() => {
-                  const title = block.props?.title || "";
-                  const address = block.props?.address || "";
-                  const mapUrl = block.props?.mapUrl || "";
-                  const fallbackUrl = address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : "";
-                  const finalUrl = mapUrl || fallbackUrl;
-                  const embedUrl = address ? `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed` : "";
+                    {block.type === "map" && (() => {
+                      const title = block.props?.title || "";
+                      const address = block.props?.address || "";
+                      const mapUrl = block.props?.mapUrl || "";
+                      const finalUrl = mapUrl || address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : "";
+                      const embedUrl = address ? `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed` : "";
 
-                  return (
-                    <>
-                      <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(var(--accent-rgb), 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                           <MapPin size={18} color={pageTheme.accent} />
+                      return (
+                        <>
+                          <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(var(--accent-rgb), 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                               <MapPin size={18} color={pageTheme.accent} />
+                            </div>
+                            {title || "Come arrivare"}
+                          </h2>
+                          {address && <p style={{ opacity: 0.85, marginBottom: '15px', fontSize: '14px' }}>{address}</p>}
+                          {embedUrl ? (
+                            <div style={{ width: "100%", height: "280px", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--border)", marginBottom: "15px" }}>
+                              <iframe title={`map-${block.id}`} src={embedUrl} width="100%" height="100%" style={{ border: 0 }} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+                            </div>
+                          ) : <p style={{ opacity: 0.7 }}>Indirizzo non disponibile.</p>}
+                          {finalUrl && (
+                            <a href={finalUrl} target="_blank" rel="noreferrer" className="ui-button ui-button--ghost" style={{ width: '100%', textDecoration: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                              Apri su Google Maps
+                            </a>
+                          )}
+                        </>
+                      );
+                    })()}
+
+                    {block.type === "rsvp" && renderRsvpBlock(block.id || block._id || "")}
+
+                    {block.type === "gallery" && (() => {
+                      const images = (block.props?.images || []).map(resolveImageUrl);
+                      return (
+                        <>
+                          <div style={{ fontSize: '12px', color: 'var(--text-soft)', textAlign: 'center', fontWeight: 600, marginBottom: '15px' }}>Galleria Immagini</div>
+                          {images.length === 0 ? <p style={{ opacity: 0.7, textAlign: 'center' }}>Nessuna immagine disponibile.</p> : (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                              {images.map((url: string, i: number) => (
+                                <div key={`${block.id}-pub-img-${i}`} style={{ aspectRatio: '1', backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '8px', border: '1px solid var(--border)' }} />
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+
+                    {block.type === "photo" && (() => {
+                      const imageUrl = block.props?.image ? resolveImageUrl(block.props.image) : null;
+                      if (!imageUrl) return null;
+                      const caption = block.props.caption || "";
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', height: '100%' }}>
+                           <div style={{ width: '100%', flex: 1, minHeight: '100px', backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '12px', overflow: 'hidden' }} />
+                           {caption && <p style={{ fontSize: '14px', color: 'var(--text-soft)', textAlign: 'center', fontStyle: 'italic', margin: 0 }}>{caption}</p>}
                         </div>
-                        {title || "Come arrivare"}
-                      </h2>
-                      {address && (
-                        <p style={{ opacity: 0.85, marginBottom: '15px', fontSize: '14px' }}>
-                          {address}
-                        </p>
-                      )}
-                      {embedUrl ? (
-                        <div style={{ width: "100%", height: "280px", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--border)", marginBottom: "15px" }}>
-                          <iframe title={`map-${block.id}`} src={embedUrl} width="100%" height="100%" style={{ border: 0 }} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-                        </div>
-                      ) : (
-                        <p style={{ opacity: 0.7 }}>Indirizzo non disponibile.</p>
-                      )}
-
-                      {finalUrl && (
-                        <a 
-                          href={finalUrl} 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="ui-button ui-button--ghost"
-                          style={{ width: '100%', textDecoration: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                        >
-                          Apri su Google Maps
-                        </a>
-                      )}
-                    </>
-                  );
-                })()}
-
-                {block.type === "rsvp" && renderRsvpBlock(block.id || block._id || "")}
-
-                {block.type === "gallery" && (() => {
-                  const images = (block.props?.images || []).map(resolveImageUrl);
-                  return (
-                    <>
-                      <div style={{ fontSize: '12px', color: 'var(--text-soft)', textAlign: 'center', fontWeight: 600, marginBottom: '15px' }}>Galleria Immagini</div>
-                      {images.length === 0 ? (
-                        <p style={{ opacity: 0.7, textAlign: 'center' }}>Nessuna immagine disponibile.</p>
-                      ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                          {images.map((url: string, i: number) => (
-                            <div key={`${block.id}-pub-img-${i}`} style={{ aspectRatio: '1', backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '8px', border: '1px solid var(--border)' }} />
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-
-                {block.type === "photo" && (() => {
-                  const imageUrl = block.props?.image ? resolveImageUrl(block.props.image) : null;
-                  if (!imageUrl) return null;
-                  const caption = block.props.caption || "";
-
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', height: '100%' }}>
-                       <div 
-                         style={{ 
-                           width: '100%', 
-                           flex: 1,
-                           minHeight: '100px',
-                           backgroundImage: `url(${imageUrl})`,
-                           backgroundSize: 'cover',
-                           backgroundPosition: 'center',
-                           borderRadius: '12px', 
-                           overflow: 'hidden'
-                         }}
-                       />
-                       {caption && (
-                         <p style={{ fontSize: '14px', color: 'var(--text-soft)', textAlign: 'center', fontStyle: 'italic', margin: 0 }}>
-                           {caption}
-                         </p>
-                       )}
-                    </div>
-                  );
-                })()}
-              </div>
-            );
-          })}
-          </div>
-        )}
+                      );
+                    })()}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

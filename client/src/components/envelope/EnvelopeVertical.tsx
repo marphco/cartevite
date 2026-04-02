@@ -358,6 +358,7 @@ export default function EnvelopeVertical({
             {phase === "closed" && !editMode && !manualPhase && (
               <motion.button 
                 className="envelope-action-btn"
+                style={{ bottom: isBuilder ? '-40px' : undefined }}
                 initial={{ opacity: 0, y: 10, x: "-50%" }}
                 animate={{ opacity: 1, y: 0, x: "-50%" }}
                 exit={{ opacity: 0, scale: 0.9, x: "-50%" }}
@@ -374,6 +375,7 @@ export default function EnvelopeVertical({
             {phase === "extracted" && !editMode && !manualPhase && (
               <motion.button 
                 className="envelope-replay-btn"
+                style={{ bottom: isBuilder ? '-100px' : undefined }}
                 initial={{ opacity: 0, scale: 0.5, x: "-50%" }}
                 animate={{ opacity: 1, scale: 1, x: "-50%" }}
                 exit={{ opacity: 0, scale: 0.5, x: "-50%" }}

@@ -25,6 +25,7 @@ interface EnvelopeHorizontalProps {
   scale?: number | null;
   isEventPage?: boolean;
   isBuilder?: boolean;
+  isMobile?: boolean;
 }
 
 type EnvelopePhase = 'closed' | 'flap_open' | 'extracting' | 'extracted';
@@ -42,7 +43,8 @@ export default function EnvelopeHorizontal({
   linerColor = null,
   scale: externalScale = null,
   isEventPage = false,
-  isBuilder = false
+  isBuilder = false,
+  isMobile = false
 }: EnvelopeHorizontalProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<EnvelopePhase>(preview ? "extracted" : "closed"); 
@@ -353,6 +355,7 @@ export default function EnvelopeHorizontal({
             {phase === "closed" && !editMode && !manualPhase && (
               <motion.button 
                 className="envelope-action-btn"
+                style={{ bottom: isBuilder ? '-40px' : undefined }}
                 initial={{ opacity: 0, y: 10, x: "-50%" }}
                 animate={{ opacity: 1, y: 0, x: "-50%" }}
                 exit={{ opacity: 0, scale: 0.9, x: "-50%" }}
@@ -372,7 +375,7 @@ export default function EnvelopeHorizontal({
                 initial={{ opacity: 0, scale: 0.5, x: "-50%" }}
                 animate={{ opacity: 1, scale: 1, x: "-50%" }}
                 exit={{ opacity: 0, scale: 0.5, x: "-50%" }}
-                style={{ bottom: "-320px" }} /* Specific offset for shorter horizontal layout */
+                style={{ bottom: isBuilder ? (isMobile ? "-180px" : "-130px") : "-320px" }} /* Aumentato a -180px su mobile editor per evitare sovrapposizioni */
                 onClick={(e) => {
                   e.stopPropagation();
                   setPhase("closed");
