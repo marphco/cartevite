@@ -105,7 +105,9 @@ const EditorStage: React.FC<EditorStageProps> = ({
         position: 'relative'
       }}
       onPointerDown={(e) => {
-         if (window.innerWidth <= 768 || editorMode !== 'canvas') return;
+         // Se stiamo modificando lo sfondo, permettiamo il tocco anche su mobile per il pinch-to-zoom/pan
+         if (window.innerWidth <= 768 && !isEditingBackground) return;
+         if (window.innerWidth > 768 && editorMode !== 'canvas') return;
          
          if (isEditingBackground) {
            // Logica di trascinamento sfondo spostata qui per funzionare su tutto lo stage
