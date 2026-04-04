@@ -350,10 +350,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               onChange={e => updateSelectedLayer({lineHeight: parseFloat(e.target.value)})} 
               style={{
                 flex: 1, 
-                background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100)))}%, rgba(60, 79, 118, 0.1) ${Math.max(0, Math.min(100, Math.round(((selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100)))}%)`
+                background: `linear-gradient(to right, var(--accent) ${Math.max(0, Math.min(100, ( (selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100))}% , rgba(60, 79, 118, 0.1) ${Math.max(0, Math.min(100, ( (selectedLayer.lineHeight || 1.2) - 0.5) / 2.5 * 100))}% )`
               } as React.CSSProperties}
             />
-            <span style={{fontSize: '14px', width: '30px', textAlign: 'right', fontWeight: 700, color: 'var(--text-soft)'}}>{selectedLayer.lineHeight || 1.2}</span>
+            <span style={{fontSize: '14px', width: '30px', textAlign: 'right', fontWeight: 700, color: 'var(--text-soft)'}}>
+              {(selectedLayer.lineHeight || 1.2).toFixed(1)}
+            </span>
           </div>
        </>
       ) : (

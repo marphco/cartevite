@@ -42,7 +42,7 @@ export function useEditorInteractions({
     others: Array<{ id: string; centerX: number; centerY: number; left: number; right: number; top: number; bottom: number }>;
     primaryId: string;
   } | null>(null);
-  const resizeStart = useRef<{ mouseX: number; mouseY: number; startSize: number; startW: number; startH: number; position: string }>({ mouseX: 0, mouseY: 0, startSize: 0, startW: 0, startH: 0, position: '' });
+  const resizeStart = useRef<{ mouseX: number; mouseY: number; startSize: number; startW: number; startH: number; startWidthAttr: number; startLineHeight: number; startLX: number; startLY: number; position: string }>({ mouseX: 0, mouseY: 0, startSize: 0, startW: 0, startH: 0, startWidthAttr: 0, startLineHeight: 0, startLX: 0, startLY: 0, position: '' });
   const pinchStartRef = useRef<{ initialDist: number; startSize: number | null; startW: number | null; startH: number | null } | null>(null);
   const lastClickRef = useRef({ id: null as string | null, time: 0 });
 
@@ -143,8 +143,13 @@ export function useEditorInteractions({
         }
         resizeStart.current = {
             mouseX: (e.clientX - canvasRect.left) / scale, mouseY: (e.clientY - canvasRect.top) / scale,
-            startSize: layer.fontSize || 32, startW: typeof layer.w === 'number' ? layer.w : (document.getElementById(`layer-${layer.id}`)?.offsetWidth || 100),
+            startSize: layer.fontSize || 32, 
+            startW: typeof layer.w === 'number' ? layer.w : (document.getElementById(`layer-${layer.id}`)?.offsetWidth || 100),
             startH: typeof layer.h === 'number' ? layer.h : (document.getElementById(`layer-${layer.id}`)?.offsetHeight || 100),
+            startWidthAttr: typeof layer.width === 'number' ? layer.width : (document.getElementById(`layer-${layer.id}`)?.offsetWidth || 100),
+            startLineHeight: layer.lineHeight || 1.2,
+            startLX: (typeof layer.x === 'number' ? layer.x : currentX) as number,
+            startLY: (typeof layer.y === 'number' ? layer.y : currentY) as number,
             position: handlePostion
         };
     }
@@ -196,8 +201,59 @@ export function useEditorInteractions({
            if (l.id === resizingLayerId.current) {
                const deltaX = resizeStart.current.position.includes('W') ? (resizeStart.current.mouseX - mouseX) : (mouseX - resizeStart.current.mouseX);
                if (!l.type || l.type === 'text') {
-                 let newSize = Math.max(12, Math.min(resizeStart.current.startSize + deltaX * 0.5, 300));
-                 return { ...l, fontSize: Math.round(newSize) };
+                 const handle = resizeStart.current.position;
+                 
+                 // Se stiamo usando le maniglie LATERALI (E, W), ridimensioniamo la LARGHEZZA (Wrapping)
+                 if (handle === 'E' || handle === 'W') {
+                   const deltaXRaw = mouseX - resizeStart.current.mouseX;
+                   let newWidth = resizeStart.current.startWidthAttr;
+                   let newX = resizeStart.current.startLX;
+                   
+                   if (handle === 'E') {
+                     newWidth += deltaXRaw;
+                     newX += deltaXRaw / 2;
+                   } else {
+                     newWidth -= deltaXRaw;
+                     newX += deltaXRaw / 2;
+                   }
+                   
+                   return { ...l, width: Math.max(40, newWidth), x: newX };
+                 }
+
+                 // Se stiamo usando le maniglie VERTICALI (N, S), ridimensioniamo la SPAZIATURA RIGHE (LineHeight)
+                  if (handle === 'N' || handle === 'S') {
+                    const deltaYRaw = mouseY - resizeStart.current.mouseY;
+                    const bLH = resizeStart.current.startLineHeight > 5 ? resizeStart.current.startLineHeight / 100 : resizeStart.current.startLineHeight;
+                    const baseLH = Math.max(0.1, bLH);
+                    const lDelta = deltaYRaw / (l.fontSize || 32);
+                    const finalLH = Math.round(Math.max(0.1, Math.min(3, baseLH + (handle === 'S' ? lDelta : -lDelta))) * 10) / 10;
+                    
+                    const ratio = finalLH / baseLH;
+                    const actualYShift = (resizeStart.current.startH * ratio - resizeStart.current.startH) / 2;
+                    
+                  }
+
+                 // Se stiamo usando le maniglie ANGOLARI (NW, NE, SW, SE), ridimensionamento PROPORZIONALE (Font + Area)
+                 if (['NW', 'NE', 'SW', 'SE'].includes(handle)) {
+                    const deltaXRaw = mouseX - resizeStart.current.mouseX;
+                    // Calcolo delta X effettivo basato sulla direzione della maniglia
+                    const dx = handle.includes('E') ? deltaXRaw : -deltaXRaw;
+                    
+                    const startW = resizeStart.current.startWidthAttr;
+                    const startSize = resizeStart.current.startSize;
+                    const startH = resizeStart.current.startH;
+                    
+                    const newWidth = Math.max(40, startW + dx);
+                    const factor = newWidth / startW;
+                    const newFontSize = Math.round(startSize * factor);
+                    const newHeight = startH * factor;
+                    
+                    // Ancoraggio: spostiamo il centro per tenere fisso l'angolo opposto
+                    const newX = resizeStart.current.startLX + (handle.includes('E') ? 1 : -1) * (newWidth - startW) / 2;
+                    const newY = resizeStart.current.startLY + (handle.includes('S') ? 1 : -1) * (newHeight - startH) / 2;
+                    
+                    return { ...l, fontSize: Math.max(8, newFontSize), width: newWidth, x: newX, y: newY };
+                 }
                } else if (l.type === 'image') {
                  let newW = Math.max(20, Math.min(resizeStart.current.startW + deltaX * 2, canvasProps.width));
                  if (resizeStart.current.startW > 0) {

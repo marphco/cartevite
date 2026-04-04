@@ -41,51 +41,67 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
     const startY = e.clientY;
     
     const startFontSize = layer.fontSize || 32;
+    const startLineHeight = layer.lineHeight || 1.2;
     const isImage = layer.type === 'image';
     
-    let startW = layer.w || 100;
-    let startH = layer.h || 100;
+    // Usiamo il valore salvato se disponibile, altrimenti leggiamo dal DOM
+    const domNode = document.getElementById(`layer-${layer.id}`);
+    const startW = typeof layer.w === 'number' ? layer.w : (domNode?.offsetWidth || 100);
+    const startH = typeof layer.h === 'number' ? layer.h : (domNode?.offsetHeight || 100);
     
-    if (!layer.w || !layer.h) {
-      const domNode = document.getElementById(`layer-${layer.id}`);
-      if (domNode) {
-        startW = layer.w || domNode.offsetWidth;
-        startH = layer.h || domNode.offsetHeight;
-      }
-    }
+    let startXCoord = typeof layer.x === 'number' ? layer.x : (containerRef.current?.clientWidth || 0) / 2;
+    let startYCoord = typeof layer.y === 'number' ? layer.y : (containerRef.current?.clientHeight || 0) / 2;
 
     const handleResizeMove = (moveEv: PointerEvent) => {
-      // COMPENSAZIONE DELLA SCALA: Dividiamo il delta per la scala corrente
       const dx = (moveEv.clientX - startX) / editorScale;
       const dy = (moveEv.clientY - startY) / editorScale;
       
       setLayers(prev => prev.map(l => {
         if (l.id !== layer.id) return l;
         
-        if (isImage) {
-            const ratio = startH / startW;
-            let newW = startW;
-            if (position.includes('e')) newW = Math.max(20, startW + dx);
-            else if (position.includes('w')) newW = Math.max(20, startW - dx);
-            return { ...l, w: newW, h: newW * ratio };
-        } else {
-            // Se usiamo le maniglie laterali (e, w) cambiamo la larghezza (wrapping)
-            if (position === 'e' || position === 'w') {
-                const deltaX = position === 'e' ? dx : -dx;
-                const newW = Math.max(50, startW + deltaX * 2); // Moltiplicato per 2 perché centrato
-                return { ...l, w: newW };
-            }
-            
-            // Se usiamo gli angoli cambiamo il fontSize
-            let delta = 0;
-            if (position === 'nw') delta = (-dx - dy) / 2;
-            if (position === 'ne') delta = (dx - dy) / 2;
-            if (position === 'sw') delta = (-dx + dy) / 2;
-            if (position === 'se') delta = (dx + dy) / 2;
-            
-            const newSize = Math.max(10, Math.min(200, Math.round(startFontSize + delta)));
-            return { ...l, fontSize: newSize };
+        // --- GESTIONE ANGOLI (nw, ne, sw, se) --- PROPORZIONALE ---
+        if (['nw', 'ne', 'sw', 'se'].includes(position)) {
+           const dxActual = position.includes('e') ? dx : -dx;
+           const newW = Math.max(40, startW + dxActual);
+           const factor = newW / startW;
+           
+           if (isImage) {
+             const newH = startH * factor;
+             const newX = startXCoord + (position.includes('e') ? 1 : -1) * (newW - startW) / 2;
+             const newY = startYCoord + (position.includes('s') ? 1 : -1) * (newH - startH) / 2;
+             return { ...l, w: newW, h: newH, x: newX, y: newY };
+           } else {
+             const newFontSize = Math.round(startFontSize * factor);
+             const newH = startH * factor; // L'altezza reale scala con il box
+             const newX = startXCoord + (position.includes('e') ? 1 : -1) * (newW - startW) / 2;
+             const newY = startYCoord + (position.includes('s') ? 1 : -1) * (newH - startH) / 2;
+             return { ...l, fontSize: Math.max(8, newFontSize), w: newW, x: newX, y: newY };
+           }
         }
+        
+        // --- GESTIONE LATI ORIZZONTALI (e, w) --- WRAPPING ---
+        if (position === 'e' || position === 'w') {
+           const deltaW = position === 'e' ? dx : -dx;
+           const newW = Math.max(50, startW + deltaW);
+           const newX = startXCoord + (position === 'e' ? 1 : -1) * (newW - startW) / 2;
+           return { ...l, w: newW, x: newX };
+        }
+        
+        // --- GESTIONE LATI VERTICALI (n, s) --- LINE HEIGHT ---
+        if (position === 'n' || position === 's') {
+           const deltaY = position === 's' ? dy : -dy;
+           const rawBaseLH = startLineHeight > 5 ? startLineHeight / 100 : startLineHeight;
+           const baseLH = Math.max(0.1, rawBaseLH);
+           const finalLH = Math.round(Math.max(0.1, Math.min(3, baseLH + (deltaY / startFontSize))) * 10) / 10;
+           
+           const ratio = finalLH / baseLH;
+           const actualYShift = (startH * ratio - startH) / 2;
+           const newY = startYCoord + (position === 's' ? actualYShift : -actualYShift);
+           
+           return { ...l, lineHeight: finalLH, y: newY };
+        }
+        
+        return l;
       }));
       setIsDirty(true);
     };
@@ -319,7 +335,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                 fontStyle: layer.fontStyle || "normal",
                 textDecoration: layer.textDecoration || "none",
                 letterSpacing: (layer.letterSpacing || 0) + 'px',
-                lineHeight: layer.lineHeight || 1.3,
+                lineHeight: (layer.lineHeight || 1.3) > 5 ? (layer.lineHeight! / 100) : (layer.lineHeight || 1.3),
                 color: layer.color,
                 textAlign: layer.textAlign || 'center',
                 zIndex: isSelected ? 10 : layer.z || 1,
@@ -397,10 +413,10 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
               fontStyle: layer.fontStyle || "normal",
               textDecoration: layer.textDecoration || "none",
               letterSpacing: (layer.letterSpacing || 0) + 'px',
-              lineHeight: layer.lineHeight || 1.2,
+              lineHeight: (layer.lineHeight || 1.2) > 5 ? (layer.lineHeight! / 100) : (layer.lineHeight || 1.2),
               color: layer.color,
               textAlign: layer.textAlign,
-              zIndex: isSelected ? 10 : layer.z || 1,
+              zIndex: hoveredLayerId === layer.id ? 1000 : (isSelected ? 10 : layer.z || 1),
               padding: '2px 4px',
               opacity: layer.opacity !== undefined ? layer.opacity : 1,
               userSelect: editingLayerId === layer.id ? 'auto' : 'none',
@@ -489,29 +505,30 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                     />
                  ))}
 
-                 {/* Maniglie Laterali (Pillole) per il wrapping */}
-                 {isText && ['E', 'W'].map(pos => (
-                    <div 
-                      key={pos} 
-                      onPointerDown={(e) => handleResizePointerDown(e, layer, pos.toLowerCase())} 
-                      style={{ 
-                        position: 'absolute', 
-                        width: '6px', 
-                        height: '18px', 
-                        background: '#fff', 
-                        border: '1.5px solid var(--accent)', 
-                        borderRadius: '10px', 
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        left: pos === 'W' ? '-7px' : 'auto', 
-                        right: pos === 'E' ? '-7px' : 'auto', 
-                        cursor: 'ew-resize', 
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                        pointerEvents: 'auto'
-                      }} 
-                    />
-                 ))}
+                  {/* Maniglie Laterali e Verticali (Pillole) per il wrapping e lineHeight */}
+                  {isText && ["E", "W", "N", "S"].map(pos => (
+                     <div 
+                       key={pos} 
+                       onPointerDown={(e) => handleResizePointerDown(e, layer, pos.toLowerCase())} 
+                       style={{ 
+                         position: "absolute", 
+                         width: (pos === "E" || pos === "W") ? "6px" : "18px", 
+                         height: (pos === "E" || pos === "W") ? "18px" : "6px", 
+                         background: "#fff", 
+                         border: "1.5px solid var(--accent)", 
+                         borderRadius: "10px", 
+                         top: pos === "N" ? "-7px" : (pos === "S" ? "auto" : "50%"),
+                         bottom: pos === "S" ? "-7px" : "auto",
+                         left: pos === "W" ? "-7px" : (pos === "E" ? "auto" : "50%"),
+                         right: pos === "E" ? "-7px" : "auto",
+                         transform: (pos === "E" || pos === "W") ? "translateY(-50%)" : "translateX(-50%)",
+                         cursor: (pos === "E" || pos === "W") ? "ew-resize" : "ns-resize", 
+                         zIndex: 10,
+                         boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                         pointerEvents: "auto"
+                       }} 
+                     />
+                  ))}
                </>
             )}
           </div>

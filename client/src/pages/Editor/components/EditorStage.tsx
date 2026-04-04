@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Sparkles } from "lucide-react";
 import EnvelopeAnimation from "../../../components/envelope/EnvelopeAnimation";
 import ReadOnlyCanvas from "../../../components/canvas/ReadOnlyCanvas";
@@ -111,12 +111,10 @@ const EditorStage: React.FC<EditorStageProps> = ({
         position: 'relative'
       }}
       onPointerDown={(e) => {
-         // Se stiamo modificando lo sfondo, permettiamo il tocco anche su mobile per il pinch-to-zoom/pan
          if (window.innerWidth <= 768 && !isEditingBackground) return;
          if (window.innerWidth > 768 && editorMode !== 'canvas') return;
          
          if (isEditingBackground) {
-           // Logica di trascinamento sfondo spostata qui per funzionare su tutto lo stage
            e.stopPropagation();
            const stageElement = e.currentTarget as HTMLElement;
            stageElement.setPointerCapture(e.pointerId);
@@ -355,11 +353,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
             <div ref={canvasRef} className="artboard" style={{ width: canvasProps.width, height: canvasProps.height, backgroundColor: canvasProps.bgColor || '#ffffff', position: 'relative', overflow: isEditingBackground ? 'visible' : 'hidden', zIndex: isEditingBackground ? 50 : 1 }}
               onPointerDown={(e) =>  {
                 stateBeforeActionRef.current = latestStateRef.current;
-                if (isEditingBackground) {
-                  // Lasciamo che l'evento faccia bubbling verso editor-canvas-stage 
-                  // che ora gestisce il drag dello sfondo.
-                  return;
-                }
+                if (isEditingBackground) return;
                 if ((e.target as HTMLElement).closest('.canvas-layer')) return;
                 if (editingLayerId) {
                   const el = document.getElementById(`layer-content-${editingLayerId}`);
@@ -397,7 +391,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
                              const el = document.getElementById(`layer-${l.id}`); if (!el) return false;
                              const rect = el.getBoundingClientRect(); const parent = el.parentElement;
                              if (!parent) return false; const parentRect = parent.getBoundingClientRect();
-                             const lX = (rect.left - parentRect.left) / scale; const lY = (rect.top - parentRect.top) / scale;
+                             const lX = (rect.left - parentRect.left) / stageScale; const lY = (rect.top - parentRect.top) / stageScale;
                              return lX >= minX && lX <= maxX && lY >= minY && lY <= maxY;
                            }).map(l => l.id);
                            setSelectedLayerIds(newlySelected);
@@ -411,86 +405,149 @@ const EditorStage: React.FC<EditorStageProps> = ({
               {isEditingBackground && (
                 <div style={{ position: 'absolute', inset: 0, border: '2px solid #FF007F', pointerEvents: 'none', zIndex: 10000 }} />
               )}
-             {canvasProps.bgImage && (
-               <div style={{ position: 'absolute', left: canvasProps.bgX || 0, top: canvasProps.bgY || 0, width: bgNaturalSize.w * (canvasProps.bgScale || 1), height: bgNaturalSize.h * (canvasProps.bgScale || 1), opacity: canvasProps.bgOpacity ?? 1, pointerEvents: 'none', zIndex: 0, touchAction: 'none' }}>
-                 <img src={canvasProps.bgImage} alt="Sfondo" style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }} onLoad={(e) => {
-                      const target = e.target as HTMLImageElement; setBgNaturalSize({ w: target.naturalWidth, h: target.naturalHeight });
-                      if (canvasProps.bgX === undefined || canvasProps.bgY === undefined) {
-                        const scale = Math.max(canvasProps.width / target.naturalWidth, canvasProps.height / target.naturalHeight);
-                        setCanvasProps(prev => ({ ...prev, bgX: (canvasProps.width - target.naturalWidth * scale) / 2, bgY: (canvasProps.height - target.naturalHeight * scale) / 2, bgScale: scale, bgOpacity: prev.bgOpacity ?? 1 }));
-                      }
-                  }} />
-                 {isEditingBackground && (
-                   <>
-                     {[ { pos: 'NW', top: -10, left: -10 }, { pos: 'NE', top: -10, right: -10 }, { pos: 'SW', bottom: -10, left: -10 }, { pos: 'SE', bottom: -10, right: -10 } ].map(h => (
-                       <div key={h.pos} style={{ position: 'absolute', width: '20px', height: '20px', background: '#fff', border: '2px solid var(--accent)', borderRadius: '50%', cursor: h.pos === 'NW' || h.pos === 'SE' ? 'nwse-resize' : 'nesw-resize', top: h.pos.includes('N') ? h.top : 'auto', bottom: h.pos.includes('S') ? h.bottom : 'auto', left: h.pos.includes('W') ? h.left : 'auto', right: h.pos.includes('E') ? h.right : 'auto', zIndex: 10, pointerEvents: 'auto' }}
-                         onPointerDown={(e) => {
-                           e.stopPropagation(); const startX = e.clientX; const startY = e.clientY; const initScale = canvasProps.bgScale || 1; const initX = canvasProps.bgX || 0; const initY = canvasProps.bgY || 0; const initW = bgNaturalSize.w * initScale; const initH = bgNaturalSize.h * initScale;
-                           const handleResize = (moveEvent: PointerEvent) => {
-                             const dx = (moveEvent.clientX - startX) / stageScale; const dy = (moveEvent.clientY - startY) / stageScale;
-                             let factor = 1;
-                             if (h.pos === 'NW') factor = (dx < 0 || dy < 0) ? Math.max(Math.abs(dx), Math.abs(dy)) : -Math.max(Math.abs(dx), Math.abs(dy));
-                             else if (h.pos === 'SE') factor = (dx > 0 || dy > 0) ? Math.max(Math.abs(dx), Math.abs(dy)) : -Math.max(Math.abs(dx), Math.abs(dy));
-                             else if (h.pos === 'NE') factor = (dx > 0 || dy < 0) ? Math.max(Math.abs(dx), Math.abs(dy)) : -Math.max(Math.abs(dx), Math.abs(dy));
-                             else if (h.pos === 'SW') factor = (dx < 0 || dy > 0) ? Math.max(Math.abs(dx), Math.abs(dy)) : -Math.max(Math.abs(dx), Math.abs(dy));
-                              const newScale = Math.max(0.1, initScale + (factor * 0.005)); const newW = bgNaturalSize.w * newScale; const newH = bgNaturalSize.h * newScale;
-                              let nx = initX; let ny = initY;
-                              if (h.pos === 'NW') { nx = (initX + initW) - newW; ny = (initY + initH) - newH; } else if (h.pos === 'NE') { ny = (initY + initH) - newH; } else if (h.pos === 'SW') { nx = (initX + initW) - newW; }
-                              const SNAP_THRESHOLD = 8; const newGuides = []; let finalScale = newScale;
-                              const edgeX = (h.pos === 'NW' || h.pos === 'SW') ? nx : nx + newW; const targetX = (h.pos === 'NW' || h.pos === 'SW') ? 0 : canvasProps.width;
-                              if (Math.abs(edgeX - targetX) < SNAP_THRESHOLD) { finalScale = (h.pos === 'SE' || h.pos === 'NE') ? (canvasProps.width - nx) / bgNaturalSize.w : (initX + initW) / bgNaturalSize.w; newGuides.push({ axis: 'x', position: targetX } as SnapGuide); }
-                              const edgeY = (h.pos === 'NW' || h.pos === 'NE') ? ny : ny + newH; const targetY = (h.pos === 'NW' || h.pos === 'NE') ? 0 : canvasProps.height;
-                              if (Math.abs(edgeY - targetY) < SNAP_THRESHOLD) { finalScale = Math.max(finalScale, (h.pos === 'SE' || h.pos === 'SW') ? (canvasProps.height - ny) / bgNaturalSize.h : (initY + initH) / bgNaturalSize.h); newGuides.push({ axis: 'y', position: targetY } as SnapGuide); }
-                              if (newGuides.length > 0) {
-                                const finalW = bgNaturalSize.w * finalScale; const finalH = bgNaturalSize.h * finalScale;
-                                let fnx = nx, fny = ny;
-                                if (h.pos === 'NW') { fnx = (initX + initW) - finalW; fny = (initY + initH) - finalH; } else if (h.pos === 'NE') { fnx = nx; fny = (initY + initH) - finalH; } else if (h.pos === 'SW') { fnx = (initX + initW) - finalW; fny = ny; } else if (h.pos === 'SE') { fnx = nx; fny = ny; }
-                                setCanvasProps(prev => ({ ...prev, bgScale: finalScale, bgX: fnx, bgY: fny })); setSnapGuides(newGuides); return;
-                              }
-                              setSnapGuides([]); setCanvasProps(prev => ({ ...prev, bgScale: newScale, bgX: nx, bgY: ny }));
-                           };
-                           const handleUp = () => { setSnapGuides([]); window.removeEventListener('pointermove', handleResize as any); window.removeEventListener('pointerup', handleUp as any); };
-                           window.addEventListener('pointermove', handleResize as any); window.addEventListener('pointerup', handleUp as any);
-                         }}
-                       />
-                     ))}
-                   </>
-                 )}
-               </div>
-             )}
-             {layers.filter(l => !l.blockId).map((layer) => {
+              {canvasProps.bgImage && (
+                <div style={{ position: 'absolute', left: canvasProps.bgX || 0, top: canvasProps.bgY || 0, width: bgNaturalSize.w * (canvasProps.bgScale || 1), height: bgNaturalSize.h * (canvasProps.bgScale || 1), opacity: canvasProps.bgOpacity ?? 1, pointerEvents: 'none', zIndex: 0, touchAction: 'none' }}>
+                  <img src={canvasProps.bgImage} alt="Sfondo" style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }} onLoad={(e) => {
+                       const target = e.target as HTMLImageElement; setBgNaturalSize({ w: target.naturalWidth, h: target.naturalHeight });
+                       if (canvasProps.bgX === undefined || canvasProps.bgY === undefined) {
+                         const scale = Math.max(canvasProps.width / target.naturalWidth, canvasProps.height / target.naturalHeight);
+                         setCanvasProps(prev => ({ ...prev, bgX: (canvasProps.width - target.naturalWidth * scale) / 2, bgY: (canvasProps.height - target.naturalHeight * scale) / 2, bgScale: scale, bgOpacity: prev.bgOpacity ?? 1 }));
+                       }
+                   }} />
+                  {isEditingBackground && (
+                    <>
+                      {[ { pos: 'NW', top: -10, left: -10 }, { pos: 'NE', top: -10, right: -10 }, { pos: 'SW', bottom: -10, left: -10 }, { pos: 'SE', bottom: -10, right: -10 } ].map(h => (
+                        <div key={h.pos} style={{ position: 'absolute', width: '20px', height: '20px', background: '#fff', border: '2px solid var(--accent)', borderRadius: '50%', cursor: h.pos === 'NW' || h.pos === 'SE' ? 'nwse-resize' : 'nesw-resize', top: h.pos.includes('N') ? h.top : 'auto', bottom: h.pos.includes('S') ? h.bottom : 'auto', left: h.pos.includes('W') ? h.left : 'auto', right: h.pos.includes('E') ? h.right : 'auto', zIndex: 10, pointerEvents: 'auto' }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation(); const startX = e.clientX; const startY = e.clientY; const initScale = canvasProps.bgScale || 1; const initX = canvasProps.bgX || 0; const initY = canvasProps.bgY || 0; const initW = bgNaturalSize.w * initScale; const initH = bgNaturalSize.h * initScale;
+                            const handleResize = (moveEvent: PointerEvent) => {
+                              const dx = (moveEvent.clientX - startX) / stageScale; const dy = (moveEvent.clientY - startY) / stageScale;
+                              let factor = 1;
+                              if (h.pos === 'NW') factor = (dx < 0 || dy < 0) ? Math.max(Math.abs(dx), Math.abs(dy)) : -Math.max(Math.abs(dx), Math.abs(dy));
+                              else if (h.pos === 'SE') factor = (dx > 0 || dy > 0) ? Math.max(Math.abs(dx), Math.abs(dy)) : -Math.max(Math.abs(dx), Math.abs(dy));
+                              else if (h.pos === 'NE') factor = (dx > 0 || dy < 0) ? Math.max(Math.abs(dx), Math.abs(dy)) : -Math.max(Math.abs(dx), Math.abs(dy));
+                              else if (h.pos === 'SW') factor = (dx < 0 || dy > 0) ? Math.max(Math.abs(dx), Math.abs(dy)) : -Math.max(Math.abs(dx), Math.abs(dy));
+                               const newScale = Math.max(0.1, initScale + (factor * 0.005)); const newW = bgNaturalSize.w * newScale; const newH = bgNaturalSize.h * newScale;
+                               let nx = initX; let ny = initY;
+                               if (h.pos === 'NW') { nx = (initX + initW) - newW; ny = (initY + initH) - newH; } else if (h.pos === 'NE') { ny = (initY + initH) - newH; } else if (h.pos === 'SW') { nx = (initX + initW) - newW; }
+                               const SNAP_THRESHOLD = 8; const newGuides = []; let finalScale = newScale;
+                               const edgeX = (h.pos === 'NW' || h.pos === 'SW') ? nx : nx + newW; const targetX = (h.pos === 'NW' || h.pos === 'SW') ? 0 : canvasProps.width;
+                               if (Math.abs(edgeX - targetX) < SNAP_THRESHOLD) { finalScale = (h.pos === 'SE' || h.pos === 'NE') ? (canvasProps.width - nx) / bgNaturalSize.w : (initX + initW) / bgNaturalSize.w; newGuides.push({ axis: 'x', position: targetX } as SnapGuide); }
+                               const edgeY = (h.pos === 'NW' || h.pos === 'NE') ? ny : ny + newH; const targetY = (h.pos === 'NW' || h.pos === 'NE') ? 0 : canvasProps.height;
+                               if (Math.abs(edgeY - targetY) < SNAP_THRESHOLD) { finalScale = Math.max(finalScale, (h.pos === 'SE' || h.pos === 'SW') ? (canvasProps.height - ny) / bgNaturalSize.h : (initY + initH) / bgNaturalSize.h); newGuides.push({ axis: 'y', position: targetY } as SnapGuide); }
+                               if (newGuides.length > 0) {
+                                 const finalW = bgNaturalSize.w * finalScale; const finalH = bgNaturalSize.h * finalScale;
+                                 let fnx = nx, fny = ny;
+                                 if (h.pos === 'NW') { fnx = (initX + initW) - finalW; fny = (initY + initH) - finalH; } else if (h.pos === 'NE') { fnx = nx; fny = (initY + initH) - finalH; } else if (h.pos === 'SW') { fnx = (initX + initW) - finalW; fny = ny; } else if (h.pos === 'SE') { fnx = nx; fny = ny; }
+                                 setCanvasProps(prev => ({ ...prev, bgScale: finalScale, bgX: fnx, bgY: fny })); setSnapGuides(newGuides); return;
+                               }
+                               setSnapGuides([]); setCanvasProps(prev => ({ ...prev, bgScale: newScale, bgX: nx, bgY: ny }));
+                            };
+                            const handleUp = () => { setSnapGuides([]); window.removeEventListener('pointermove', handleResize as any); window.removeEventListener('pointerup', handleUp as any); };
+                            window.addEventListener('pointermove', handleResize as any); window.addEventListener('pointerup', handleUp as any);
+                          }}
+                        />
+                      ))}
+                    </>
+                  )}
+              </div>)}
+
+              {layers.filter(l => !l.blockId).map((layer) => {
                 const isSelected = selectedLayerIds.includes(layer.id); const isEditing = editingLayerId === layer.id; const isHovered = hoveredLayerId === layer.id;
                 return (
                  <div key={layer.id} id={`layer-${layer.id}`} className={`canvas-layer ${isSelected ? 'selected' : ''}`}
-                   style={{ left: layer.x === 'center' || isNaN(layer.x as number) ? '50%' : (layer.x + 'px'), top: layer.y === 'center' || isNaN(layer.y as number) ? '50%' : (layer.y + 'px'), transform: 'translate(-50%, -50%)', width: 'max-content', fontSize: (layer.fontSize || 32) + 'px', fontFamily: layer.fontFamily, fontWeight: layer.fontWeight || "normal", fontStyle: layer.fontStyle || "normal", textDecoration: layer.textDecoration || "none", letterSpacing: (layer.letterSpacing || 0) + 'px', lineHeight: layer.lineHeight || 1.2, color: layer.color, textAlign: layer.textAlign, zIndex: isSelected ? 10 : 1, padding: '2px 4px', pointerEvents: isEditingBackground ? 'none' : 'auto', userSelect: 'none', touchAction: 'none', opacity: isEditingBackground ? 0.3 : 1, transition: 'opacity 0.3s ease' } as React.CSSProperties}
-                   onPointerDown={(e) => !isEditingBackground && handlePointerDown(e, layer)} onClick={(e) => e.stopPropagation()}
+                   style={{ 
+                     left: layer.x === 'center' || isNaN(layer.x as number) ? '50%' : (layer.x + 'px'), 
+                     top: layer.y === 'center' || isNaN(layer.y as number) ? '50%' : (layer.y + 'px'), 
+                     transform: 'translate(-50%, -50%)', 
+                     width: layer.width ? (typeof layer.width === 'number' ? (layer.width + 'px') : layer.width) : 'max-content',
+                     fontSize: (layer.fontSize || 32) + 'px', 
+                     fontFamily: layer.fontFamily, 
+                     fontWeight: layer.fontWeight || "normal", 
+                     fontStyle: layer.fontStyle || "normal", 
+                     textDecoration: layer.textDecoration || "none", 
+                     letterSpacing: (layer.letterSpacing || 0) + 'px', 
+                     lineHeight: (layer.lineHeight || 1.2) > 5 ? (layer.lineHeight! / 100) : (layer.lineHeight || 1.2),
+                     color: layer.color, 
+                     textAlign: layer.textAlign, 
+                     zIndex: isSelected ? 10 : (layer.z || 1), 
+                     padding: '2px 4px', 
+                     pointerEvents: isEditingBackground ? 'none' : 'auto', 
+                     userSelect: 'none', 
+                     touchAction: 'none', 
+                     opacity: isEditingBackground ? 0.3 : (layer.opacity ?? 1), 
+                     transition: 'opacity 0.3s ease' 
+                   } as React.CSSProperties}
+                   onPointerDown={(e) => !isEditingBackground && handlePointerDown(e, layer)} 
+                   onClick={(e) => e.stopPropagation()}
+                   onMouseEnter={() => setHoveredLayerId && setHoveredLayerId(layer.id)}
+                   onMouseLeave={() => setHoveredLayerId && setHoveredLayerId(null)}
                   >
                     {isHovered && <div style={{ position: 'absolute', inset: -4, border: '2px solid #FF007F', pointerEvents: 'none', zIndex: 101, borderRadius: '4px', boxShadow: '0 0 10px rgba(255, 0, 127, 0.3)' }} />}
                    {isSelected && (
                       <>
-                        <div className="layer-outline" style={{ border: '1px solid var(--accent)', position: 'absolute', inset: 0, pointerEvents: 'none' }}></div>
+                        <div className="layer-outline" style={{ border: '1.5px solid var(--accent)', position: 'absolute', inset: '-4px', pointerEvents: 'none', borderRadius: '4px' }}></div>
+                        
+                        {/* Maniglie Angolari (Scaling) */}
                         {['NW', 'NE', 'SW', 'SE'].map(pos => (
-                           <div key={pos} onPointerDown={(e) => handleResizePointerDown(e, layer, pos)} style={{ position: 'absolute', width: '10px', height: '10px', background: '#fff', border: '1px solid var(--accent)', borderRadius: '50%', top: pos.includes('N') ? '-5px' : 'auto', bottom: pos.includes('S') ? '-5px' : 'auto', left: pos.includes('W') ? '-5px' : 'auto', right: pos.includes('E') ? '-5px' : 'auto', cursor: pos === 'NW' || pos === 'SE' ? 'nwse-resize' : 'nesw-resize', zIndex: 10 }} />
+                           <div key={pos} onPointerDown={(e) => handleResizePointerDown(e, layer, pos)} style={{ position: 'absolute', width: '10px', height: '10px', background: '#fff', border: '1.5px solid var(--accent)', borderRadius: '50%', top: pos.includes('N') ? '-10px' : 'auto', bottom: pos.includes('S') ? '-10px' : 'auto', left: pos.includes('W') ? '-10px' : 'auto', right: pos.includes('E') ? '-10px' : 'auto', cursor: pos === 'NW' || pos === 'SE' ? 'nwse-resize' : 'nesw-resize', zIndex: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />
+                        ))}
+
+                        {/* Maniglie Laterali e Verticali (Wrapping & LineHeight) - Solo per Testo */}
+                        {(!layer.type || layer.type === 'text') && ['E', 'W', 'N', 'S'].map(pos => (
+                           <div 
+                             key={pos} 
+                             onPointerDown={(e) => handleResizePointerDown(e, layer, pos)} 
+                             style={{ 
+                               position: 'absolute', 
+                               width: (pos === 'E' || pos === 'W') ? '6px' : '18px', 
+                               height: (pos === 'E' || pos === 'W') ? '18px' : '6px', 
+                               background: '#fff', 
+                               border: '1.5px solid var(--accent)', 
+                               borderRadius: '10px', 
+                               top: pos === 'N' ? '-7px' : (pos === 'S' ? 'auto' : '50%'),
+                               bottom: pos === 'S' ? '-7px' : 'auto',
+                               left: pos === 'W' ? '-7px' : (pos === 'E' ? 'auto' : '50%'),
+                               right: pos === 'E' ? '-7px' : 'auto',
+                               transform: (pos === 'E' || pos === 'W') ? 'translateY(-50%)' : 'translateX(-50%)',
+                               cursor: (pos === 'E' || pos === 'W') ? 'ew-resize' : 'ns-resize', 
+                               zIndex: 10,
+                               boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                             }} 
+                           />
                         ))}
                       </>
                    )}
                    {(!layer.type || layer.type === 'text') && (
-                      <EditableText id={`layer-content-${layer.id}`} className="layer-content" text={layer.text || ""} isEditing={isEditing} onSync={(val) => { setLayers(layers.map(l => l.id === layer.id ? { ...l, text: val } : l)); setIsDirty(true); }} onBlur={(val) => { let updatedText = val; if (!updatedText || updatedText === "<br>") updatedText = "Testo Vuoto"; setLayers(layers.map(l => l.id === layer.id ? { ...l, text: updatedText } : l)); setIsDirty(true); setEditingLayerId(null); }} onFocus={() => pushToHistory()} onDoubleClick={(e) => { e.stopPropagation(); setEditingLayerId(layer.id); }} onPointerDown={(e) => { if (isEditing) e.stopPropagation(); }} style={{ outline: "none", minWidth: "20px", minHeight: "1em", cursor: isEditing ? "text" : (isSelected ? "grab" : "pointer"), pointerEvents: isEditingBackground ? "none" : "auto", userSelect: isEditing ? "auto" : "none", whiteSpace: "nowrap", paddingBottom: "0.15em" }} />
+                      <EditableText 
+                        id={`layer-content-${layer.id}`} 
+                        className="layer-content" 
+                        text={layer.text || ""} 
+                        isEditing={isEditing} 
+                        onSync={(val) => { setLayers(layers.map(l => l.id === layer.id ? { ...l, text: val } : l)); setIsDirty(true); }} 
+                        onBlur={(val) => { let updatedText = val; if (!updatedText || updatedText === "<br>") updatedText = "Testo Vuoto"; setLayers(layers.map(l => l.id === layer.id ? { ...l, text: updatedText } : l)); setIsDirty(true); setEditingLayerId(null); }} 
+                        onFocus={() => pushToHistory()} 
+                        onDoubleClick={(e) => { e.stopPropagation(); setEditingLayerId(layer.id); }} 
+                        onPointerDown={(e) => { if (isEditing) e.stopPropagation(); }} 
+                        style={{ outline: "none", minWidth: "20px", minHeight: "1em", cursor: isEditing ? "text" : (isSelected ? "grab" : "pointer"), pointerEvents: isEditingBackground ? "none" : "auto", userSelect: isEditing ? "auto" : "none", whiteSpace: "pre-wrap", wordBreak: "break-word", width: "100%", paddingBottom: "0.15em" }} 
+                      />
                     )}
                    {layer.type === 'image' && (
-                     <img src={layer.src} style={{ width: (layer.w || 100) + 'px', height: (layer.h || 100) + 'px', objectFit: 'contain', pointerEvents: 'none', display: 'block', userSelect: 'none', WebkitUserDrag: 'none', opacity: layer.opacity !== undefined ? layer.opacity : 1 } as React.CSSProperties} alt="" draggable="false" />
+                     <img src={layer.src} style={{ width: (layer.w || 100) + 'px', height: (layer.h || 100) + 'px', objectFit: 'contain', pointerEvents: 'none', display: 'block', userSelect: 'none', WebkitUserDrag: 'none', opacity: layer.opacity !== undefined ? layer.opacity : (layer.opacity ?? 1) } as React.CSSProperties} alt="" draggable="false" />
                    )}
                  </div>
                 )
-             })}
-             {snapGuides.map((guide, i) => {
-               if (guide.axis === 'x') return <div key={`gx_${i}`} style={{position: 'absolute', top: 0, bottom: 0, left: guide.position + 'px', width: '1px', background: '#FF007F', zIndex: 99, pointerEvents: 'none'}} />;
-               if (guide.axis === 'y') return <div key={`gy_${i}`} style={{position: 'absolute', left: 0, right: 0, top: guide.position + 'px', height: '1px', background: '#FF007F', zIndex: 99, pointerEvents: 'none'}} />;
-               return null;
-             })}
-             {selectionBox && (
-               <div style={{ position: 'absolute', left: Math.min(selectionBox.startX, selectionBox.currentX), top: Math.min(selectionBox.startY, selectionBox.currentY), width: Math.abs(selectionBox.currentX - selectionBox.startX), height: Math.abs(selectionBox.currentY - selectionBox.startY), backgroundColor: 'rgba(0, 150, 255, 0.2)', border: '1px solid rgba(0, 150, 255, 0.8)', zIndex: 9999, pointerEvents: 'none' }} />
-             )}
+              })}
+
+              {snapGuides.map((guide, i) => {
+                if (guide.axis === 'x') return <div key={`gx_${i}`} style={{position: 'absolute', top: 0, bottom: 0, left: guide.position + 'px', width: '1px', background: '#FF007F', zIndex: 99, pointerEvents: 'none'}} />;
+                if (guide.axis === 'y') return <div key={`gy_${i}`} style={{position: 'absolute', left: 0, right: 0, top: guide.position + 'px', height: '1px', background: '#FF007F', zIndex: 99, pointerEvents: 'none'}} />;
+                return null;
+              })}
+
+              {selectionBox && (
+                <div style={{ position: 'absolute', left: Math.min(selectionBox.startX, selectionBox.currentX), top: Math.min(selectionBox.startY, selectionBox.currentY), width: Math.abs(selectionBox.currentX - selectionBox.startX), height: Math.abs(selectionBox.currentY - selectionBox.startY), backgroundColor: 'rgba(0, 150, 255, 0.2)', border: '1px solid rgba(0, 150, 255, 0.8)', zIndex: 9999, pointerEvents: 'none' }} />
+              )}
             </div>
           </div>
         </div>
