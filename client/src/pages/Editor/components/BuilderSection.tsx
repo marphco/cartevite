@@ -122,24 +122,36 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
         }
       }}
       style={{
-        width: previewMobile ? '100%' : (currentScale * LOGICAL_WIDTH) + 'px', // Fluidità in anteprima, fisso in design libero
+        width: previewMobile ? '100%' : (currentScale * LOGICAL_WIDTH) + 'px', 
         height: (previewMobile ? 'auto' : (scaledHeight + 'px')),
         minHeight: previewMobile ? '200px' : 'auto',
         backgroundColor: bgColor || '#ffffff',
         position: 'relative',
         boxSizing: 'border-box',
-        border: `2px solid ${isSelected || isHovered ? 'var(--accent)' : 'transparent'}`,
-        transition: 'border-color 0.2s ease',
+        outline: 'none',
+        transition: 'all 0.2s ease',
         marginTop: index > 0 ? '-2px' : '0px', 
         zIndex: currentZIndex, 
         cursor: 'default',
         overflow: 'visible',
-        // Area di selezione migliorata sui bordi
-        padding: previewMobile ? '0' : '4px'
+        padding: '0'
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* SELECTION OVERLAY - Always visible atop content */}
+      {(isSelected || isHovered) && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          border: `2px solid var(--accent)`,
+          boxShadow: isSelected ? `0 0 0 4px rgba(26, 188, 156, 0.1) inset` : 'none',
+          pointerEvents: 'none',
+          zIndex: 10,
+          borderRadius: 'inherit',
+          opacity: isSelected ? 1 : 0.6
+        }} />
+      )}
       <div 
         className="section-canvas-container"
         onClick={(e) => {

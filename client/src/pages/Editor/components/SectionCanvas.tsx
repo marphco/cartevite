@@ -3,6 +3,7 @@ import type { Layer, CanvasProps, Block } from '../../../types/editor';
 import EditableText from './EditableText';
 import { sortLayersForMobile } from './EditorHelpers';
 import MapWidget from './widgets/MapWidget';
+import { RSVPWidget } from './widgets/RSVPWidget';
 
 interface SectionCanvasProps {
   block: Block;
@@ -348,11 +349,22 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
         }}
       >
         {block.type === 'map' ? (
-          <MapWidget 
-            address={block.widgetProps?.address} 
-            zoom={block.widgetProps?.zoom}
-            previewMobile={true}
-          />
+          <div style={{ pointerEvents: 'none' }}>
+            <MapWidget 
+              address={block.props?.address} 
+              title={block.props?.title}
+              zoom={block.props?.zoom}
+              previewMobile={previewMobile}
+            />
+          </div>
+        ) : block.type === 'rsvp' ? (
+          <div style={{ pointerEvents: 'none' }}>
+            <RSVPWidget 
+              block={block} 
+              readOnly={true} 
+              isMobile={previewMobile}
+            />
+          </div>
         ) : (
           sortedLayers.map(layer => {
             const isSelected = selectedLayerIds.includes(layer.id);
@@ -434,11 +446,22 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
       }
     }}>
       {block.type === 'map' ? (
-        <MapWidget 
-          address={block.widgetProps?.address} 
-          zoom={block.widgetProps?.zoom}
-          previewMobile={false}
-        />
+        <div style={{ pointerEvents: 'none', width: '100%', height: '100%' }}>
+          <MapWidget 
+            address={block.props?.address} 
+            title={block.props?.title}
+            zoom={block.props?.zoom}
+            previewMobile={false}
+          />
+        </div>
+      ) : block.type === 'rsvp' ? (
+        <div style={{ pointerEvents: 'none', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+          <RSVPWidget 
+            block={block} 
+            readOnly={true}
+            isMobile={false}
+          />
+        </div>
       ) : (
         (previewMobile 
           ? [...layers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0))

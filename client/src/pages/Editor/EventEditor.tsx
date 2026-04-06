@@ -343,6 +343,7 @@ export default function EventEditor() {
           scenarioBgInputRef={scenarioBgInputRef} userScenarioBgImages={userScenarioBgImages}
           showMobileAnchorGrid={showMobileAnchorGrid} setShowMobileAnchorGrid={setShowMobileAnchorGrid}
           pushToHistory={pushToHistory}
+          setIsDirty={setIsDirty}
           handleBackgroundUpload={handleBackgroundUpload}
           blocks={blocks}
           setBlocks={setBlocks}

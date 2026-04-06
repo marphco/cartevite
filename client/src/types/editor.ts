@@ -67,11 +67,23 @@ export interface Block {
     address?: string;
     zoom?: number;
     mapStyle?: string;
-    formColors?: {
-      primary?: string;
-      text?: string;
-      background?: string;
-    };
+    // RSVP specific configurations
+    rsvpTitle?: string;
+    rsvpDescription?: string;
+    rsvpAskGuests?: boolean;
+    rsvpAskIntolerances?: boolean;
+    rsvpConfirmationMessage?: string;
+    // Nuovi campi per stile "Jewelry"
+    formPrimaryColor?: string;
+    formTextColor?: string;
+    formInputBg?: string;
+    // Gestione domande extra
+    customFields?: Array<{
+      id: string;
+      label: string;
+      type: 'text' | 'checkbox';
+      required?: boolean;
+    }>;
     [key: string]: any;
   };
 }

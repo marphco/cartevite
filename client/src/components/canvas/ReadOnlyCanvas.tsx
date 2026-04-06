@@ -136,6 +136,56 @@ const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps, is
       </div>
     );
   }
+  if (!isMobile && isBlock) {
+    return (
+      <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+        {layers.map(layer => {
+          const isText = layer.type === 'text' || !layer.type;
+          const lx = layer.x === 'center' || isNaN(layer.x as number) ? '50%' : (layer.x + 'px');
+          const ly = layer.y === 'center' || isNaN(layer.y as number) ? '50%' : (layer.y + 'px');
+
+          return (
+            <div 
+              key={layer.id}
+              style={{
+                position: 'absolute',
+                left: lx,
+                top: ly,
+                transform: 'translate(-50%, -50%)',
+                width: layer.w ? layer.w + 'px' : 'max-content',
+                fontSize: (layer.fontSize || 32) + 'px',
+                fontFamily: layer.fontFamily,
+                fontWeight: layer.fontWeight || "normal",
+                fontStyle: layer.fontStyle || "normal",
+                textDecoration: layer.textDecoration || "none",
+                letterSpacing: (layer.letterSpacing || 0) + 'px',
+                lineHeight: (layer.lineHeight || 1.2) > 5 ? (layer.lineHeight! / 100) : (layer.lineHeight || 1.2),
+                color: layer.color,
+                textAlign: layer.textAlign as any,
+                zIndex: layer.z || 1,
+                padding: '2px 4px',
+                opacity: layer.opacity !== undefined ? layer.opacity : 1,
+                display: 'block'
+              }}
+            >
+              {isText ? (
+                <div 
+                  style={{ outline: "none", whiteSpace: "pre-wrap", width: "100%", wordBreak: "break-word", paddingBottom: "0.15em", padding: "8px" }}
+                  dangerouslySetInnerHTML={{ __html: layer.text || "" }} 
+                />
+              ) : (
+                <img 
+                  src={layer.src} 
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', pointerEvents: 'none' }} 
+                  alt="" 
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>

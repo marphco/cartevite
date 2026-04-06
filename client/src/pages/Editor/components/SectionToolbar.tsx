@@ -66,7 +66,7 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
 
   const handleDeleteClick = () => {
     if (isConfirmingDelete) {
-      if (selectedLayerId && onDeleteLayer) {
+      if (isLayerToolbar && selectedLayerId && onDeleteLayer) {
         onDeleteLayer(selectedLayerId);
       } else {
         onDelete();
@@ -260,7 +260,7 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
         label="DUPLICA" 
         title={selectedLayerId ? (isLayerToolbar ? "Duplica Elemento" : "Duplica Elemento") : "Duplica Sezione"}
         onClick={() => {
-          if (selectedLayerId && onDuplicateLayer) {
+          if (isLayerToolbar && selectedLayerId && onDuplicateLayer) {
             onDuplicateLayer(selectedLayerId);
           } else {
             onDuplicate();

@@ -10,22 +10,14 @@ import { Calendar, MapPin, Send, Mouse, ChevronDown } from "lucide-react";
 import "./EventPublic.css";
 import ScrollHint from "../../components/ui/ScrollHint";
 import type { EventData, Block } from "../../types/editor";
+import { RSVPWidget } from "../Editor/components/widgets/RSVPWidget";
+import MapWidget from "../Editor/components/widgets/MapWidget";
 
 export default function EventPublic() {
   const { slug } = useParams<{ slug: string }>();
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [rsvpName, setRsvpName] = useState("");
-  const [rsvpGuests, setRsvpGuests] = useState<number | string>(1);
-  const [rsvpMessage, setRsvpMessage] = useState("");
-  const [rsvpStatus, setRsvpStatus] = useState("yes");
-  const [rsvpSending, setRsvpSending] = useState(false);
-  const [rsvpDone, setRsvpDone] = useState(false);
-  const [rsvpError, setRsvpError] = useState("");
-  const [rsvpEmail, setRsvpEmail] = useState("");
-  const [rsvpPhone, setRsvpPhone] = useState("");
   const [editLink, setEditLink] = useState("");
-  const [rsvpWasUpdated, setRsvpWasUpdated] = useState(false);
   const [isInvitationOpened, setIsInvitationOpened] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -38,18 +30,20 @@ export default function EventPublic() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageScale, setStageScale] = useState(1);
 
+  const LOGICAL_WIDTH = 1000;
+  const MAX_CANVA_WIDTH = 1200;
+
   useEffect(() => {
-    if (!event?.canvas?.width) return;
     const updateScale = () => {
       if (containerRef.current && containerRef.current.parentElement) {
          const parentWidth = containerRef.current.parentElement.clientWidth;
-         setStageScale(Math.min(1, parentWidth / event.canvas!.width));
+         setStageScale(Math.min(parentWidth, MAX_CANVA_WIDTH) / LOGICAL_WIDTH);
       }
     };
     updateScale();
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
-  }, [event?.canvas?.width, event?._id]);
+  }, [event?._id]);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -70,48 +64,6 @@ export default function EventPublic() {
 
     fetchEvent();
   }, [slug]);
-
-  const handleRsvpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRsvpError("");
-    setRsvpDone(false);
-    setRsvpWasUpdated(false);
-    setRsvpSending(true);
-
-    try {
-      const res = await apiFetch(`/api/rsvps`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventSlug: slug,
-          name: rsvpName,
-          email: rsvpEmail || null,
-          phone: rsvpPhone || null,
-          guestsCount: Number(rsvpGuests) || 1,
-          message: rsvpMessage,
-          status: rsvpStatus,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Errore nell'invio RSVP");
-      }
-
-      const data = await res.json();
-      setRsvpWasUpdated(!!data.updated);
-
-      setRsvpDone(true);
-      setRsvpName("");
-      setRsvpGuests(1);
-      setRsvpMessage("");
-      setRsvpStatus("yes");
-    } catch (err) {
-      console.error(err);
-      setRsvpError("Non siamo riusciti a registrare la tua risposta. Riprova.");
-    } finally {
-      setRsvpSending(false);
-    }
-  };
 
   const pageTheme = useMemo(() => {
     const accent = event?.theme?.accent || "#f4c46b";
@@ -144,86 +96,6 @@ export default function EventPublic() {
   }
 
   const orderedBlocks = [...(event.blocks || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-  const renderRsvpBlock = (key: string) => (
-    <section key={key} className="event-section">
-      <h2>Conferma la tua presenza</h2>
-      <form onSubmit={handleRsvpSubmit} className="rsvp-form">
-        <input
-          type="text"
-          required
-          placeholder="Il tuo nome"
-          value={rsvpName}
-          onChange={(e) => setRsvpName(e.target.value)}
-        />
-
-        <input
-          type="email"
-          placeholder="Email (obbligatoria se non metti telefono)"
-          value={rsvpEmail}
-          onChange={(e) => setRsvpEmail(e.target.value)}
-        />
-
-        <input
-          type="tel"
-          placeholder="Telefono (opzionale)"
-          value={rsvpPhone}
-          onChange={(e) => setRsvpPhone(e.target.value)}
-        />
-
-        <input
-          type="number"
-          min="1"
-          placeholder="Numero di partecipanti"
-          value={rsvpGuests}
-          onChange={(e) => setRsvpGuests(e.target.value)}
-        />
-
-        <select value={rsvpStatus} onChange={(e) => setRsvpStatus(e.target.value)}>
-          <option value="yes">Parteciperò</option>
-          <option value="maybe">Forse</option>
-          <option value="no">Non posso</option>
-        </select>
-
-        <textarea
-          placeholder="Messaggio opzionale"
-          rows={3}
-          value={rsvpMessage}
-          onChange={(e) => setRsvpMessage(e.target.value)}
-        />
-
-        <Button type="submit" disabled={rsvpSending} style={{ backgroundColor: pageTheme.accent, color: "var(--bg-body)" }}>
-          <Send size={18} style={{ marginRight: "0.5rem" }} />
-          {rsvpSending ? "Invio in corso..." : "Invia risposta"}
-        </Button>
-
-        {rsvpDone && (
-          <p style={{ color: "#3ae6b3" }}>
-            {rsvpWasUpdated ? "✅ Abbiamo aggiornato la tua RSVP!" : "✅ Grazie, risposta registrata!"}
-          </p>
-        )}
-
-        {rsvpError && <p style={{ color: "salmon" }}>{rsvpError}</p>}
-
-        {editLink && (
-          <Surface variant="soft" style={{ marginTop: "0.75rem" }}>
-            <p style={{ margin: 0 }}>Puoi modificare la tua risposta con questo link:</p>
-            <code style={{ display: "block", marginTop: "0.4rem" }}>
-              {window.location.origin}
-              {editLink}
-            </code>
-            <Button
-              variant="ghost"
-              style={{ marginTop: "0.5rem" }}
-              onClick={() => navigator.clipboard.writeText(`${window.location.origin}${editLink}`)}
-            >
-              Copia link modifica
-            </Button>
-          </Surface>
-        )}
-      </form>
-    </section>
-  );
 
   return (
     <div className="event-public-page" style={{ 
@@ -333,123 +205,96 @@ export default function EventPublic() {
               className={`page-canvas-area public-view ${isMobile ? 'is-mobile' : ''}`}
               style={{
                 position: 'relative',
-                width: isMobile ? '100%' : (event.canvas?.width || 800),
-                height: isMobile ? 'auto' : Math.max(1200, Math.max(...orderedBlocks.map(b => ((b.y || 0) + (b.height || 400)))) + 200),
-                transform: isMobile ? 'none' : `scale(${stageScale})`,
-                transformOrigin: 'top center',
-                margin: '0 auto',
-                background: 'transparent',
-                display: isMobile ? 'flex' : 'block',
+                width: '100%',
+                display: 'flex',
                 flexDirection: 'column',
+                alignItems: 'center',
                 gap: isMobile ? '20px' : '0'
               }}
             >
               {orderedBlocks.map((block) => {
                 const layoutPreset = block.props?.layoutPreset || "single";
+                const currentScale = isMobile ? 1 : stageScale;
+                const isWidget = ['map', 'rsvp'].includes(block.type);
+                const scaledHeight = (block.height || 400) * currentScale;
                 
                 return (
                   <div 
                     key={block.id || block._id}
-                    className={`page-block-wrapper event-section block-type-${block.type || 'canvas'} layout-${layoutPreset}`}
-                    style={isMobile ? {
+                    className={`public-block-wrapper event-section block-type-${block.type || 'canvas'} layout-${layoutPreset}`}
+                    style={{
                        position: 'relative',
-                       width: '100%',
-                       height: 'auto',
-                       minHeight: (block.height ? block.height * 0.5 : 200) + 'px',
-                       background: block.props?.bgColor || (['map', 'rsvp'].includes(block.type) ? 'var(--surface)' : 'transparent'),
-                       borderRadius: ['map', 'rsvp'].includes(block.type) ? '12px' : '0',
-                       padding: ['map', 'rsvp'].includes(block.type) ? '20px' : '0',
-                       boxShadow: ['map', 'rsvp'].includes(block.type) ? '0 4px 15px rgba(0,0,0,0.05)' : 'none',
-                       marginBottom: '20px'
-                    } : {
-                       position: 'absolute',
-                       left: block.x || ((event.canvas?.width || 800) / 2),
-                       top: block.y || 0,
-                       width: block.width || ((event.canvas?.width || 800) - 40),
-                       height: block.height || 'auto',
-                       transform: 'translateX(-50%)',
-                       background: block.props?.bgColor || (['map', 'rsvp'].includes(block.type) ? 'var(--surface)' : 'transparent'),
-                       borderRadius: ['map', 'rsvp'].includes(block.type) ? '16px' : '0',
-                       padding: ['map', 'rsvp'].includes(block.type) ? '30px' : '0',
-                       boxShadow: ['map', 'rsvp'].includes(block.type) ? '0 4px 20px rgba(0,0,0,0.1)' : 'none',
-                       border: ['map', 'rsvp'].includes(block.type) ? '1px solid var(--border)' : 'none' 
-                    } as React.CSSProperties}
+                       width: isMobile ? '100%' : (currentScale * LOGICAL_WIDTH) + 'px',
+                       height: isMobile || isWidget ? 'auto' : (scaledHeight + 'px'),
+                       minHeight: isMobile ? '200px' : (isWidget ? '300px' : 'auto'),
+                       background: block.props?.bgColor || 'transparent',
+                       marginBottom: isMobile ? '20px' : '0',
+                       overflow: isWidget ? 'visible' : 'hidden',
+                       display: 'flex',
+                       justifyContent: 'center',
+                       boxSizing: 'border-box'
+                    }}
                   >
-                    {/* FLUID ENGINE LAYERS RENDERING */}
-                    {event.layers && event.canvas && (
-                      <ReadOnlyCanvas 
-                        layers={event.layers.filter(l => l.blockId === (block.id || block._id))} 
-                        canvasProps={{...event.canvas, height: block.height || 400}} 
-                        isMobile={isMobile}
-                        isBlock={true}
-                      />
+                    {isWidget ? (
+                      /* FLUID WIDGET RENDERING - No fixed width/scale wrapper to prevent clipping */
+                      <div style={{ 
+                        width: '100%', 
+                        height: '100%',
+                        position: 'relative', 
+                        zIndex: 1, 
+                        padding: isMobile ? '0' : '0 20px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}>
+                        {block.type === 'map' ? (
+                          <MapWidget 
+                            address={block.props?.address} 
+                            title={block.props?.title}
+                            zoom={block.props?.zoom || 15}
+                            previewMobile={isMobile}
+                          />
+                        ) : (
+                          <RSVPWidget 
+                            block={block} 
+                            theme={event.theme} 
+                            eventSlug={slug || ""} 
+                            isMobile={isMobile} 
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      /* LOGICAL CANVAS RENDERING - Uses scaling for precise layer positioning */
+                      <div style={!isMobile ? {
+                        width: LOGICAL_WIDTH + 'px',
+                        height: (block.height || 400) + 'px',
+                        position: 'relative',
+                        flexShrink: 0,
+                        transform: `scale(${currentScale})`,
+                        transformOrigin: 'top left',
+                        zIndex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center'
+                      } : {
+                        width: '100%',
+                        maxWidth: '100%',
+                        height: '100%',
+                        position: 'relative',
+                        zIndex: 1,
+                        padding: 0
+                      }}>
+                        {event.layers && event.canvas && (
+                          <ReadOnlyCanvas 
+                            layers={event.layers.filter(l => l.blockId === (block.id || block._id))} 
+                            canvasProps={{...event.canvas, height: block.height || 400, bgImage: null, bgColor: 'transparent'}} 
+                            isMobile={isMobile}
+                            isBlock={true}
+                          />
+                        )}
+                      </div>
                     )}
-                    {block.type === "text" && (
-                      <>
-                        {block.props.heading && <h2 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '12px', fontFamily: pageTheme.fonts.heading, color: 'var(--text-main)' }}>{block.props.heading}</h2>}
-                        {block.props.body && <p style={{ fontSize: '15px', color: 'var(--text-soft)', lineHeight: 1.6, fontFamily: pageTheme.fonts.body, whiteSpace: 'pre-wrap' }}>{block.props.body}</p>}
-                      </>
-                    )}
-
-                    {block.type === "map" && (() => {
-                      const title = block.props?.title || "";
-                      const address = block.props?.address || "";
-                      const mapUrl = block.props?.mapUrl || "";
-                      const finalUrl = mapUrl || address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : "";
-                      const embedUrl = address ? `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed` : "";
-
-                      return (
-                        <>
-                          <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(var(--accent-rgb), 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                               <MapPin size={18} color={pageTheme.accent} />
-                            </div>
-                            {title || "Come arrivare"}
-                          </h2>
-                          {address && <p style={{ opacity: 0.85, marginBottom: '15px', fontSize: '14px' }}>{address}</p>}
-                          {embedUrl ? (
-                            <div style={{ width: "100%", height: "280px", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--border)", marginBottom: "15px" }}>
-                              <iframe title={`map-${block.id}`} src={embedUrl} width="100%" height="100%" style={{ border: 0 }} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-                            </div>
-                          ) : <p style={{ opacity: 0.7 }}>Indirizzo non disponibile.</p>}
-                          {finalUrl && (
-                            <a href={finalUrl} target="_blank" rel="noreferrer" className="ui-button ui-button--ghost" style={{ width: '100%', textDecoration: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                              Apri su Google Maps
-                            </a>
-                          )}
-                        </>
-                      );
-                    })()}
-
-                    {block.type === "rsvp" && renderRsvpBlock(block.id || block._id || "")}
-
-                    {block.type === "gallery" && (() => {
-                      const images = (block.props?.images || []).map(resolveImageUrl);
-                      return (
-                        <>
-                          <div style={{ fontSize: '12px', color: 'var(--text-soft)', textAlign: 'center', fontWeight: 600, marginBottom: '15px' }}>Galleria Immagini</div>
-                          {images.length === 0 ? <p style={{ opacity: 0.7, textAlign: 'center' }}>Nessuna immagine disponibile.</p> : (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                              {images.map((url: string, i: number) => (
-                                <div key={`${block.id}-pub-img-${i}`} style={{ aspectRatio: '1', backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '8px', border: '1px solid var(--border)' }} />
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-
-                    {block.type === "photo" && (() => {
-                      const imageUrl = block.props?.image ? resolveImageUrl(block.props.image) : null;
-                      if (!imageUrl) return null;
-                      const caption = block.props.caption || "";
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', height: '100%' }}>
-                           <div style={{ width: '100%', flex: 1, minHeight: '100px', backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '12px', overflow: 'hidden' }} />
-                           {caption && <p style={{ fontSize: '14px', color: 'var(--text-soft)', textAlign: 'center', fontStyle: 'italic', margin: 0 }}>{caption}</p>}
-                        </div>
-                      );
-                    })()}
                   </div>
                 );
               })}

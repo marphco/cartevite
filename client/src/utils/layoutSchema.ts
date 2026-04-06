@@ -192,7 +192,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
       { id: "l3", type: "text", text: "12 Settembre 2026", x: "center", y: 492, fontSize: 24, fontFamily: "Inter", fontWeight: "300", color: "#6e7f6e", textAlign: "center", width: "max-content" }
     ],
     blocks: [
-      { id: "m1", type: "map", order: 1, props: { title: "Dove & Quando", address: "Villa Comunale, Napoli", mapUrl: "" } },
+      { id: "m1", type: "map", order: 1, props: { title: "Dove & Quando", address: "Inserisci Indirizzo", mapUrl: "" } },
       { id: "r1", type: "rsvp", order: 2, props: {} }
     ]
   },
