@@ -118,6 +118,14 @@ export function useFetchEvent(
         };
       });
       setIsDirty(true);
+    },
+    updateEventData: (updates: Partial<EventData>, pushToHistory?: () => void) => {
+      if (pushToHistory) pushToHistory();
+      setEvent(prev => {
+        if (!prev) return null;
+        return { ...prev, ...updates };
+      });
+      setIsDirty(true);
     }
   };
 }

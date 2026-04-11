@@ -10,7 +10,7 @@ import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
 import CustomColorPicker from "./CustomColorPicker";
 import { AVAILABLE_FONTS, getFontPreviewText, loadGoogleFont, AVAILABLE_LINERS, AVAILABLE_SCENARIO_BGS } from "./EditorHelpers";
-import type { Layer, CanvasProps } from "../../../types/editor";
+import type { Layer, CanvasProps, Block } from "../../../types/editor";
 
 interface MobileToolbarProps {
   activeMobileTab: string | null;
@@ -50,6 +50,12 @@ interface MobileToolbarProps {
   previewMobile?: boolean;
   setPreviewMobile?: (val: boolean) => void;
   editingLayerId?: string | null;
+  selectedBlockId?: string | null;
+  blocks?: Block[] | null;
+  setBlocks?: React.Dispatch<React.SetStateAction<Block[]>> | null;
+  layers?: Layer[];
+  setLayers?: React.Dispatch<React.SetStateAction<Layer[]>>;
+  setIsDirty?: (val: boolean) => void;
 }
 
 const MobileToolbar: React.FC<MobileToolbarProps> = ({
@@ -89,7 +95,13 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
   pushToHistory,
   previewMobile,
   setPreviewMobile,
-  editingLayerId
+  editingLayerId,
+  selectedBlockId,
+  blocks,
+  setBlocks,
+  layers,
+  setLayers,
+  setIsDirty
 }) => {
   // MODALITÀ FOCUS: Nascondi la barra strumenti fissa se stiamo scrivendo un testo
   if (editingLayerId) {
@@ -115,7 +127,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab }
+                  {activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab }
                 </span>
               )}
               <button className="mobile-tab-close" onClick={() => { 
@@ -734,6 +746,147 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                      )}
                   </div>
                 )}
+
+                {/* RSVP STYLE TAB */}
+                {activeMobileTab === 'rsvp_style' && selectedBlockId && blocks && (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {(() => {
+                      const block = blocks.find(b => b.id === selectedBlockId);
+                      if (!block) return null;
+                      return (
+                        <>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <Button 
+                              variant={displayColorPicker === 'formPrimary' ? 'primary' : 'subtle'}
+                              style={{ flex: 1, fontSize: '11px', justifyContent: 'space-between' }}
+                              onClick={() => setDisplayColorPicker(displayColorPicker === 'formPrimary' ? false : 'formPrimary')}
+                            >
+                              <span>Pulsante</span>
+                              <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: block.widgetProps?.formPrimaryColor || 'var(--accent)', border: '1px solid var(--border)' }} />
+                            </Button>
+                            <Button 
+                              variant={displayColorPicker === 'formText' ? 'primary' : 'subtle'}
+                              style={{ flex: 1, fontSize: '11px', justifyContent: 'space-between' }}
+                              onClick={() => setDisplayColorPicker(displayColorPicker === 'formText' ? false : 'formText')}
+                            >
+                              <span>Testi</span>
+                              <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: block.widgetProps?.formTextColor || '#ffffff', border: '1px solid var(--border)' }} />
+                            </Button>
+                          </div>
+                          
+                          {displayColorPicker === 'formPrimary' && (
+                            <div style={{ padding: '4px 0' }}>
+                              <CustomColorPicker 
+                                color={block.widgetProps?.formPrimaryColor || '#14b8a6'} 
+                                onChange={(color) => {
+                                  if (setBlocks) {
+                                    setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, formPrimaryColor: color } } : b));
+                                  }
+                                }} 
+                              />
+                            </div>
+                          )}
+                          {displayColorPicker === 'formText' && (
+                            <div style={{ padding: '4px 0' }}>
+                              <CustomColorPicker 
+                                color={block.widgetProps?.formTextColor || '#ffffff'} 
+                                onChange={(color) => {
+                                  if (setBlocks) {
+                                    setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, formTextColor: color } } : b));
+                                  }
+                                }} 
+                              />
+                            </div>
+                          )}
+
+                          <Button 
+                            variant={displayColorPicker === 'formInput' ? 'primary' : 'subtle'}
+                            style={{ width: '100%', fontSize: '11px', justifyContent: 'space-between' }}
+                            onClick={() => setDisplayColorPicker(displayColorPicker === 'formInput' ? false : 'formInput')}
+                          >
+                            <span>Sfondo Input</span>
+                            <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: block.widgetProps?.formInputBg || 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }} />
+                          </Button>
+                          {displayColorPicker === 'formInput' && (
+                            <div style={{ padding: '4px 0' }}>
+                              <CustomColorPicker 
+                                color={block.widgetProps?.formInputBg || 'rgba(255,255,255,0.05)'} 
+                                onChange={(color) => {
+                                  if (setBlocks) {
+                                    setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, formInputBg: color } } : b));
+                                  }
+                                }} 
+                              />
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* RSVP QUESTIONS TAB */}
+                {activeMobileTab === 'rsvp_questions' && selectedBlockId && blocks && (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {(() => {
+                      const block = blocks.find(b => b.id === selectedBlockId);
+                      if (!block) return null;
+                      return (
+                        <>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <Button 
+                              variant="subtle" 
+                              style={{ width: '100%', justifyContent: 'space-between', padding: '10px 14px' }}
+                              onClick={() => {
+                                if (setBlocks && setIsDirty) {
+                                  setIsDirty(true);
+                                  setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, rsvpAskGuests: block.widgetProps?.rsvpAskGuests === false } } : b));
+                                }
+                              }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: 600 }}>Chiedi numero ospiti</span>
+                              <div style={{ width: '16px', height: '16px', border: '1px solid var(--accent)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {block.widgetProps?.rsvpAskGuests !== false && <Check size={12} color="var(--accent)" />}
+                              </div>
+                            </Button>
+                            <Button 
+                              variant="subtle" 
+                              style={{ width: '100%', justifyContent: 'space-between', padding: '10px 14px' }}
+                              onClick={() => {
+                                if (setBlocks && setIsDirty) {
+                                  setIsDirty(true);
+                                  setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, rsvpAskIntolerances: block.widgetProps?.rsvpAskIntolerances === false } } : b));
+                                }
+                              }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: 600 }}>Chiedi allergie/intolleranze</span>
+                              <div style={{ width: '16px', height: '16px', border: '1px solid var(--accent)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {block.widgetProps?.rsvpAskIntolerances !== false && <Check size={12} color="var(--accent)" />}
+                              </div>
+                            </Button>
+                          </div>
+                          
+                          <div style={{ textAlign: 'center', marginTop: '4px' }}>
+                             <Button 
+                               variant="ghost" 
+                               onClick={() => {
+                                 if (setBlocks && setIsDirty) {
+                                   setIsDirty(true);
+                                   const currentFields = block.widgetProps?.customFields || [];
+                                   const newField = { id: 'field-' + Date.now(), label: 'Nuova Domanda', type: 'text' as const, required: false };
+                                   setBlocks(blocks.map(b => b.id === block.id ? { ...b, widgetProps: { ...b.widgetProps, customFields: [...currentFields, newField] } } : b));
+                                 }
+                               }}
+                               style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.05em' }}
+                             >
+                               + AGGIUNGI DOMANDA PERSONALIZZATA
+                             </Button>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
             </div>
           </div>
         )}
@@ -804,30 +957,65 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                     }}>
                        {/* RIGA INTESTAZIONI UNIFICATA */}
                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '6px', padding: '0 4px' }}>
-                         <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 1 }}>Aggiungi</span>
+                         <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 1 }}>
+                            {selectedBlockId ? (blocks?.find(b => b.id === selectedBlockId)?.type === 'rsvp' ? "Modifica RSVP" : "Modifica Sezione") : "Aggiungi"}
+                         </span>
                          <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 1, width: '150px' }}>Visualizza su</span>
                        </div>
 
                        {/* RIGA CONTROLLI */}
                        <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
                          
-                         {/* BLOCCO AZIONI (Sinistra) */}
+                         {/* BLOCCO AZIONI (Sinistra) - CONTESTUALE */}
                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1 }}>
-                            <MobileIconBtn 
-                              icon={Plus} 
-                              label="Sezione" 
-                              onClick={() => alert("Funzionalità in arrivo!")} 
-                            />
-                            <MobileIconBtn 
-                              icon={Type} 
-                              label="Testo" 
-                              onClick={addTextLayer} 
-                            />
-                            <MobileIconBtn 
-                              icon={ImageIcon} 
-                              label="Foto" 
-                              onClick={() => fileInputRef.current?.click()} 
-                            />
+                            {(() => {
+                              const block = blocks?.find(b => b.id === selectedBlockId);
+                              if (block && block.type === 'rsvp') {
+                                return (
+                                  <>
+                                    <MobileIconBtn 
+                                      icon={Palette} 
+                                      label="Stile" 
+                                      variant={activeMobileTab === 'rsvp_style' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab('rsvp_style')} 
+                                    />
+                                    <MobileIconBtn 
+                                      icon={Settings2} 
+                                      label="Campi" 
+                                      variant={activeMobileTab === 'rsvp_questions' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab('rsvp_questions')} 
+                                    />
+                                    <MobileIconBtn 
+                                      icon={Type} 
+                                      label="+ Testo" 
+                                      onClick={addTextLayer} 
+                                    />
+                                  </>
+                                );
+                              }
+                              
+                              return (
+                                <>
+                                  <MobileIconBtn 
+                                    icon={Plus} 
+                                    label="Sezione" 
+                                    onClick={() => alert("Funzionalità in arrivo!")} 
+                                  />
+                                  <MobileIconBtn 
+                                    icon={Type} 
+                                    label="Testo" 
+                                    onClick={addTextLayer} 
+                                  />
+                                  {(!block || (block.type !== 'rsvp' && block.type !== 'map')) && (
+                                    <MobileIconBtn 
+                                      icon={ImageIcon} 
+                                      label="Foto" 
+                                      onClick={() => fileInputRef.current?.click()} 
+                                    />
+                                  )}
+                                </>
+                              );
+                            })()}
                          </div>
 
                          {/* DIVISORE VERTICALE */}

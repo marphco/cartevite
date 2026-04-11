@@ -14,6 +14,7 @@ interface PageSectionProps {
   selectedLayer: any;
   selectedLayerIds: string[];
   layers: Layer[];
+  setLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
   setSelectedLayerIds: (ids: string[]) => void;
   updateSelectedLayer: (updates: Partial<Layer>) => void;
   deleteSelectedLayers: () => void;
@@ -30,12 +31,13 @@ interface PageSectionProps {
   addTextLayer: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  blocks: Block[];
-  setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
   setIsDirty: (val: boolean) => void;
   pushToHistory: () => void;
-  showVisibility?: boolean;
-  updateTheme: (updates: any) => void;
+  showVisibility?: boolean | undefined;
+  blocks?: Block[] | undefined;
+  setBlocks?: React.Dispatch<React.SetStateAction<Block[]>> | undefined;
+  onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
+  event?: any;
 }
 
 const PageSection: React.FC<PageSectionProps> = ({
@@ -45,6 +47,7 @@ const PageSection: React.FC<PageSectionProps> = ({
   selectedLayer,
   selectedLayerIds,
   layers,
+  setLayers,
   setSelectedLayerIds,
   updateSelectedLayer,
   deleteSelectedLayers,
@@ -65,11 +68,12 @@ const PageSection: React.FC<PageSectionProps> = ({
   setBlocks,
   setIsDirty,
   pushToHistory,
-  updateTheme,
+  onUpdateBlock,
+  event,
   showVisibility = true
 }) => {
-  const selectedBlock = blocks?.find(b => b.id === selectedBlockId);
-  const [activeRsvpTab, setActiveRsvpTab] = React.useState<'content' | 'style' | 'questions'>('content');
+   const selectedBlock = blocks?.find(b => b.id === selectedBlockId);
+  const [activeRsvpTab, setActiveRsvpTab] = React.useState<'style' | 'questions'>('style');
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
@@ -94,7 +98,7 @@ const PageSection: React.FC<PageSectionProps> = ({
           </div>
         </div>
 
-        {selectedLayerIds.length > 0 ? (
+        {selectedLayerIds.length > 0 && !selectedLayerIds.includes('widget-rsvp') ? (
            /* PRIORITÀ 1: EDITOR ELEMENTO */
            <div key="editor-layer">
              <PropertyPanel 
@@ -124,9 +128,11 @@ const PageSection: React.FC<PageSectionProps> = ({
                    <Button variant="primary" style={{ width: '100%', justifyContent: 'center' }} onClick={addTextLayer}>
                      <Type size={18} style={{marginRight: 8}}/> Testo
                    </Button>
-                   <Button variant="subtle" style={{ width: '100%', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
-                     <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
-                   </Button>
+                   {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && (
+                     <Button variant="subtle" style={{ width: '100%', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
+                       <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
+                     </Button>
+                   )}
                  </div>
                </Surface>
              )}
@@ -134,15 +140,19 @@ const PageSection: React.FC<PageSectionProps> = ({
         ) : selectedBlockId ? (
           /* PRIORITÀ 2: OPZIONI SEZIONE (Se nessun elemento è selezionato) */
           <div key={selectedBlockId}>
-           <Surface variant="soft" className="panel-section" style={{ padding: '16px' }}>
-               <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Inserisci nella Sezione</h3>
+           {!selectedLayerIds.includes('widget-rsvp') && (
+            <>
+             <Surface variant="soft" className="panel-section" style={{ padding: '16px' }}>
+                 <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Inserisci nella Sezione</h3>
                <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                  <Button variant="primary" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }} onClick={addTextLayer}>
                    <Type size={18} style={{marginRight: 8}}/> Testo
                  </Button>
-                 <Button variant="subtle" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }} onClick={() => fileInputRef.current?.click()}>
-                   <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
-                 </Button>
+                 {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && (
+                   <Button variant="subtle" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }} onClick={() => fileInputRef.current?.click()}>
+                     <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
+                   </Button>
+                 )}
                  <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{display: 'none'}} />
                                   {/* SETTINGS SPECIFICI PER WIDGET MAPPA */}
                {selectedBlock && selectedBlock.type === 'map' && (
@@ -154,7 +164,9 @@ const PageSection: React.FC<PageSectionProps> = ({
                     type="text"
                     value={selectedBlock.props?.title || "Come Arrivare"}
                     onChange={(e) => {
-                      if (blocks && setBlocks) {
+                      if (onUpdateBlock && selectedBlock) {
+                        onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, title: e.target.value } });
+                      } else if (blocks && setBlocks) {
                         setIsDirty(true);
                         setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, title: e.target.value } } : b));
                       }
@@ -166,7 +178,9 @@ const PageSection: React.FC<PageSectionProps> = ({
                     type="text"
                     value={selectedBlock.props?.address || ""}
                     onChange={(e) => {
-                      if (blocks && setBlocks) {
+                      if (onUpdateBlock && selectedBlock) {
+                        onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, address: e.target.value } });
+                      } else if (blocks && setBlocks) {
                         setIsDirty(true);
                         setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, address: e.target.value } } : b));
                       }
@@ -176,10 +190,14 @@ const PageSection: React.FC<PageSectionProps> = ({
                   />
                 </div>
               )}
+               </div>
+             </Surface>
+             </>
+            )}
 
-              {/* SETTINGS SPECIFICI PER WIDGET RSVP */}
-              {selectedBlock && selectedBlock.type === 'rsvp' && (
-                <div style={{ marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+            {/* SETTINGS SPECIFICI PER WIDGET RSVP */}
+            {selectedBlock && selectedBlock.type === 'rsvp' && selectedLayerIds.includes('widget-rsvp') && (
+              <div style={{ marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
                   
                   {/* TABS RSVP */}
                   <div style={{ 
@@ -190,7 +208,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                     marginBottom: '20px',
                     border: '1px solid var(--border)' 
                   }}>
-                    {(['content', 'style', 'questions'] as const).map((tab) => (
+                    {(['style', 'questions'] as const).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setActiveRsvpTab(tab)}
@@ -209,43 +227,11 @@ const PageSection: React.FC<PageSectionProps> = ({
                           letterSpacing: '0.05em'
                         }}
                       >
-                        {tab === 'content' ? 'Testi' : tab === 'style' ? 'Stile' : 'Domande'}
+                        {tab === 'style' ? 'Stile' : 'Domande'}
                       </button>
                     ))}
                   </div>
 
-                  {/* TAB 1: CONTENUTI */}
-                  {activeRsvpTab === 'content' && (
-                    <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
-                      <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Titolo & Messaggio</label>
-                      <input 
-                        type="text"
-                        value={selectedBlock.props?.rsvpTitle || "GENTILE CONFERMA"}
-                        onChange={(e) => {
-                          if (blocks && setBlocks) {
-                            setIsDirty(true);
-                            setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, rsvpTitle: e.target.value } } : b));
-                          }
-                        }}
-                        placeholder="Titolo RSVP"
-                        style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', fontSize: '13px', color: 'var(--text-main)', marginBottom: '12px', outline: 'none' }}
-                      />
-                      <textarea 
-                        value={selectedBlock.props?.rsvpDescription || ""}
-                        onChange={(e) => {
-                          if (blocks && setBlocks) {
-                            setIsDirty(true);
-                            setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, rsvpDescription: e.target.value } } : b));
-                          }
-                        }}
-                        placeholder="Descrizione o istruzioni per gli ospiti..."
-                        style={{ width: '100%', minHeight: '80px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', fontSize: '13px', color: 'var(--text-main)', resize: 'vertical', outline: 'none', marginBottom: '8px' }}
-                      />
-                      <p style={{ fontSize: '10px', color: 'var(--text-soft)', fontStyle: 'italic', marginBottom: '16px' }}>
-                        Suggerimento: Specifica una data ultima per la conferma.
-                      </p>
-                    </div>
-                  )}
 
                   {/* TAB 2: STILE */}
                   {activeRsvpTab === 'style' && (
@@ -261,15 +247,17 @@ const PageSection: React.FC<PageSectionProps> = ({
                             }}
                           >
                             <span style={{ fontSize: '12px', color: 'var(--text-main)' }}>Principale</span>
-                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: selectedBlock.props?.formPrimaryColor || 'var(--accent)', border: '1px solid rgba(0,0,0,0.1)' }} />
+                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: selectedBlock.widgetProps?.formPrimaryColor || 'var(--accent)', border: '1px solid rgba(0,0,0,0.1)' }} />
                           </div>
                           {displayColorPicker === 'formPrimary' && (
                             <div style={{ marginTop: '10px' }}>
                               <CustomColorPicker 
-                                color={selectedBlock.props?.formPrimaryColor || '#14b8a6'} 
+                                color={selectedBlock.widgetProps?.formPrimaryColor || '#14b8a6'} 
                                 onChange={(color) => {
-                                  if (blocks && setBlocks) {
-                                    setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, formPrimaryColor: color } } : b));
+                                  if (onUpdateBlock && selectedBlock) {
+                                    onUpdateBlock(selectedBlock.id as string, { widgetProps: { formPrimaryColor: color } });
+                                  } else if (blocks && setBlocks) {
+                                    setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, widgetProps: { ...b.widgetProps, formPrimaryColor: color } } : b));
                                   }
                                 }} 
                               />
@@ -287,15 +275,17 @@ const PageSection: React.FC<PageSectionProps> = ({
                             }}
                           >
                             <span style={{ fontSize: '12px', color: 'var(--text-main)' }}>Labels & Testo</span>
-                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: selectedBlock.props?.formTextColor || '#ffffff', border: '1px solid rgba(0,0,0,0.1)' }} />
+                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: selectedBlock.widgetProps?.formTextColor || '#ffffff', border: '1px solid rgba(0,0,0,0.1)' }} />
                           </div>
                           {displayColorPicker === 'formText' && (
                             <div style={{ marginTop: '10px' }}>
                               <CustomColorPicker 
-                                color={selectedBlock.props?.formTextColor || '#ffffff'} 
+                                color={selectedBlock.widgetProps?.formTextColor || '#ffffff'} 
                                 onChange={(color) => {
-                                  if (blocks && setBlocks) {
-                                    setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, formTextColor: color } } : b));
+                                  if (onUpdateBlock && selectedBlock) {
+                                    onUpdateBlock(selectedBlock.id as string, { widgetProps: { formTextColor: color } });
+                                  } else if (blocks && setBlocks) {
+                                    setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, widgetProps: { ...b.widgetProps, formTextColor: color } } : b));
                                   }
                                 }} 
                               />
@@ -313,15 +303,17 @@ const PageSection: React.FC<PageSectionProps> = ({
                             }}
                           >
                             <span style={{ fontSize: '12px', color: 'var(--text-main)' }}>Sfondo Campi</span>
-                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: selectedBlock.props?.formInputBg || 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,0,0,0.1)' }} />
+                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: selectedBlock.widgetProps?.formInputBg || 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,0,0,0.1)' }} />
                           </div>
                           {displayColorPicker === 'formInput' && (
                             <div style={{ marginTop: '10px' }}>
                               <CustomColorPicker 
-                                color={selectedBlock.props?.formInputBg || 'rgba(255,255,255,0.05)'} 
+                                color={selectedBlock.widgetProps?.formInputBg || 'rgba(255,255,255,0.05)'} 
                                 onChange={(color) => {
-                                  if (blocks && setBlocks) {
-                                    setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, formInputBg: color } } : b));
+                                  if (onUpdateBlock && selectedBlock) {
+                                    onUpdateBlock(selectedBlock.id as string, { widgetProps: { formInputBg: color } });
+                                  } else if (blocks && setBlocks) {
+                                    setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, widgetProps: { ...b.widgetProps, formInputBg: color } } : b));
                                   }
                                 }} 
                               />
@@ -343,10 +335,12 @@ const PageSection: React.FC<PageSectionProps> = ({
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ fontSize: '12px', fontWeight: 600 }}>Numero Ospiti</span>
                           </div>
-                          <input type="checkbox" checked={selectedBlock.props?.rsvpAskGuests !== false} onChange={(e) => {
-                            if (blocks && setBlocks) {
+                          <input type="checkbox" checked={selectedBlock.widgetProps?.rsvpAskGuests !== false} onChange={(e) => {
+                            if (onUpdateBlock && selectedBlock) {
+                              onUpdateBlock(selectedBlock.id as string, { widgetProps: { rsvpAskGuests: e.target.checked } });
+                            } else if (blocks && setBlocks) {
                               setIsDirty(true);
-                              setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, rsvpAskGuests: e.target.checked } } : b));
+                              setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, widgetProps: { ...b.widgetProps, rsvpAskGuests: e.target.checked } } : b));
                             }
                           }} />
                         </div>
@@ -354,10 +348,12 @@ const PageSection: React.FC<PageSectionProps> = ({
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ fontSize: '12px', fontWeight: 600 }}>Allergie / Intolleranze</span>
                           </div>
-                          <input type="checkbox" checked={selectedBlock.props?.rsvpAskIntolerances !== false} onChange={(e) => {
-                            if (blocks && setBlocks) {
+                          <input type="checkbox" checked={selectedBlock.widgetProps?.rsvpAskIntolerances !== false} onChange={(e) => {
+                            if (onUpdateBlock && selectedBlock) {
+                              onUpdateBlock(selectedBlock.id as string, { widgetProps: { rsvpAskIntolerances: e.target.checked } });
+                            } else if (blocks && setBlocks) {
                               setIsDirty(true);
-                              setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, rsvpAskIntolerances: e.target.checked } } : b));
+                              setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, widgetProps: { ...b.widgetProps, rsvpAskIntolerances: e.target.checked } } : b));
                             }
                           }} />
                         </div>
@@ -370,13 +366,17 @@ const PageSection: React.FC<PageSectionProps> = ({
                           <Button 
                             variant="ghost" 
                             onClick={() => {
-                              if (blocks && setBlocks) {
-                                setIsDirty(true);
-                                const currentFields = selectedBlock.props?.customFields || [];
-                                const newField = { id: 'field-' + Date.now(), label: 'Nuova Domanda', type: 'text', required: false };
-                                setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, customFields: [...currentFields, newField] } } : b));
-                              }
-                            }}
+                               if (selectedBlock) {
+                                 const currentFields = selectedBlock.props?.customFields || [];
+                                 const newField = { id: 'field-' + Date.now(), label: 'Nuova Domanda', type: 'text', required: false };
+                                 if (onUpdateBlock) {
+                                   onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, customFields: [...currentFields, newField] } });
+                                 } else if (blocks && setBlocks) {
+                                   setIsDirty(true);
+                                   setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, customFields: [...currentFields, newField] } } : b));
+                                 }
+                               }
+                             }}
                             style={{ padding: '4px 8px', fontSize: '10px', height: 'auto', background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent)' }}
                           >
                             <Plus size={14} style={{ marginRight: 4 }} /> AGGIUNGI
@@ -391,9 +391,11 @@ const PageSection: React.FC<PageSectionProps> = ({
                                   type="text"
                                   value={field.label}
                                   onChange={(e) => {
-                                    if (blocks && setBlocks) {
-                                      const newFields = [...(selectedBlock.props?.customFields || [])];
-                                      newFields[index] = { ...field, label: e.target.value };
+                                    const newFields = [...(selectedBlock.props?.customFields || [])];
+                                    newFields[index] = { ...field, label: e.target.value };
+                                    if (onUpdateBlock && selectedBlock) {
+                                      onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, customFields: newFields } });
+                                    } else if (blocks && setBlocks) {
                                       setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, customFields: newFields } } : b));
                                     }
                                   }}
@@ -402,8 +404,10 @@ const PageSection: React.FC<PageSectionProps> = ({
                                 <Button 
                                   variant="ghost" 
                                   onClick={() => {
-                                    if (blocks && setBlocks) {
-                                      const newFields = (selectedBlock.props?.customFields || []).filter((_: any, i: number) => i !== index);
+                                    const newFields = (selectedBlock.props?.customFields || []).filter((_: any, i: number) => i !== index);
+                                    if (onUpdateBlock && selectedBlock) {
+                                      onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, customFields: newFields } });
+                                    } else if (blocks && setBlocks) {
                                       setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, customFields: newFields } } : b));
                                     }
                                   }}
@@ -416,9 +420,11 @@ const PageSection: React.FC<PageSectionProps> = ({
                                 <select 
                                   value={field.type}
                                   onChange={(e) => {
-                                    if (blocks && setBlocks) {
-                                      const newFields = [...(selectedBlock.props?.customFields || [])];
-                                      newFields[index] = { ...field, type: e.target.value as any };
+                                    const newFields = [...(selectedBlock.props?.customFields || [])];
+                                    newFields[index] = { ...field, type: e.target.value as any };
+                                    if (onUpdateBlock && selectedBlock) {
+                                      onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, customFields: newFields } });
+                                    } else if (blocks && setBlocks) {
                                       setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, customFields: newFields } } : b));
                                     }
                                   }}
@@ -432,9 +438,11 @@ const PageSection: React.FC<PageSectionProps> = ({
                                     type="checkbox" 
                                     checked={field.required} 
                                     onChange={(e) => {
-                                      if (blocks && setBlocks) {
-                                        const newFields = [...(selectedBlock.props?.customFields || [])];
-                                        newFields[index] = { ...field, required: e.target.checked };
+                                      const newFields = [...(selectedBlock.props?.customFields || [])];
+                                      newFields[index] = { ...field, required: e.target.checked };
+                                      if (onUpdateBlock && selectedBlock) {
+                                        onUpdateBlock(selectedBlock.id as string, { props: { ...selectedBlock.props, customFields: newFields } });
+                                      } else if (blocks && setBlocks) {
                                         setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, props: { ...b.props, customFields: newFields } } : b));
                                       }
                                     }}
@@ -452,13 +460,12 @@ const PageSection: React.FC<PageSectionProps> = ({
                       </div>
                     </div>
                   )}
-
                 </div>
               )}
-            </div>
-            <div style={{ marginTop: '30px', borderTop: '1px solid rgba(255,0,0,0.1)', paddingTop: '20px' }}>
-                <Button 
-                  variant="ghost" 
+            {!selectedLayerIds.includes('widget-rsvp') && (
+              <div style={{ marginTop: '30px', borderTop: '1px solid rgba(255,0,0,0.1)', paddingTop: '20px' }}>
+                  <Button 
+                    variant="ghost" 
                   style={{ width: '100%', color: 'var(--error)', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}
                   onClick={() => {
                     if (blocks && setBlocks && selectedBlockId) {
@@ -473,7 +480,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                   <Trash2 size={16} style={{ marginRight: 8 }} /> ELIMINA SEZIONE
                 </Button>
               </div>
-           </Surface>
+            )}
           </div>
         ) : (
           /* PRIORITÀ 3: GESTIONE GENERALE SEZIONI (Default) */
@@ -512,17 +519,50 @@ const PageSection: React.FC<PageSectionProps> = ({
               </Button>
               
               <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
-                if (blocks && setBlocks) {
+                if (blocks && setBlocks && setLayers) {
                   setIsDirty(true);
                   const newBlockId = 'block-rsvp-' + Date.now();
+                  
+                  const newLayers = [
+                    ...layers,
+                    {
+                      id: 'layer-rsvp-title-' + newBlockId + '-' + Date.now(),
+                      blockId: newBlockId,
+                      type: 'text',
+                      text: "GENTILE CONFERMA",
+                      x: 'center',
+                      y: 100,
+                      width: 600,
+                      fontSize: 32,
+                      fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
+                      textAlign: 'center',
+                      color: event.theme?.accent || 'var(--accent)'
+                    },
+                    {
+                      id: 'layer-rsvp-desc-' + newBlockId + '-' + Date.now(),
+                      blockId: newBlockId,
+                      type: 'text',
+                      text: "Ti preghiamo di confermare la tua presenza entro il 30 Giugno 2026.",
+                      x: 'center',
+                      y: 160,
+                      width: 600,
+                      fontSize: 16,
+                      fontFamily: event.theme?.fonts?.body || 'Inter',
+                      textAlign: 'center',
+                      color: '#ffffff'
+                    }
+                  ];
+                  
                   setBlocks([...blocks, { 
                     id: newBlockId, 
                     type: 'rsvp', 
                     y: 0, 
-                    height: 500, 
+                    height: 550, 
                     bgColor: 'transparent',
-                    props: { rsvpTitle: 'GENTILE CONFERMA' }
+                    props: {} // Titolo e desc sono ora layer
                   }]);
+                  
+                  setLayers(newLayers as any);
                   pushToHistory();
                 }
               }}>

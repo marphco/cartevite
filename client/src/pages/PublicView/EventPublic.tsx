@@ -191,8 +191,8 @@ export default function EventPublic() {
           {isInvitationOpened && <ScrollHint isMobile={window.innerWidth <= 768} color={pageTheme.accent} />}
       </div>
 
-      {/* 2. CONTENT SHELL - CONSTRAINED WIDTH FOR BLOCKS */}
-      <div className="event-public-shell" style={{ fontFamily: pageTheme.fonts.body, position: 'relative', zIndex: 1, padding: '40px 20px' }}>
+      {/* 2. CONTENT SHELL - FULL WIDTH FOR BLOCKS BACKGROUNDS */}
+      <div className="event-public-shell" style={{ fontFamily: pageTheme.fonts.body, position: 'relative', zIndex: 1, width: '100%', margin: 0, padding: 0 }}>
         <div className="event-public-content" ref={containerRef} style={{ width: '100%', overflowX: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           {orderedBlocks.length === 0 ? (
             <Surface variant="glass" style={{ marginTop: "2rem" }}>
@@ -215,7 +215,7 @@ export default function EventPublic() {
               {orderedBlocks.map((block) => {
                 const layoutPreset = block.props?.layoutPreset || "single";
                 const currentScale = isMobile ? 1 : stageScale;
-                const isWidget = ['map', 'rsvp'].includes(block.type);
+                const isWidget = ['map'].includes(block.type);
                 const scaledHeight = (block.height || 400) * currentScale;
                 
                 return (
@@ -224,7 +224,7 @@ export default function EventPublic() {
                     className={`public-block-wrapper event-section block-type-${block.type || 'canvas'} layout-${layoutPreset}`}
                     style={{
                        position: 'relative',
-                       width: isMobile ? '100%' : (currentScale * LOGICAL_WIDTH) + 'px',
+                       width: '100%', 
                        height: isMobile || isWidget ? 'auto' : (scaledHeight + 'px'),
                        minHeight: isMobile ? '200px' : (isWidget ? '300px' : 'auto'),
                        background: block.props?.bgColor || 'transparent',
@@ -248,20 +248,32 @@ export default function EventPublic() {
                         justifyContent: 'center',
                         alignItems: 'center'
                       }}>
-                        {block.type === 'map' ? (
+                        {block.type === 'map' && (
                           <MapWidget 
                             address={block.props?.address} 
                             title={block.props?.title}
                             zoom={block.props?.zoom || 15}
                             previewMobile={isMobile}
                           />
-                        ) : (
-                          <RSVPWidget 
-                            block={block} 
-                            theme={event.theme} 
-                            eventSlug={slug || ""} 
-                            isMobile={isMobile} 
-                          />
+                        )}
+                        {/* WIDGET OVERLAY LAYERS (es. testi draggabili RSVP) */}
+                        {event.layers && event.canvas && (
+                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}>
+                            <ReadOnlyCanvas 
+                              layers={event.layers.filter(l => {
+                                const bId = block.id || block._id;
+                                if (!l.blockId) {
+                                  if (bId) return false;
+                                  if (block.type !== 'canvas') return false;
+                                  return true;
+                                }
+                                return l.blockId === bId;
+                              })} 
+                              canvasProps={{...event.canvas, height: block.height || (block.type === 'rsvp' ? 550 : 400), bgImage: null, bgColor: 'transparent'}} 
+                              isMobile={isMobile}
+                              isBlock={true}
+                            />
+                          </div>
                         )}
                       </div>
                     ) : (
@@ -272,7 +284,7 @@ export default function EventPublic() {
                         position: 'relative',
                         flexShrink: 0,
                         transform: `scale(${currentScale})`,
-                        transformOrigin: 'top left',
+                        transformOrigin: 'top center',
                         zIndex: 1,
                         display: 'flex',
                         flexDirection: 'column',
@@ -287,7 +299,36 @@ export default function EventPublic() {
                       }}>
                         {event.layers && event.canvas && (
                           <ReadOnlyCanvas 
-                            layers={event.layers.filter(l => l.blockId === (block.id || block._id))} 
+                            layers={[
+                              ...event.layers.filter(l => {
+                                const bId = block.id || block._id;
+                                if (!l.blockId) {
+                                  if (bId) return false;
+                                  if (block.type !== 'canvas') return false;
+                                  return true;
+                                }
+                                return l.blockId === bId;
+                              }),
+                              ...(block.type === 'rsvp' ? [{
+                                id: `widget-rsvp-${block.id || block._id}`,
+                                type: 'custom-widget' as any,
+                                blockId: block.id,
+                                mobileOrder: block.widgetProps?.mobileOrder ?? 5,
+                                x: (typeof block.widgetProps?.formX === 'number' && !isNaN(block.widgetProps.formX)) ? block.widgetProps.formX : 500,
+                                y: (typeof block.widgetProps?.formY === 'number' && !isNaN(block.widgetProps.formY)) ? block.widgetProps.formY : (block.height || 400) / 2,
+                                z: 5
+                              }] : [])
+                            ]}
+                            renderCustomLayer={(layer) => {
+                              if (layer.type === 'custom-widget' && block.type === 'rsvp') {
+                                return (
+                                  <div style={{ pointerEvents: 'auto' }}>
+                                    <RSVPWidget block={block} theme={event.theme} eventSlug={slug || ""} isMobile={isMobile} />
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
                             canvasProps={{...event.canvas, height: block.height || 400, bgImage: null, bgColor: 'transparent'}} 
                             isMobile={isMobile}
                             isBlock={true}

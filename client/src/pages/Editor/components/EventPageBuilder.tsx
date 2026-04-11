@@ -25,6 +25,7 @@ interface EventPageBuilderProps {
   previewMobile: boolean;
   editingLayerId: string | null;
   setEditingLayerId: (id: string | null) => void;
+  onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
 }
 
 export function EventPageBuilder({
@@ -45,7 +46,8 @@ export function EventPageBuilder({
   setIsDirty,
   previewMobile,
   editingLayerId,
-  setEditingLayerId
+  setEditingLayerId,
+  onUpdateBlock
 }: EventPageBuilderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInvitationOpened, setIsInvitationOpened] = useState(false);
@@ -93,8 +95,11 @@ export function EventPageBuilder({
     newBlocks[index] = target;
     newBlocks[targetIndex] = current;
     
-    setBlocks(newBlocks);
-    updateTheme({ blocks: newBlocks });
+    // Riassegna gli order per rispecchiare l'indice dell'array, così la Public View li ordina correttamente.
+    const ordered = newBlocks.map((b, i) => ({ ...b, order: i }));
+    
+    setBlocks(ordered);
+    updateTheme({ blocks: ordered });
     pushToHistory();
     setSelectedBlockId(current.id || null);
   };
@@ -215,6 +220,7 @@ export function EventPageBuilder({
     updateTheme({ blocks: newBlocks, layers: newLayers });
     pushToHistory();
   };
+
 
   const deleteLayer = (layerId: string) => {
     const newLayers = layers.filter(l => l.id !== layerId);
@@ -432,6 +438,7 @@ export function EventPageBuilder({
             onDuplicate={() => duplicateBlock(idx)}
             onDelete={() => deleteBlock(idx)}
             onColorChange={(color) => handleBlockColorChange(idx, color)}
+            onUpdateBlock={onUpdateBlock}
             isFirst={idx === 0}
             isLast={idx === (blocks.length - 1)}
             isMobile={isMobile}

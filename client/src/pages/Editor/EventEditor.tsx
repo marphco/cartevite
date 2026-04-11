@@ -73,7 +73,7 @@ export default function EventEditor() {
 
   // --- CUSTOM HOOKS (SNELLIMENTO) ---
   const { 
-    loading, updateTheme 
+    loading, updateTheme, updateEventData
   } = useFetchEvent(slug, searchParams, loadDraft, setDraftRestored, setIsDirty, {
     setEvent, setLayers, setBlocks, setCanvasProps
   });
@@ -130,6 +130,59 @@ export default function EventEditor() {
       document.documentElement.style.overscrollBehavior = 'auto';
     };
   }, []);
+
+  // --- AUTO-INITIALIZE RSVP LAYERS (MIGRATION) ---
+  useEffect(() => {
+    if (!event || !blocks || blocks.length === 0) return;
+    
+    let layersAdded = false;
+    const newLayersToAdd: Layer[] = [];
+    
+    blocks.forEach(block => {
+      if (block.type === 'rsvp') {
+        const hasLayers = layers.some(l => l.blockId === block.id);
+        if (!hasLayers) {
+          const titleText = block.widgetProps?.rsvpTitle || "GENTILE CONFERMA";
+          const descText = block.widgetProps?.rsvpDescription || "Ti preghiamo di confermare la tua presenza entro il 30 Giugno 2026.";
+          
+          newLayersToAdd.push({
+            id: 'layer-rsvp-title-' + block.id + '-' + Date.now(),
+            blockId: block.id || '',
+            type: 'text',
+            text: titleText,
+            x: 'center',
+            y: 100,
+            width: 600,
+            fontSize: 32,
+            fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
+            textAlign: 'center',
+            color: event.theme?.accent || 'var(--accent)'
+          });
+          
+          newLayersToAdd.push({
+            id: 'layer-rsvp-desc-' + block.id + '-' + Date.now(),
+            blockId: block.id || '',
+            type: 'text',
+            text: descText,
+            x: 'center',
+            y: 160,
+            width: 600,
+            fontSize: 16,
+            fontFamily: event.theme?.fonts?.body || 'Inter',
+            textAlign: 'center',
+            color: '#ffffff'
+          });
+          
+          layersAdded = true;
+        }
+      }
+    });
+
+    if (layersAdded) {
+      setLayers(prev => [...prev, ...newLayersToAdd]);
+      setIsDirty(true);
+    }
+  }, [event, blocks, setLayers, setIsDirty]);
 
   // --- KEY HANDLER FOR BG ---
   useEffect(() => {
@@ -245,6 +298,22 @@ export default function EventEditor() {
     }
   };
 
+  const updateBlock = (blockId: string, updates: Partial<Block>) => {
+    const newBlocks = [...blocks].map(b => 
+      b.id === blockId 
+        ? { ...b, ...updates, widgetProps: { ...(b.widgetProps || {}), ...(updates.widgetProps || {}) } } 
+        : b
+    );
+    // Special case for custom fields if passed directly in updates
+    if (updates.props) {
+       // already merged by ...updates
+    }
+
+    setBlocks(newBlocks);
+    updateEventData({ blocks: newBlocks });
+    setIsDirty(true);
+  };
+
   // --- FONT LOADING ---
   useEffect(() => {
     layers.forEach(l => { if(l.fontFamily) loadGoogleFont(l.fontFamily); });
@@ -345,6 +414,8 @@ export default function EventEditor() {
           pushToHistory={pushToHistory}
           setIsDirty={setIsDirty}
           handleBackgroundUpload={handleBackgroundUpload}
+          onUpdateBlock={updateBlock}
+          setLayers={setLayers}
           blocks={blocks}
           setBlocks={setBlocks}
           selectedBlockId={selectedBlockId}
@@ -369,6 +440,12 @@ export default function EventEditor() {
            previewMobile={previewMobile}
            setPreviewMobile={setPreviewMobile}
            editingLayerId={editingLayerId}
+           selectedBlockId={selectedBlockId}
+           blocks={blocks}
+           setBlocks={setBlocks}
+           layers={layers}
+           setLayers={setLayers}
+           setIsDirty={setIsDirty}
          />
         <EditorStage 
           stageRef={stageRef} canvasRef={canvasRef} editorMode={editorMode} isMobile={isMobile}
@@ -388,6 +465,7 @@ export default function EventEditor() {
           pushToHistory={pushToHistory} setIsDirty={setIsDirty} setIsFontExpanded={setIsFontExpanded}
           stateBeforeActionRef={stateBeforeActionRef} latestStateRef={latestStateRef}
           blocks={blocks} setBlocks={setBlocks}
+          onUpdateBlock={updateBlock}
           selectedBlockId={selectedBlockId} setSelectedBlockId={setSelectedBlockId}
           previewMobile={previewMobile}
         />

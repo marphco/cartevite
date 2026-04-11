@@ -7,9 +7,10 @@ interface ReadOnlyCanvasProps {
   canvasProps: CanvasProps;
   isMobile?: boolean;
   isBlock?: boolean;
+  renderCustomLayer?: (layer: Layer) => React.ReactNode;
 }
 
-const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps, isMobile, isBlock }) => {
+const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps, isMobile, isBlock, renderCustomLayer }) => {
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const [bgNaturalSize, setBgNaturalSize] = useState({ w: 0, h: 0 });
@@ -97,6 +98,15 @@ const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps, is
       >
         {sortedLayers.map(layer => {
           const isText = layer.type === 'text' || !layer.type;
+          
+          if (layer.type === 'custom-widget' && renderCustomLayer) {
+            return (
+              <div key={layer.id} style={{ position: 'relative', width: '100%', zIndex: layer.z || 0 }}>
+                {renderCustomLayer(layer)}
+              </div>
+            );
+          }
+
           return (
             <div 
               key={layer.id} 
@@ -143,6 +153,17 @@ const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps, is
           const isText = layer.type === 'text' || !layer.type;
           const lx = layer.x === 'center' || isNaN(layer.x as number) ? '50%' : (layer.x + 'px');
           const ly = layer.y === 'center' || isNaN(layer.y as number) ? '50%' : (layer.y + 'px');
+
+          if (layer.type === 'custom-widget' && renderCustomLayer) {
+            return (
+              <div key={layer.id} style={{
+                position: 'absolute', left: lx, top: ly, transform: 'translate(-50%, -50%)',
+                width: 'max-content', zIndex: layer.z || 0
+              }}>
+                {renderCustomLayer(layer)}
+              </div>
+            );
+          }
 
           return (
             <div 
@@ -231,6 +252,17 @@ const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps, is
             const lx = layer.x === 'center' || isNaN(layer.x as number) ? '50%' : (layer.x + 'px');
             const ly = layer.y === 'center' || isNaN(layer.y as number) ? '50%' : (layer.y + 'px');
 
+            if (layer.type === 'custom-widget' && renderCustomLayer) {
+              return (
+                <div key={layer.id} style={{
+                  position: 'absolute', left: lx, top: ly, transform: 'translate(-50%, -50%)',
+                  width: '100%', zIndex: layer.z || 0
+                }}>
+                  {renderCustomLayer(layer)}
+                </div>
+              );
+            }
+
             return (
               <div 
                 key={layer.id} 
@@ -249,7 +281,7 @@ const ReadOnlyCanvas: React.FC<ReadOnlyCanvasProps> = ({ layers, canvasProps, is
                   letterSpacing: (layer.letterSpacing || 0) + 'px',
                   lineHeight: layer.lineHeight || 1.2,
                   color: layer.color,
-                  textAlign: layer.textAlign,
+                  textAlign: layer.textAlign as any,
                   zIndex: layer.z || 1,
                   display: 'block'
                 } as React.CSSProperties}

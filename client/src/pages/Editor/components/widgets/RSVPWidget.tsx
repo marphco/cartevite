@@ -32,7 +32,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
   const inputBg = props.formInputBg || 'rgba(0,0,0,0.2)';
 
   // Internal Form State
-  const [status, setStatus] = useState<"yes" | "no">("yes");
+  const [status, setStatus] = useState<"yes" | "no" | "maybe">("yes");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -55,7 +55,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
     }
 
     // MANDATORY ALLERGY CHECK
-    if (askIntolerances && status === 'yes' && hasAllergies === null) {
+    if (askIntolerances && status !== 'no' && hasAllergies === null) {
       setErrorMsg("Per favore, indica se hai allergie o intolleranze per proseguire.");
       return;
     }
@@ -137,33 +137,6 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
       padding: isMobile ? '24px' : '0 40px', // Horizontal padding only, vertical managed by parent
       color: textColor
     }}>
-      {/* HEADER */}
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <h2 style={{ 
-          fontSize: isMobile ? '22px' : '36px', 
-          fontFamily: theme?.fonts?.heading || 'Times New Roman',
-          fontWeight: 600,
-          marginTop: 0,
-          marginBottom: '12px',
-          color: primaryColor,
-          letterSpacing: '2px',
-          textTransform: 'uppercase'
-        }}>
-          {title}
-        </h2>
-        {desc && (
-          <p style={{ 
-            fontSize: '14px', 
-            color: textColor,
-            opacity: 0.7, 
-            maxWidth: '80%', 
-            margin: '0 auto',
-            lineHeight: 1.6 
-          }}>
-            {desc}
-          </p>
-        )}
-      </div>
 
       {isDone ? (
         <div style={{ 
@@ -213,8 +186,8 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                position: 'absolute',
                top: '6px',
                bottom: '6px',
-               left: status === 'yes' ? '6px' : '50%',
-               width: 'calc(50% - 6px)',
+               left: status === 'yes' ? '6px' : (status === 'maybe' ? 'calc(33.33% + 3px)' : 'calc(66.66% + 0px)'),
+               width: 'calc(33.33% - 6px)',
                background: primaryColor,
                borderRadius: '100px',
                transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
@@ -226,11 +199,24 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                   flex: 1, padding: '14px 0', border: 'none', background: 'transparent',
                   color: status === 'yes' ? '#000' : textColor,
                   opacity: status === 'yes' ? 1 : 0.5,
-                  fontWeight: 700, fontSize: '14px', cursor: 'pointer',
+                  fontWeight: 700, fontSize: '13px', cursor: 'pointer',
                   position: 'relative', zIndex: 1, transition: 'color 0.3s'
                 }}
              >
                 CI SARÒ
+             </button>
+             <button
+                type="button"
+                onClick={() => setStatus('maybe')}
+                style={{
+                  flex: 1, padding: '14px 0', border: 'none', background: 'transparent',
+                  color: status === 'maybe' ? '#000' : textColor,
+                  opacity: status === 'maybe' ? 1 : 0.5,
+                  fontWeight: 700, fontSize: '13px', cursor: 'pointer',
+                  position: 'relative', zIndex: 1, transition: 'color 0.3s'
+                }}
+             >
+                FORSE
              </button>
              <button
                 type="button"
@@ -239,7 +225,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                   flex: 1, padding: '14px 0', border: 'none', background: 'transparent',
                   color: status === 'no' ? '#000' : textColor,
                   opacity: status === 'no' ? 1 : 0.5,
-                  fontWeight: 700, fontSize: '14px', cursor: 'pointer',
+                  fontWeight: 700, fontSize: '13px', cursor: 'pointer',
                   position: 'relative', zIndex: 1, transition: 'color 0.3s'
                 }}
              >
@@ -256,7 +242,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
               required 
               style={inputStyle}
             />
-            {askGuests && status === 'yes' ? (
+            {askGuests && status !== 'no' ? (
                <div style={{ position: 'relative' }}>
                   <Users size={18} color={textColor} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
                   <input 
@@ -282,7 +268,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
           </div>
 
           {/* CUSTOM FIELDS RENDERING */}
-          {status === 'yes' && (props.customFields || []).map((field: any) => (
+          {status !== 'no' && (props.customFields || []).map((field: any) => (
             <div key={field.id} style={{ animation: 'fadeIn 0.3s ease-out' }}>
               <label style={{ fontSize: '11px', fontWeight: 600, color: textColor, opacity: 0.6, display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {field.label} {field.required ? '*' : ''}
@@ -321,7 +307,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
           ))}
 
           {/* ALLERGIE SECTION - MANDATORY YES/NO */}
-          {askIntolerances && status === 'yes' && (
+          {askIntolerances && status !== 'no' && (
             <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
               <label style={{ fontSize: '11px', fontWeight: 600, color: textColor, opacity: 0.6, display: 'block', marginBottom: '12px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 HAI ALLERGIE O INTOLLERANZE? *

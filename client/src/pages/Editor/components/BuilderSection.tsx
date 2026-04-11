@@ -30,9 +30,10 @@ interface BuilderSectionProps {
   editingLayerId: string | null;
   setEditingLayerId: (id: string | null) => void;
   editorScale: number;
-  onMoveLayer?: (layerId: string, direction: 'up' | 'down') => void;
-  onDuplicateLayer?: (layerId: string) => void;
-  onDeleteLayer?: (layerId: string) => void;
+  onMoveLayer?: ((layerId: string, direction: 'up' | 'down') => void) | undefined;
+  onDuplicateLayer?: ((layerId: string) => void) | undefined;
+  onDeleteLayer?: ((layerId: string) => void) | undefined;
+  onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
 }
 
 const BuilderSection: React.FC<BuilderSectionProps> = ({ 
@@ -63,7 +64,8 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   editorScale,
   onMoveLayer,
   onDuplicateLayer,
-  onDeleteLayer
+  onDeleteLayer,
+  onUpdateBlock
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isAnchorHovered, setIsAnchorHovered] = useState(false);
@@ -195,6 +197,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
           setEditingLayerId={setEditingLayerId}
           editorScale={editorScale}
           onMoveLayer={onMoveLayer}
+          onUpdateBlock={onUpdateBlock}
         />
       </div>
 

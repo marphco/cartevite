@@ -51,6 +51,7 @@ interface EditorStageProps {
   setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
   selectedBlockId: string | null;
   setSelectedBlockId: React.Dispatch<React.SetStateAction<string | null>>;
+  onUpdateBlock?: (blockId: string, updates: Partial<Block>) => void;
   previewMobile: boolean;
 }
 
@@ -97,6 +98,7 @@ const EditorStage: React.FC<EditorStageProps> = ({
   latestStateRef,
   blocks,
   setBlocks,
+  onUpdateBlock,
   selectedBlockId,
   setSelectedBlockId,
   previewMobile
@@ -363,7 +365,8 @@ const EditorStage: React.FC<EditorStageProps> = ({
             setIsDirty,
             previewMobile,
             editingLayerId,
-            setEditingLayerId
+            setEditingLayerId,
+            onUpdateBlock
           } as any}
         />
       ) : (

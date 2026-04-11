@@ -1,7 +1,7 @@
 import React from 'react';
 import { Surface, Button } from "../../../ui";
 import { 
-  Palette as PaletteIcon, Layout, Monitor, Smartphone, Mail, MailOpen, Sparkles
+  Monitor, Smartphone
 } from "lucide-react";
 import InviteSection from "./sidebar/InviteSection";
 import EnvelopeSection from "./sidebar/EnvelopeSection";
@@ -16,6 +16,7 @@ interface DesktopSidebarProps {
   selectedLayer: any;
   selectedLayerIds: string[];
   layers: Layer[];
+  setLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
   setSelectedLayerIds: (ids: string[]) => void;
   updateSelectedLayer: (updates: Partial<Layer>) => void;
   deleteSelectedLayers: () => void;
@@ -48,16 +49,16 @@ interface DesktopSidebarProps {
   setIsEditingLiner: (val: boolean) => void;
   scenarioBgInputRef: React.RefObject<HTMLInputElement | null>;
   userScenarioBgImages: string[];
-  previewMobile?: boolean;
+  previewMobile?: boolean | undefined;
   setPreviewMobile: (preview: boolean) => void;
-  selectedBlockId: string | null;
-  selectedBlock: Block | null;
-  blocks: Block[] | null;
-  setBlocks: React.Dispatch<React.SetStateAction<Block[]>> | null;
-  setIsDirty: (val: boolean) => void;
-  activeRsvpTab: 'content' | 'style' | 'questions';
-  setActiveRsvpTab: (tab: 'content' | 'style' | 'questions') => void;
-  showVisibility?: boolean;
+  selectedBlockId?: string | null | undefined;
+  blocks?: Block[] | null | undefined;
+  setBlocks?: (React.Dispatch<React.SetStateAction<Block[]>> | null) | undefined;
+  setIsDirty?: ((val: boolean) => void) | undefined;
+  showVisibility?: boolean | undefined;
+  onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
+  showMobileAnchorGrid?: boolean | undefined;
+  setShowMobileAnchorGrid?: ((show: boolean) => void) | undefined;
 }
 
 const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
@@ -89,6 +90,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   setIsEditingBackground,
   pushToHistory,
   handleBackgroundUpload,
+  setLayers,
   isEnvelopeOpen,
   setIsEnvelopeOpen,
   event,
@@ -102,17 +104,14 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   previewMobile = false,
   setPreviewMobile = () => {},
   selectedBlockId,
-  selectedBlock,
   blocks,
   setBlocks,
   setIsDirty,
-  activeRsvpTab,
-  setActiveRsvpTab,
+  onUpdateBlock,
+  showMobileAnchorGrid,
+  setShowMobileAnchorGrid,
   showVisibility = true
 }) => {
-  const [activeRsvpTabLocal, setActiveRsvpTabLocal] = React.useState<'content' | 'style' | 'questions'>('content');
-  const activeRsvpTabActual = activeRsvpTab || activeRsvpTabLocal;
-  const setActiveRsvpTabActual = setActiveRsvpTab || setActiveRsvpTabLocal;
 
   return (
     <div className="editor-sidebar left-sidebar">
@@ -243,6 +242,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               selectedLayer={selectedLayer}
               selectedLayerIds={selectedLayerIds}
               layers={layers}
+              setLayers={setLayers}
               setSelectedLayerIds={setSelectedLayerIds}
               updateSelectedLayer={updateSelectedLayer}
               deleteSelectedLayers={deleteSelectedLayers}
@@ -255,16 +255,17 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               setAlignmentReference={setAlignmentReference}
               displayColorPicker={displayColorPicker}
               setDisplayColorPicker={setDisplayColorPicker}
-              selectedBlockId={selectedBlockId}
+              selectedBlockId={selectedBlockId || null}
               addTextLayer={addTextLayer}
               fileInputRef={fileInputRef}
               handleImageUpload={handleImageUpload}
               blocks={blocks || []}
               setBlocks={setBlocks || (() => {})}
-              setIsDirty={setIsDirty}
+              setIsDirty={setIsDirty || (() => {})}
               pushToHistory={pushToHistory}
+              onUpdateBlock={onUpdateBlock}
               showVisibility={true}
-              updateTheme={updateTheme}
+              event={event}
             />
           )}
      </div>

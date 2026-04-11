@@ -13,20 +13,21 @@ interface SectionCanvasProps {
   setLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
   pushToHistory: () => void;
   setIsDirty: (val: boolean) => void;
-  hoveredLayerId?: string | null;
-  setHoveredLayerId?: (id: string | null) => void;
-  onSelectBlock?: () => void;
-  isMobile?: boolean;
-  previewMobile?: boolean;
+  hoveredLayerId?: string | null | undefined;
+  setHoveredLayerId?: ((id: string | null) => void) | undefined;
+  onSelectBlock?: (() => void) | undefined;
+  isMobile?: boolean | undefined;
+  previewMobile?: boolean | undefined;
   editingLayerId: string | null;
   setEditingLayerId: (id: string | null) => void;
-  editorScale?: number;
+  editorScale?: number | undefined;
   onMoveLayer?: ((layerId: string, direction: 'up' | 'down') => void) | undefined;
+  onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
 }
 
 export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   block, layers, selectedLayerIds, setSelectedLayerIds, setLayers, pushToHistory, setIsDirty, hoveredLayerId, setHoveredLayerId, onSelectBlock, isMobile, previewMobile, editingLayerId, setEditingLayerId,
-  editorScale = 1
+  editorScale = 1, onUpdateBlock
 }) => {
   const isMobileEffective = isMobile;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -319,6 +320,81 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
     window.addEventListener('pointerup', handleUp);
   };
 
+  const handleWidgetPointerDown = (e: React.PointerEvent) => {
+    if (previewMobile) return; 
+    if (!onUpdateBlock) return;
+
+    e.stopPropagation();
+    if (onSelectBlock) onSelectBlock();
+    setSelectedLayerIds(['widget-rsvp']);
+
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    let initialX = typeof block.widgetProps?.formX === 'number' && !isNaN(block.widgetProps.formX) 
+        ? block.widgetProps.formX 
+        : 500;
+        
+    let initialY = typeof block.widgetProps?.formY === 'number' && !isNaN(block.widgetProps.formY) 
+        ? block.widgetProps.formY 
+        : (block.height || 400) / 2;
+
+    let dx = 0; let dy = 0;
+
+    const handleMove = (moveEv: PointerEvent) => {
+      dx = (moveEv.clientX - startX) / editorScale;
+      dy = (moveEv.clientY - startY) / editorScale;
+      
+      let nx = initialX + dx;
+      let ny = initialY + dy;
+
+      const newGuides: {axis: string, position: number}[] = [];
+      const SNAP_THRESHOLD = 5;
+
+      if (containerRef.current) {
+        const cw = containerRef.current.clientWidth;
+        const ch = containerRef.current.clientHeight;
+        
+        let snappedX = false;
+        let snappedY = false;
+
+        // Snap al Centro Canvas
+        if (Math.abs(nx - cw/2) < SNAP_THRESHOLD) { nx = cw/2; newGuides.push({axis: 'x', position: cw/2}); snappedX = true; }
+        if (Math.abs(ny - ch/2) < SNAP_THRESHOLD) { ny = ch/2; newGuides.push({axis: 'y', position: ch/2}); snappedY = true; }
+
+        // Mappa gli altri layer per snap
+        layers.forEach(otherL => {
+            const oW = 100; // default for simplicity on widget
+            const oH = 30;
+            const ox = typeof otherL.x === 'number' ? otherL.x : cw/2;
+            const oy = typeof otherL.y === 'number' ? otherL.y : ch/2;
+
+            if (!snappedX && Math.abs(nx - ox) < SNAP_THRESHOLD) { nx = ox; newGuides.push({axis: 'x', position: ox}); snappedX = true; }
+            if (!snappedY && Math.abs(ny - oy) < SNAP_THRESHOLD) { ny = oy; newGuides.push({axis: 'y', position: oy}); snappedY = true; }
+        });
+      }
+
+      setSnapGuides(newGuides);
+      onUpdateBlock(block.id as string, { widgetProps: { formX: nx, formY: ny } });
+    };
+
+    const handleUp = (upEv: PointerEvent) => {
+      target.releasePointerCapture(upEv.pointerId);
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      document.body.style.overflow = '';
+      setSnapGuides([]);
+      pushToHistory();
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+  };
+
   if (previewMobile) {
     const sortedLayers = sortLayersForMobile(layers);
     return (
@@ -348,25 +424,46 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           touchAction: 'pan-y'
         }}
       >
-        {block.type === 'map' ? (
-          <div style={{ pointerEvents: 'none' }}>
-            <MapWidget 
-              address={block.props?.address} 
-              title={block.props?.title}
-              zoom={block.props?.zoom}
-              previewMobile={previewMobile}
-            />
-          </div>
-        ) : block.type === 'rsvp' ? (
-          <div style={{ pointerEvents: 'none' }}>
-            <RSVPWidget 
-              block={block} 
-              readOnly={true} 
-              isMobile={previewMobile}
-            />
-          </div>
-        ) : (
-          sortedLayers.map(layer => {
+        {/* RENDER LAYERS & WIDGET IN UNICO STREAM (Interscambiabili su mobile con Sposta Su/Giù) */}
+        {(() => {
+          const blockLayers = sortedLayers
+            .filter(layer => layer.blockId === block.id)
+            .map(l => ({ ...l, isWidget: false }));
+            
+          const widgetItem = (block.type === 'map' || block.type === 'rsvp') ? {
+            isWidget: true,
+            id: 'widget-element',
+            mobileOrder: block.widgetProps?.mobileOrder ?? 5 // Valore default intermedio
+          } : null;
+
+          const allItems = [...blockLayers, widgetItem]
+            .filter(Boolean)
+            .sort((a, b) => (a!.mobileOrder ?? 0) - (b!.mobileOrder ?? 0));
+
+          return allItems.map(item => {
+            if (item!.isWidget) {
+              return (
+                <div key="widget-element" style={{ pointerEvents: 'none', position: 'relative', zIndex: 0 }}>
+                  {block.type === 'map' && (
+                    <MapWidget 
+                      address={block.props?.address} 
+                      title={block.props?.title}
+                      zoom={block.props?.zoom}
+                      previewMobile={previewMobile}
+                    />
+                  )}
+                  {block.type === 'rsvp' && (
+                    <RSVPWidget 
+                      block={block} 
+                      readOnly={true} 
+                      isMobile={previewMobile}
+                    />
+                  )}
+                </div>
+              );
+            }
+
+            const layer = item as typeof layers[0];
             const isSelected = selectedLayerIds.includes(layer.id);
             const isText = layer.type === 'text' || !layer.type;
             
@@ -430,8 +527,8 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                 )}
               </div>
             );
-          })
-        )}
+          });
+        })()}
       </div>
     );
   }
@@ -445,7 +542,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
         if (onSelectBlock) onSelectBlock();
       }
     }}>
-      {block.type === 'map' ? (
+      {block.type === 'map' && (
         <div style={{ pointerEvents: 'none', width: '100%', height: '100%' }}>
           <MapWidget 
             address={block.props?.address} 
@@ -454,24 +551,59 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
             previewMobile={false}
           />
         </div>
-      ) : block.type === 'rsvp' ? (
-        <div style={{ pointerEvents: 'none', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-          <RSVPWidget 
-            block={block} 
-            readOnly={true}
-            isMobile={false}
-          />
+      )}
+      {block.type === 'rsvp' && (
+        <div 
+          style={{ 
+            position: 'absolute',
+            top: typeof block.widgetProps?.formY === 'number' && !isNaN(block.widgetProps.formY) ? block.widgetProps.formY + 'px' : '50%',
+            left: typeof block.widgetProps?.formX === 'number' && !isNaN(block.widgetProps.formX) ? block.widgetProps.formX + 'px' : '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'auto', 
+            cursor: 'grab',
+            touchAction: 'none',
+            zIndex: 5,
+            width: 'max-content'
+          }}
+          onPointerDown={handleWidgetPointerDown}
+        >
+          {selectedLayerIds.includes('widget-rsvp') && (
+            <div style={{
+              position: 'absolute',
+              top: -8, bottom: -8, left: -8, right: -8,
+              border: '2px solid var(--accent)',
+              borderRadius: '12px',
+              pointerEvents: 'none',
+              zIndex: 100
+            }} />
+          )}
+          <div style={{ pointerEvents: 'none', width: '100%' }}>
+            <RSVPWidget 
+              block={block} 
+              readOnly={true}
+              isMobile={false}
+            />
+          </div>
         </div>
-      ) : (
-        (previewMobile 
-          ? [...layers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0))
-          : layers
-        )
-          .filter(layer => {
-            if (previewMobile) return !layer.hiddenMobile;
-            return !layer.hiddenDesktop;
-          })
-          .map(layer => {
+      )}
+
+      {(previewMobile 
+        ? [...layers].sort((a, b) => (a.mobileOrder ?? 0) - (b.mobileOrder ?? 0))
+        : layers
+      )
+        .filter(layer => {
+          // FILTRO CRITICO: Solo i layer appartenenti a questa sezione/blocco
+          const bId = block.id || block._id;
+          if (!layer.blockId) {
+            if (bId) return false;
+            if (block.type !== 'canvas') return false;
+          } else {
+            if (layer.blockId !== bId) return false;
+          }
+          if (previewMobile) return !layer.hiddenMobile;
+          return !layer.hiddenDesktop;
+        })
+        .map(layer => {
           const isSelected = selectedLayerIds.includes(layer.id);
           const isText = layer.type === 'text' || !layer.type;
           const lx = typeof layer.x === 'number' ? layer.x + 'px' : '50%';
@@ -617,9 +749,10 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                  </>
               )}
             </div>
-          );
+            );
         })
-      )}
+      }
+      {/* Snap Guides */}
       {snapGuides.map((guide, i) => {
         if (guide.axis === 'x') return <div key={`gx_${i}`} style={{position: 'absolute', top: 0, bottom: 0, left: guide.position + 'px', width: '1px', background: '#FF007F', zIndex: 99, pointerEvents: 'none'}} />;
         if (guide.axis === 'y') return <div key={`gy_${i}`} style={{position: 'absolute', left: 0, right: 0, top: guide.position + 'px', height: '1px', background: '#FF007F', zIndex: 99, pointerEvents: 'none'}} />;

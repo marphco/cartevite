@@ -5,9 +5,10 @@
 }
 
 .event-public-shell {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2.5rem clamp(1.25rem, 3vw, 3rem);
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .hero-card {

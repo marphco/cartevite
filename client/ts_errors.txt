@@ -1,0 +1,22 @@
+src/pages/Editor/components/DesktopSidebar.tsx(265,15): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+src/pages/Editor/components/DesktopSidebar.tsx(271,15): error TS2322: Type '((val: boolean) => void) | undefined' is not assignable to type '(val: boolean) => void'.
+  Type 'undefined' is not assignable to type '(val: boolean) => void'.
+src/pages/Editor/components/MobileToolbar.tsx(877,46): error TS2345: Argument of type '(Block | { widgetProps: { customFields: ({ id: string; label: string; type: "text" | "checkbox"; required?: boolean; } | { id: string; label: string; type: string; required: boolean; })[]; address?: string; ... 9 more ...; formInputBg?: string; }; ... 10 more ...; bgColor?: string; })[]' is not assignable to parameter of type 'SetStateAction<Block[]>'.
+  Type '(Block | { widgetProps: { customFields: ({ id: string; label: string; type: "text" | "checkbox"; required?: boolean; } | { id: string; label: string; type: string; required: boolean; })[]; address?: string; ... 9 more ...; formInputBg?: string; }; ... 10 more ...; bgColor?: string; })[]' is not assignable to type 'Block[]'.
+    Type 'Block | { widgetProps: { customFields: ({ id: string; label: string; type: "text" | "checkbox"; required?: boolean; } | { id: string; label: string; type: string; required: boolean; })[]; address?: string; ... 9 more ...; formInputBg?: string; }; ... 10 more ...; bgColor?: string; }' is not assignable to type 'Block' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Type '{ widgetProps: { customFields: ({ id: string; label: string; type: "text" | "checkbox"; required?: boolean; } | { id: string; label: string; type: string; required: boolean; })[]; address?: string; ... 9 more ...; formInputBg?: string; }; ... 10 more ...; bgColor?: string; }' is not assignable to type 'Block' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        The types of 'widgetProps.customFields' are incompatible between these types.
+          Type '({ id: string; label: string; type: "text" | "checkbox"; required?: boolean; } | { id: string; label: string; type: string; required: boolean; })[]' is not assignable to type '{ id: string; label: string; type: "text" | "checkbox"; required?: boolean; }[]'.
+            Type '{ id: string; label: string; type: "text" | "checkbox"; required?: boolean; } | { id: string; label: string; type: string; required: boolean; }' is not assignable to type '{ id: string; label: string; type: "text" | "checkbox"; required?: boolean; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+              Type '{ id: string; label: string; type: string; required: boolean; }' is not assignable to type '{ id: string; label: string; type: "text" | "checkbox"; required?: boolean; }'.
+                Types of property 'type' are incompatible.
+                  Type 'string' is not assignable to type '"text" | "checkbox"'.
+src/pages/Editor/EventEditor.tsx(148,31): error TS2379: Argument of type '{ id: string; blockId: string | undefined; type: "text"; text: string; x: "center"; y: number; width: number; fontSize: number; fontFamily: string; textAlign: "center"; color: string; }' is not assignable to parameter of type 'Layer' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'blockId' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/pages/Editor/EventEditor.tsx(162,31): error TS2379: Argument of type '{ id: string; blockId: string | undefined; type: "text"; text: string; x: "center"; y: number; width: number; fontSize: number; fontFamily: string; textAlign: "center"; color: string; }' is not assignable to parameter of type 'Layer' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'blockId' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
