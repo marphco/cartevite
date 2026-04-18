@@ -1,79 +1,75 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../../utils/apiFetch";
 import { PREBUILT_TEMPLATES } from "../../utils/layoutSchema";
+import {
+  formatItalianDateAsYouType,
+  isoToItalianDisplay,
+  italianDisplayToIso,
+} from "../../utils/italianDateInput";
 import { Surface, Button } from "../../ui";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ArrowRight, Calendar } from "lucide-react";
 import CanvasPreview from "../../components/canvas/CanvasPreview";
+import ItalianDatePicker from "../../components/datepicker/ItalianDatePicker";
 import "./NewEvent.css";
 
 export default function NewEvent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const templateFromUrl = searchParams.get("templateId");
 
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
+  const [dateDisplay, setDateDisplay] = useState("");
   const [dateTBD, setDateTBD] = useState(false);
-  const templateIdParam = searchParams.get("templateId");
-  const [selectedTemplate, setSelectedTemplate] = useState(templateIdParam || (PREBUILT_TEMPLATES[0]?.id || ""));
-  const [loading, setLoading] = useState(!!templateIdParam);
+  /** Null = nessuna grafica selezionata (obbligo di clic esplicito). */
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(
+    templateFromUrl && PREBUILT_TEMPLATES.some((t) => t.id === templateFromUrl) ? templateFromUrl : null
+  );
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerAnchorRef = useRef<HTMLDivElement>(null);
 
-  const autoCreate = async (id: string) => {
-    try {
-      setLoading(true);
-      const template = PREBUILT_TEMPLATES.find(t => t.id === id) || PREBUILT_TEMPLATES[0];
-      if (!template) throw new Error("Template non trovato");
-      const res = await apiFetch(`/api/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: `Nuovo Invito - ${template.name}`,
-          date: null,
-          dateTBD: true,
-          templateId: template.id,
-          layers: template.layers || [],
-          canvas: template.canvas || { bgImage: null, width: 800, height: 1000 },
-          blocks: template.blocks || [],
-          theme: template.theme,
-          plan: "free",
-          status: "draft",
-        }),
-      });
+  const canSubmit = useMemo(() => {
+    const titleOk = title.trim().length >= 2;
+    const dateOk = dateTBD || italianDisplayToIso(dateDisplay.trim()) !== null;
+    const templateOk = selectedTemplate !== null && selectedTemplate.length > 0;
+    return titleOk && dateOk && templateOk;
+  }, [title, dateDisplay, dateTBD, selectedTemplate]);
 
-      if (!res.ok) throw new Error("Errore creazione evento veloce");
-      
-      const createdItem = await res.json();
-      navigate(`/edit/${createdItem.slug}`);
-    } catch(err) {
-      console.error(err);
-      setError("Creazione rapida fallita.");
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // Auto-create if arrived from Catalog
-    if (templateIdParam && !error) {
-       autoCreate(templateIdParam);
-    }
-  }, [templateIdParam]);
+  const currentIso = italianDisplayToIso(dateDisplay.trim()) ?? "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!canSubmit || !selectedTemplate) {
+      setError("Compila tutti i campi obbligatori e scegli una grafica.");
+      return;
+    }
+
+    const trimmedTitle = title.trim();
+    let dateIso: string | null = null;
+    if (!dateTBD) {
+      const iso = italianDisplayToIso(dateDisplay.trim());
+      if (!iso) {
+        setError("Data non valida. Usa il formato gg/mm/aaaa (es. 15/06/2026).");
+        return;
+      }
+      dateIso = new Date(iso + "T12:00:00").toISOString();
+    }
+
     setLoading(true);
 
     try {
-      const template = PREBUILT_TEMPLATES.find(t => t.id === selectedTemplate) || PREBUILT_TEMPLATES[0];
+      const template = PREBUILT_TEMPLATES.find((t) => t.id === selectedTemplate);
       if (!template) throw new Error("Template non trovato");
-      
+
       const res = await apiFetch(`/api/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title,
-          date: dateTBD ? null : new Date(date).toISOString(),
+          title: trimmedTitle,
+          date: dateTBD ? null : dateIso,
           dateTBD,
           templateId: template.id,
           layers: template.layers || [],
@@ -86,104 +82,167 @@ export default function NewEvent() {
       });
 
       if (!res.ok) {
-        throw new Error("Errore creazione evento");
+        const errBody = await res.json().catch(() => ({}));
+        const msg = typeof errBody?.message === "string" ? errBody.message : "Errore creazione evento";
+        throw new Error(msg);
       }
 
       const createdItem = await res.json();
       navigate(`/edit/${createdItem.slug}`);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
-      setError("Non siamo riusciti a creare l'evento. Riprova.");
+      setError(err instanceof Error ? err.message : "Non siamo riusciti a creare l'evento. Riprova.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="new-event-page">
+    <div className="new-event-page" lang="it">
       <div className="new-event-shell">
-        <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-          <Button variant="ghost" onClick={() => navigate("/dashboard")}>← Torna alla dashboard</Button>
-          <h1>Catalogo Inviti</h1>
-          <p>
-            Scegli il design perfetto per il tuo evento. Potrai personalizzare testi, colori e foto nel prossimo step.
-          </p>
-        </div>
+        <nav className="new-event-nav">
+          <Button variant="ghost" type="button" onClick={() => navigate("/dashboard")}>
+            ← Torna alla dashboard
+          </Button>
+        </nav>
 
-        <form onSubmit={handleSubmit} className="new-event-form">
-          <Surface variant="glass" style={{ padding: "1.5rem" }}>
-            <div className="new-event-inputs">
-              <label>
-                Titolo evento
+        <form onSubmit={handleSubmit} className="new-event-form" noValidate>
+          {/* Blocco 1: dati evento + azione principale in alto */}
+          <Surface variant="glass" className="new-event-card new-event-card--form">
+            <div className="new-event-card__top">
+              <div className="new-event-card__intro">
+                <span className="new-event-card__eyebrow">Nuovo evento</span>
+                <h1 className="new-event-card__title">Dettagli</h1>
+                <p className="new-event-card__lede">
+                  Nome e data dell’evento. Potrai modificarli anche in seguito dall’editor.
+                </p>
+              </div>
+              <Button
+                type="submit"
+                disabled={loading || !canSubmit}
+                className="new-event-submit-top"
+              >
+                {loading ? "Creazione…" : "Continua"}
+                {!loading ? <ArrowRight size={18} style={{ marginLeft: 8 }} aria-hidden /> : null}
+              </Button>
+            </div>
+
+            <div className="new-event-fields">
+              <label className="new-event-field">
+                <span className="new-event-field__label">Titolo evento</span>
                 <input
                   type="text"
-                  required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Es. Matrimonio Marco & Sara"
+                  autoComplete="off"
+                  className="new-event-input"
+                  aria-invalid={!!error && title.trim().length < 2}
                 />
               </label>
 
-              <label>
-                Data evento
-                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                  <input
-                    type="date"
-                    disabled={dateTBD}
-                    required={!dateTBD}
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-
-                  <label style={{ display: "flex", alignItems: "center", gap: "0.25rem", marginTop: "0.35rem" }}>
+              <div className="new-event-field">
+                <span className="new-event-field__label">Data</span>
+                <div className="new-event-date-row">
+                  <div className="new-event-date-input-wrap" ref={pickerAnchorRef}>
+                    <input
+                      type="text"
+                      value={dateDisplay}
+                      onChange={(e) => setDateDisplay(formatItalianDateAsYouType(e.target.value))}
+                      placeholder="gg/mm/aaaa"
+                      disabled={dateTBD}
+                      className="new-event-input new-event-input--date"
+                      autoComplete="off"
+                      inputMode="numeric"
+                      aria-label="Data evento gg/mm/aaaa"
+                    />
+                    <button
+                      type="button"
+                      className="new-event-date-calendar-btn"
+                      onClick={() => setPickerOpen((v) => !v)}
+                      disabled={dateTBD}
+                      aria-label="Apri calendario"
+                      aria-expanded={pickerOpen}
+                      title="Apri calendario"
+                    >
+                      <Calendar size={18} aria-hidden />
+                    </button>
+                    {pickerOpen && !dateTBD ? (
+                      <ItalianDatePicker
+                        valueIso={currentIso}
+                        minIso="1900-01-01"
+                        maxIso="2100-12-31"
+                        anchorRef={pickerAnchorRef}
+                        onSelect={(iso) => {
+                          setDateDisplay(iso ? isoToItalianDisplay(iso) : "");
+                        }}
+                        onClose={() => setPickerOpen(false)}
+                      />
+                    ) : null}
+                  </div>
+                  <span className="new-event-date-or" aria-hidden>oppure</span>
+                  <label className="new-event-tbd">
                     <input
                       type="checkbox"
                       checked={dateTBD}
                       onChange={(e) => {
                         setDateTBD(e.target.checked);
-                        if (e.target.checked) setDate("");
+                        if (e.target.checked) {
+                          setDateDisplay("");
+                          setPickerOpen(false);
+                        }
                       }}
                     />
-                    Data da definire
+                    <span>Data da definire</span>
                   </label>
                 </div>
-              </label>
+              </div>
             </div>
+
+            {error ? <p className="new-event-error">{error}</p> : null}
           </Surface>
 
-          <h2 style={{ marginTop: "1rem" }}>Seleziona un Template</h2>
-          <div className="template-grid">
-            {PREBUILT_TEMPLATES.map((tmpl) => (
-              <div 
-                key={tmpl.id} 
-                className={`template-card ${selectedTemplate === tmpl.id ? 'selected' : ''}`}
-                onClick={() => setSelectedTemplate(tmpl.id)}
-              >
-                <div className="template-cover" style={{position: 'relative'}}>
-                  <CanvasPreview canvas={tmpl.canvas as any} layers={tmpl.layers as any} />
-                  {selectedTemplate === tmpl.id && (
-                    <div className="template-selected-badge">
-                      <CheckCircle2 color="white" fill="#3ae6b3" size={32} />
-                    </div>
-                  )}
+          {/* Blocco 2: solo catalogo grafiche */}
+          <Surface variant="glass" className="new-event-card new-event-card--catalog">
+            <h2 className="new-event-catalog__title">Catalogo inviti</h2>
+            <p className="new-event-catalog__lede">
+              Scegli una grafica di partenza. Nell’editor potrai cambiare testi, colori e immagini.
+            </p>
+            <div className="template-grid">
+              {PREBUILT_TEMPLATES.map((tmpl) => (
+                <div
+                  key={tmpl.id}
+                  className={`template-card ${selectedTemplate === tmpl.id ? "selected" : ""}`}
+                  onClick={() => setSelectedTemplate(tmpl.id)}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selectedTemplate === tmpl.id}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedTemplate(tmpl.id);
+                    }
+                  }}
+                >
+                  <div className="template-cover">
+                    <CanvasPreview
+                      catalogThumb
+                      canvas={tmpl.canvas as any}
+                      layers={tmpl.layers as any}
+                    />
+                    {selectedTemplate === tmpl.id && (
+                      <div className="template-selected-badge">
+                        <CheckCircle2 color="white" fill="var(--accent)" size={28} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="template-info">
+                    <h3>{tmpl.name}</h3>
+                  </div>
                 </div>
-                <div className="template-info">
-                  <h3>{tmpl.name}</h3>
-                  <span className="template-blocks-count">{(tmpl.layers || []).length} livelli di testo</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {error && (
-            <p style={{ color: "salmon", textAlign: "center" }}>{error}</p>
-          )}
-
-          <div style={{ textAlign: "center", marginTop: "2rem" }}>
-            <Button type="submit" disabled={loading || !title} style={{ padding: "1rem 3rem", fontSize: "1.1rem" }}>
-              {loading ? "Creazione in corso..." : "Usa questo Design"}
-            </Button>
-          </div>
+              ))}
+            </div>
+          </Surface>
         </form>
       </div>
     </div>

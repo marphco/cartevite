@@ -78,7 +78,7 @@ export default function TemplateCatalog() {
             {filteredTemplates.map(template => (
               <Surface key={template.id} variant="card" className="template-card">
                 <div className="thumbnail-wrapper" onClick={() => handleSelectTemplate(template.id)}>
-                  <CanvasPreview canvas={template.canvas as any} layers={template.layers as any} />
+                  <CanvasPreview catalogThumb canvas={template.canvas as any} layers={template.layers as any} />
                   <div className="hover-overlay">
                     <Button variant="primary">Modifica questo design</Button>
                   </div>

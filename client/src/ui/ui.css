@@ -70,6 +70,14 @@
   transform: translateY(0);
 }
 
+.ui-button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  pointer-events: none;
+}
+
 .ui-button--subtle {
   background: rgba(60, 79, 118, 0.06);
   color: var(--text-primary);

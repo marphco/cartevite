@@ -6,6 +6,7 @@ import { ScrollHint } from "../../../components/ui/ScrollHint";
 import { sortLayersForMobile } from './EditorHelpers';
 import type { Layer, CanvasProps, Block } from "../../../types/editor";
 import { widgetLayerIdForBlock } from "../../../utils/widgetLayerId";
+import { DEFAULT_BLOCK_HEIGHT } from "../../../utils/blockHeight";
 
 interface EventPageBuilderProps {
   event: any;
@@ -576,7 +577,7 @@ export function EventPageBuilder({
                 type: 'custom',
                 y: 0, // Required by Block interface
                 title: 'Nuova Sezione', 
-                height: 400, 
+                height: DEFAULT_BLOCK_HEIGHT.custom, 
                 bgColor: '#ffffff' 
               } as Block];
               updateEventData({ blocks: newBlocks });

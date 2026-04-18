@@ -28,10 +28,18 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { title, date, dateTBD, templateId, blocks, layers, canvas, plan } = req.body;
 
-    if (!title)
-      return res.status(400).json({ message: "title è obbligatorio" });
+    const cleanTitle =
+      typeof title === "string" ? title.trim() : String(title ?? "").trim();
+    if (!cleanTitle) {
+      return res.status(400).json({ message: "Il titolo dell'evento è obbligatorio" });
+    }
+    if (cleanTitle.length < 2) {
+      return res
+        .status(400)
+        .json({ message: "Il titolo deve contenere almeno 2 caratteri (esclusi spazi iniziali/finali)" });
+    }
 
-    let baseSlug = slugify(title) || "evento";
+    let baseSlug = slugify(cleanTitle) || "evento";
 
     if (date && !dateTBD) {
       const d = new Date(date);
@@ -51,7 +59,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
     }
 
     const event = await Event.create({
-      title,
+      title: cleanTitle,
       slug,
       date: dateTBD ? null : date,
       dateTBD: !!dateTBD,

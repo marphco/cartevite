@@ -4,6 +4,7 @@ import type { Block, Layer, EventTheme } from '../../../types/editor';
 import SectionToolbar from './SectionToolbar';
 import { SectionCanvas } from './SectionCanvas';
 import { widgetLayerIdForBlock } from '../../../utils/widgetLayerId';
+import { resolveBlockHeight } from '../../../utils/blockHeight';
 
 interface BuilderSectionProps {
   block: Block;
@@ -81,7 +82,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
     target.setPointerCapture(e.pointerId); 
     
     const startY = e.clientY;
-    const initHeight = block.height || 400;
+    const initHeight = logicalH;
 
     const handleMove = (moveEv: PointerEvent) => {
       const dy = moveEv.clientY - startY;
@@ -106,7 +107,8 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
   
   const LOGICAL_WIDTH = 1000; 
   const currentScale = previewMobile ? 1 : editorScale;
-  const scaledHeight = (block.height || 400) * currentScale;
+  const logicalH = resolveBlockHeight(block);
+  const scaledHeight = logicalH * currentScale;
 
   return (
     <div 
@@ -168,7 +170,7 @@ const BuilderSection: React.FC<BuilderSectionProps> = ({
         }}
         style={!previewMobile ? { 
         width: LOGICAL_WIDTH + 'px', 
-        height: (block.height || 400) + 'px', 
+        height: logicalH + 'px', 
         position: 'relative', 
         flexShrink: 0,
         transform: `scale(${currentScale})`, 

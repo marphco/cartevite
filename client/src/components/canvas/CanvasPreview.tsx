@@ -15,9 +15,11 @@ const loadGoogleFont = (fontFamily: string) => {
 interface CanvasPreviewProps {
   canvas: CanvasProps;
   layers: Layer[];
+  /** Anteprima in griglia catalogo: scala dentro un box fisso senza alterare proporzioni canvas. */
+  catalogThumb?: boolean;
 }
 
-export default function CanvasPreview({ canvas, layers }: CanvasPreviewProps) {
+export default function CanvasPreview({ canvas, layers, catalogThumb = false }: CanvasPreviewProps) {
   useEffect(() => {
     (layers || []).forEach(l => {
       if (l.fontFamily) loadGoogleFont(l.fontFamily);
@@ -30,16 +32,36 @@ export default function CanvasPreview({ canvas, layers }: CanvasPreviewProps) {
   const width = canvas.width || 800;
   const height = canvas.height || 1000;
 
+  /**
+   * Catalogo: riempie la larghezza del contenitore e si adatta in altezza (max 100%)
+   * mantenendo l'aspect-ratio del canvas. Evita collasso a 0×0 di `cqi`.
+   */
+  const boxStyle: React.CSSProperties = catalogThumb
+    ? {
+        containerType: "inline-size",
+        width: "100%",
+        height: "auto",
+        maxHeight: "100%",
+        aspectRatio: `${width} / ${height}`,
+        backgroundColor: canvas.bgImage ? "transparent" : canvas.bgColor || "#fff",
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: "var(--radius-md)",
+        flexShrink: 0,
+      }
+    : {
+        containerType: "inline-size",
+        width: "100%",
+        maxWidth: `${width}px`,
+        aspectRatio: `${width} / ${height}`,
+        backgroundColor: canvas.bgImage ? "transparent" : canvas.bgColor || "#fff",
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: "var(--radius-md) var(--radius-md) 0 0",
+      };
+
   return (
-    <div style={{ 
-      containerType: "inline-size", 
-      width: "100%", 
-      aspectRatio: `${width} / ${height}`,
-      backgroundColor: canvas.bgImage ? 'transparent' : (canvas.bgColor || '#fff'),
-      position: "relative",
-      overflow: "hidden",
-      borderRadius: "var(--radius-md) var(--radius-md) 0 0"
-    } as React.CSSProperties}>
+    <div style={boxStyle}>
       {canvas.bgImage && (
         <div style={{
           position: "absolute",

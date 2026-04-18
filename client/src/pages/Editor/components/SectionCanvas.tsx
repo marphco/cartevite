@@ -8,6 +8,7 @@ import GalleryWidget from './widgets/GalleryWidget';
 import VideoWidget from './widgets/VideoWidget';
 import PaymentWidget from './widgets/PaymentWidget';
 import { widgetLayerIdForBlock } from '../../../utils/widgetLayerId';
+import { resolveBlockHeight } from '../../../utils/blockHeight';
 
 interface SectionCanvasProps {
   block: Block;
@@ -34,6 +35,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   block, layers, selectedLayerIds, setSelectedLayerIds, setLayers, pushToHistory, setIsDirty, hoveredLayerId, setHoveredLayerId, onSelectBlock, isMobile, previewMobile, editingLayerId, setEditingLayerId,
   editorScale = 1, onUpdateBlock, theme
 }) => {
+  const logicalH = resolveBlockHeight(block);
   const blockIdStr = String(block.id || (block as { _id?: string })._id || '');
   /** Selezione widget univoca per blocco (evita highlight su tutti i widget dello stesso tipo). */
   const widgetSelId = blockIdStr ? widgetLayerIdForBlock(blockIdStr) : '';
@@ -424,7 +426,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
     xKey: 'formX',
     yKey: 'formY',
     defaultX: 500,
-    defaultY: (block.height || 400) / 2,
+    defaultY: logicalH / 2,
   });
 
   if (previewMobile) {
@@ -448,7 +450,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           // Gli altri blocchi mantengono il minHeight per preservare lo spazio del
           // canvas autore (es. RSVP che ha form espandibile, testi liberi che fanno
           // riferimento a coordinate del canvas logico).
-          minHeight: (block.type === 'gallery' || block.type === 'video' || block.type === 'payment') ? 'auto' : ((block.height || 400) + 'px'), 
+          minHeight: (block.type === 'gallery' || block.type === 'video' || block.type === 'payment') ? 'auto' : (logicalH + 'px'), 
           position: 'relative', 
           backgroundColor: (block as any).props?.bgColor || 'transparent',
           display: 'flex', 
@@ -657,7 +659,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   }
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }} onPointerDown={(e) => {
+    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'visible' }} onPointerDown={(e) => {
       // Chrome Fix: Use onPointerDown for instant selection/deselection
       if (e.target === e.currentTarget) {
         e.stopPropagation();
@@ -714,7 +716,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
             onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
               widgetId: widgetSelId, xKey: 'widgetX', yKey: 'widgetY',
               defaultX: (containerRef.current?.clientWidth || 1000) / 2,
-              defaultY: (block.height || 580) / 2,
+              defaultY: logicalH / 2,
             })}
           >
             {selectedLayerIds.includes(widgetSelId) && (
@@ -767,7 +769,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
             onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
               widgetId: widgetSelId, xKey: 'widgetX', yKey: 'widgetY',
               defaultX: (containerRef.current?.clientWidth || 1000) / 2,
-              defaultY: (block.height || 640) / 2,
+              defaultY: logicalH / 2,
             })}
           >
             {selectedLayerIds.includes(widgetSelId) && (
@@ -818,7 +820,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
             onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
               widgetId: widgetSelId, xKey: 'widgetX', yKey: 'widgetY',
               defaultX: (containerRef.current?.clientWidth || 1000) / 2,
-              defaultY: (block.height || 620) / 2,
+              defaultY: logicalH / 2,
             })}
           >
             {selectedLayerIds.includes(widgetSelId) && (

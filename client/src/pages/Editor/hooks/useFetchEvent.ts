@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { apiFetch } from "../../../utils/apiFetch";
 import { PREBUILT_TEMPLATES } from "../../../utils/layoutSchema";
 import type { EventData, EventTheme, Layer, Block, CanvasProps } from "../../../types/editor";
+import { normalizeBlocksForEditor } from "../../../utils/blockHeight";
 
 export const DEFAULT_THEME: EventTheme = {
   accent: "#f4c46b",
@@ -64,7 +65,7 @@ export function useFetchEvent(
             theme: template.theme as any 
           }));
           setLayers(template.layers as Layer[] || []);
-          setBlocks(template.blocks as any[] as Block[] || []);
+          setBlocks(normalizeBlocksForEditor((template.blocks as Block[]) || []));
           setCanvasProps(template.canvas as CanvasProps || { bgImage: null, width: 800, height: 1000 });
           setDraftRestored(true);
           setLoading(false);
@@ -84,13 +85,13 @@ export function useFetchEvent(
           const draft = loadDraft();
           if (draft && draft.layers) {
              setLayers(draft.layers || []);
-             setBlocks(draft.blocks || []);
+             setBlocks(normalizeBlocksForEditor(draft.blocks || []));
              setCanvasProps(draft.canvas || { bgImage: null, width: 800, height: 1000 });
              if (draft.event) setEvent(withTheme(draft.event));
              setIsDirty(true);
           } else {
              setLayers(data.layers || []);
-             setBlocks(data.blocks || []);
+             setBlocks(normalizeBlocksForEditor(data.blocks || []));
              setCanvasProps(data.canvas || { bgImage: null, width: 800, height: 1000 });
           }
           setDraftRestored(true);

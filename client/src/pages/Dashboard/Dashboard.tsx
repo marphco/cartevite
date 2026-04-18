@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../../utils/apiFetch";
 import { Surface, Button, Badge, StatCard } from "../../ui";
-import { PenSquare, Send, Users, ExternalLink, Link2, Share2, Trash2, CheckCircle2, HelpCircle, XCircle, Star } from "lucide-react";
+import { PenSquare, Send, Users, ExternalLink, Link2, Share2, Trash2, CheckCircle2, HelpCircle, XCircle, Star, Gift } from "lucide-react";
 import "./Dashboard.css";
 
 interface RsvpSummary {
@@ -206,7 +206,7 @@ export default function Dashboard() {
               />
             </div>
             <h1>I tuoi inviti digitali</h1>
-            <p>Gestisci eventi, RSVP e pagamenti in un unico pannello dal design elegante.</p>
+            <p>Gestisci eventi, RSVP, regali e pagamenti in un unico pannello dal design elegante.</p>
           </div>
 
           <div className="ui-toolbar__actions">
@@ -303,6 +303,12 @@ export default function Dashboard() {
                       onClick={() => navigate(`/rsvps/${ev.slug}`)}
                     >
                       <Users size={16} style={{marginRight: 6}} /> Vedi RSVP
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate(`/donations/${ev.slug}`)}
+                    >
+                      <Gift size={16} style={{ marginRight: 6 }} /> Donazioni
                     </Button>
                     
                     <div className="event-card__actions-secondary">

@@ -1396,7 +1396,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                   // entrambi i posti evita il bug "blocco bianco al primo render"
                   // e si allinea alla convenzione usata dal PropertyPanel quando
                   // l'utente cambia colore (che scrive in `props.bgColor`).
-                  setBlocks([...blocks, { id: 'block-' + Date.now(), type: 'canvas', y: 0, height: 400, bgColor: '#ffffff', props: { bgColor: '#ffffff' }, order: blocks.length } as any]);
+                  setBlocks([...blocks, { id: 'block-' + Date.now(), type: 'canvas', y: 0, height: 480, bgColor: '#ffffff', props: { bgColor: '#ffffff' }, order: blocks.length } as any]);
                   pushToHistory();
                 }
               }}>
@@ -1418,7 +1418,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                     y: 0,
                     height: 560,
                     bgColor: '#f9f9f9',
-                    props: { address: 'Piazza del Duomo, Milano', zoom: 15, bgColor: '#f9f9f9' }
+                    props: { address: '', zoom: 15, bgColor: '#f9f9f9' }
                   }]);
                   pushToHistory();
                 }
@@ -1596,6 +1596,8 @@ const PageSection: React.FC<PageSectionProps> = ({
                 if (blocks && setBlocks && setLayers) {
                   setIsDirty(true);
                   const newBlockId = 'block-payment-' + Date.now();
+                  // Stesso pattern di gallery/video: titolo = layer testo libero a y=40,
+                  // così l'utente ha controllo pieno su font/colore.
                   const paymentLayers = [
                     ...layers,
                     {
@@ -1604,7 +1606,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                       type: 'text',
                       text: 'BUSTA DIGITALE',
                       x: 'center',
-                      y: 48,
+                      y: 40,
                       width: 600,
                       fontSize: 28,
                       fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
@@ -1612,12 +1614,18 @@ const PageSection: React.FC<PageSectionProps> = ({
                       color: '#f4c46b'
                     }
                   ];
+                  // Altezza = titolo layer (40 top + ~50) + gap + card payment (full state
+                  // con icon, titolo interno, desc, 4 preset + custom input + CTA + footer
+                  // ~560px) + padding bottom (24) + breathing ≈ 760.
+                  // [FIX] Prima era 620: la card (~560px) + titolo layer + padding superava
+                  // il block height → su pubblico la card veniva visivamente schiacciata
+                  // contro il titolo (titolo a y=48 overlappava il top del widget centrato).
                   setBlocks([...blocks, {
                     id: newBlockId,
                     type: 'payment',
                     order: blocks.length,
                     y: 0,
-                    height: 620,
+                    height: 760,
                     bgColor: '#1a1a1a',
                     props: { bgColor: '#1a1a1a' },
                     widgetProps: {
@@ -1629,6 +1637,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                       paymentShowProgress: false,
                       paymentAccentColor: '#C9A961',
                       paymentMode: 'gift',
+                      mobileOrder: 5,
                     }
                   } as any]);
                   setLayers(paymentLayers as any);

@@ -117,7 +117,7 @@ const generateId = (): string => Date.now().toString() + Math.random().toString(
          height: 350,
          props: {
            title: "Location Club",
-           address: "Club Esempio, Milano",
+           address: "",
          }
        },
        {
