@@ -310,6 +310,74 @@
   line-height: 1.45;
 }
 
+.rsvp-export-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: stretch;
+}
+
+.rsvp-export-tile {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.rsvp-export-tile--allergies {
+  border-color: rgba(244, 196, 107, 0.4);
+  background: rgba(244, 196, 107, 0.06);
+}
+
+.rsvp-export-tile__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.rsvp-export-tile__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+.rsvp-export-tile--allergies .rsvp-export-tile__icon {
+  border-color: rgba(244, 196, 107, 0.5);
+  background: rgba(244, 196, 107, 0.2);
+}
+
+.rsvp-export-tile__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.rsvp-export-tile__sub {
+  flex: 1 1 auto;
+  margin: 0.45rem 0 0;
+  padding-left: 42px;
+  font-size: 11px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.rsvp-export-tile__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 0.75rem;
+  flex-shrink: 0;
+}
+
 .rsvp-empty-card {
   text-align: center;
   padding: 3rem 1.5rem !important;

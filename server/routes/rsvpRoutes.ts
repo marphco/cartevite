@@ -43,6 +43,66 @@ function normalizeCustomResponses(input: any): Array<{ fieldId: string; label: s
   return [];
 }
 
+type AllergiesDetailDoc = {
+  mode: "whole_party" | "by_person";
+  wholePartyText: string;
+  people: { name: string; allergies: string }[];
+} | null;
+
+function normalizeAllergiesFromHttpBody(
+  body: { allergies?: string; allergiesDetail?: any },
+  guestsCount: number,
+  status: string
+): { allergies: string; allergiesDetail: AllergiesDetailDoc } {
+  const n = Math.max(1, Math.floor(Number(guestsCount)) || 1);
+  if (status === "no") {
+    return { allergies: "", allergiesDetail: null };
+  }
+
+  const d = body.allergiesDetail;
+  if (d && typeof d === "object" && (d.mode === "whole_party" || d.mode === "by_person")) {
+    if (d.mode === "whole_party") {
+      const text = String(d.wholePartyText || "").trim();
+      if (!text) return { allergies: "", allergiesDetail: null };
+      if (n < 2) {
+        return {
+          allergies: text,
+          allergiesDetail: { mode: "by_person", wholePartyText: "", people: [{ name: "", allergies: text }] },
+        };
+      }
+      return {
+        allergies: `Tutti gli ${n} ospiti dichiarati: ${text}`,
+        allergiesDetail: { mode: "whole_party", wholePartyText: text, people: [] },
+      };
+    }
+    const people = (Array.isArray(d.people) ? d.people : [])
+      .map((p: any) => ({
+        name: String(p?.name || "").trim(),
+        allergies: String(p?.allergies || "").trim(),
+      }))
+      .filter((p: { allergies: string }) => p.allergies.length > 0);
+    if (people.length === 0) return { allergies: "", allergiesDetail: null };
+    const allergies = people
+      .map((p: { name: string; allergies: string }) => (p.name ? `${p.name}: ${p.allergies}` : p.allergies))
+      .join(" · ");
+    return {
+      allergies,
+      allergiesDetail: { mode: "by_person", wholePartyText: "", people },
+    };
+  }
+
+  const legacy = String(body.allergies ?? "").trim();
+  if (!legacy) return { allergies: "", allergiesDetail: null };
+  return { allergies: legacy, allergiesDetail: null };
+}
+
+function applyAllergiesToRsvp(rsvp: any, body: any, guestsCount: number, status: string) {
+  const norm = normalizeAllergiesFromHttpBody(body, guestsCount, status);
+  rsvp.allergies = norm.allergies;
+  if (norm.allergiesDetail === null) rsvp.set("allergiesDetail", undefined);
+  else rsvp.allergiesDetail = norm.allergiesDetail;
+}
+
 /* ======================================
    ✅ Helper: calcola scadenza token = giorno evento (23:59)
 ===================================== */
@@ -73,7 +133,6 @@ router.post("/", async (req: Request, res: Response) => {
       guestsCount,
       message,
       status,
-      allergies,
       customResponses,
     } = req.body;
 
@@ -116,7 +175,18 @@ router.post("/", async (req: Request, res: Response) => {
       existing.guestsCount = guestsCount ?? existing.guestsCount;
       existing.message = message ?? existing.message;
       existing.status = status || existing.status;
-      if (allergies !== undefined) existing.allergies = allergies || "";
+
+      const mergedGc = Number(existing.guestsCount) || 1;
+      const mergedSt = (existing.status || "yes") as string;
+      if (mergedSt === "no") {
+        applyAllergiesToRsvp(existing, { allergies: "", allergiesDetail: null }, mergedGc, "no");
+      } else if (
+        Object.prototype.hasOwnProperty.call(req.body, "allergies") ||
+        Object.prototype.hasOwnProperty.call(req.body, "allergiesDetail")
+      ) {
+        applyAllergiesToRsvp(existing, req.body, mergedGc, mergedSt);
+      }
+
       if (normalizedCustomResponses !== null) existing.customResponses = normalizedCustomResponses as any;
 
       // ✅ refresh scadenza token fino al giorno evento
@@ -143,6 +213,10 @@ router.post("/", async (req: Request, res: Response) => {
     );
     const expiresAt = tokenExpiryFromEvent(event);
 
+    const gcNew = Number(guestsCount) || 1;
+    const stNew = (status || "yes") as string;
+    const normNew = normalizeAllergiesFromHttpBody(req.body, gcNew, stNew);
+
     const created = await Rsvp.create({
       eventSlug,
       name,
@@ -150,7 +224,8 @@ router.post("/", async (req: Request, res: Response) => {
       phone,
       guestsCount,
       message,
-      allergies: allergies || "",
+      allergies: normNew.allergies,
+      ...(normNew.allergiesDetail ? { allergiesDetail: normNew.allergiesDetail } : {}),
       customResponses: normalizedCustomResponses || [],
       status: status || "yes",
       editToken: token,
@@ -236,7 +311,7 @@ router.get("/edit/:token", async (req: Request, res: Response) => {
 ====================================== */
 router.put("/edit/:token", async (req: Request, res: Response) => {
   try {
-    const { name, guestsCount, status, message, email, phone, allergies, customResponses } = req.body;
+    const { name, guestsCount, status, message, email, phone, customResponses } = req.body;
 
     const rsvp = await Rsvp.findOne({ editToken: req.params.token });
     if (!rsvp) return res.status(404).json({ message: "Token non valido" });
@@ -250,7 +325,17 @@ router.put("/edit/:token", async (req: Request, res: Response) => {
     rsvp.status = status ?? rsvp.status;
     rsvp.message = message ?? rsvp.message;
 
-    if (allergies !== undefined) rsvp.allergies = allergies || "";
+    const mergedGc = Number(rsvp.guestsCount) || 1;
+    const mergedSt = (rsvp.status || "yes") as string;
+    if (mergedSt === "no") {
+      applyAllergiesToRsvp(rsvp, { allergies: "", allergiesDetail: null }, mergedGc, "no");
+    } else if (
+      Object.prototype.hasOwnProperty.call(req.body, "allergies") ||
+      Object.prototype.hasOwnProperty.call(req.body, "allergiesDetail")
+    ) {
+      applyAllergiesToRsvp(rsvp, req.body, mergedGc, mergedSt);
+    }
+
     const normalized = normalizeCustomResponses(customResponses);
     if (normalized !== null) rsvp.customResponses = normalized as any;
 
@@ -283,13 +368,23 @@ router.put("/:id", requireAuth, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: "Non autorizzato" });
     }
 
-    const { name, guestsCount, status, message, allergies, customResponses, email, phone } = req.body;
+    const { name, guestsCount, status, message, customResponses, email, phone } = req.body;
 
     if (name !== undefined) rsvp.name = name;
     if (guestsCount !== undefined) rsvp.guestsCount = guestsCount;
     if (status !== undefined) rsvp.status = status;
     if (message !== undefined) rsvp.message = message;
-    if (allergies !== undefined) rsvp.allergies = allergies || "";
+
+    const mergedGcPut = Number(rsvp.guestsCount) || 1;
+    const mergedStPut = (rsvp.status || "yes") as string;
+    if (mergedStPut === "no") {
+      applyAllergiesToRsvp(rsvp, { allergies: "", allergiesDetail: null }, mergedGcPut, "no");
+    } else if (
+      Object.prototype.hasOwnProperty.call(req.body, "allergies") ||
+      Object.prototype.hasOwnProperty.call(req.body, "allergiesDetail")
+    ) {
+      applyAllergiesToRsvp(rsvp, req.body, mergedGcPut, mergedStPut);
+    }
 
     // Email / phone sono opzionali anche lato owner. Usiamo `undefined` (non "")
     // per rimuoverli: il partial-unique-index su `email`/`phone` scatta solo per

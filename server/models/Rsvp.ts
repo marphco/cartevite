@@ -16,6 +16,23 @@ const customResponseSchema = new Schema(
   { _id: false }
 );
 
+const allergiesPersonSchema = new Schema(
+  {
+    name: { type: String, default: "" },
+    allergies: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+const allergiesDetailSchema = new Schema(
+  {
+    mode: { type: String, enum: ["whole_party", "by_person"], required: true },
+    wholePartyText: { type: String, default: "" },
+    people: { type: [allergiesPersonSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const rsvpSchema = new Schema(
   {
     eventSlug: { type: String, required: true, index: true },
@@ -29,6 +46,9 @@ const rsvpSchema = new Schema(
 
     /** ✅ Campo dedicato per allergie/intolleranze (separato da `message` per export catering). */
     allergies: { type: String, default: "" },
+
+    /** Dettaglio strutturato (tutti gli ospiti vs persone nominate); `allergies` resta la stringa “flat” per export. */
+    allergiesDetail: { type: allergiesDetailSchema, required: false },
 
     /** ✅ Risposte alle domande personalizzate configurate nel widget RSVP. */
     customResponses: { type: [customResponseSchema], default: [] },

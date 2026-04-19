@@ -1157,6 +1157,11 @@ const PageSection: React.FC<PageSectionProps> = ({
                             {selectedBlock.widgetProps?.rsvpAskIntolerances !== false && <Check size={12} color="var(--accent)" />}
                           </div>
                         </Button>
+                        {selectedBlock.widgetProps?.rsvpAskIntolerances !== false && (
+                          <div style={{ padding: '8px 12px', background: 'rgba(var(--accent-rgb), 0.06)', border: '1px solid rgba(var(--accent-rgb), 0.18)', borderRadius: '8px', fontSize: '10px', color: 'var(--text-soft)', lineHeight: 1.45 }}>
+                            Form con sì/no, opzione «stessa allergia per tutti» e righe nome + allergia se serve. Export: riepilogo testuale.
+                          </div>
+                        )}
 
                         {/* ────── Canali di contatto (default OFF per retro-compat) ────── */}
                         <Button

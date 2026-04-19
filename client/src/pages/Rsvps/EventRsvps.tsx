@@ -18,10 +18,20 @@ import {
   ChevronDown,
   ChevronUp,
   UserPlus,
+  Trash2,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./EventRsvps.css";
+import {
+  buildAllergiesPayload,
+  countCateringAllergySubjects,
+  defaultAllergyPeopleRows,
+  formatCateringAllergiesBulletList,
+  parseAllergiesDetailFromRecord,
+  type AllergiesDetailPayload,
+  type AllergyPersonRow,
+} from "../../utils/allergies";
 
 interface CustomResponse {
   fieldId: string;
@@ -39,6 +49,7 @@ interface RSVP {
   status: "yes" | "maybe" | "no";
   message?: string;
   allergies?: string;
+  allergiesDetail?: AllergiesDetailPayload | null;
   customResponses?: CustomResponse[];
   createdAt?: string;
 }
@@ -95,6 +106,38 @@ function formatCustomAnswer(cr: CustomResponse): string {
   return cr.answer ? String(cr.answer) : "—";
 }
 
+function AllergiesDetailReadout({ detail, fallback }: { detail: unknown; fallback: string }) {
+  const d = detail as AllergiesDetailPayload | null | undefined;
+  if (d && d.mode === "whole_party" && (d.wholePartyText || "").trim()) {
+    return (
+      <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "13px", fontWeight: 600, lineHeight: 1.45 }}>
+        <li>
+          <span style={{ fontWeight: 800 }}>Tutti gli ospiti dichiarati:</span> {(d.wholePartyText || "").trim()}
+        </li>
+      </ul>
+    );
+  }
+  if (d && d.mode === "by_person" && Array.isArray(d.people) && d.people.length > 0) {
+    return (
+      <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "13px", fontWeight: 600, lineHeight: 1.45 }}>
+        {d.people.map((p, i) => (
+          <li key={i}>
+            {(p.name || "").trim() ? (
+              <>
+                <span style={{ fontWeight: 800 }}>{(p.name || "").trim()}:</span> {(p.allergies || "").trim()}
+              </>
+            ) : (
+              (p.allergies || "").trim()
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (fallback.trim()) return <>{fallback.trim()}</>;
+  return null;
+}
+
 export default function EventRsvps() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -144,12 +187,31 @@ export default function EventRsvps() {
     phone: "",
   });
 
+  const [editAllergy, setEditAllergy] = useState<{
+    hasAllergies: "yes" | "no" | null;
+    mode: "whole_party" | "by_person" | null;
+    wholeParty: string;
+    people: AllergyPersonRow[];
+  }>({
+    hasAllergies: null,
+    mode: null,
+    wholeParty: "",
+    people: defaultAllergyPeopleRows(),
+  });
+
   /* --- Extra fields per aggiunta manuale (contatti opzionali, sempre disponibili
      lato owner indipendentemente da come è configurato il form pubblico) --- */
   const [manualEmail, setManualEmail] = useState("");
   const [manualPhone, setManualPhone] = useState("");
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editingId) return;
+    if (Number(editForm.guestsCount) <= 1 && editAllergy.mode === "whole_party") {
+      setEditAllergy((p) => ({ ...p, mode: "by_person", wholeParty: "" }));
+    }
+  }, [editingId, editForm.guestsCount, editAllergy.mode]);
 
   useEffect(() => {
     async function fetchAll() {
@@ -302,15 +364,32 @@ export default function EventRsvps() {
       return;
     }
 
-    const headers: string[] = ["Nome", "N. Ospiti", "Stato", "Allergie / Intolleranze"];
+    const headers: string[] = [
+      "Nome",
+      "Posti (gruppo)",
+      "Allergici (n.)",
+      "Stato",
+      "Allergie (dettaglio)",
+    ];
     if (hasAnyEmail) headers.push("Email");
     if (hasAnyPhone) headers.push("Telefono");
     const rows = withAllergies.map(({ r, allergies }) => {
+      const allergySubjects = countCateringAllergySubjects(
+        r.guestsCount ?? 1,
+        r.allergiesDetail,
+        allergies
+      );
+      const detailBullets = formatCateringAllergiesBulletList(
+        r.guestsCount ?? 1,
+        r.allergiesDetail,
+        allergies
+      );
       const row: (string | number)[] = [
         r.name || "",
         r.guestsCount ?? 1,
+        allergySubjects,
         statusLabel(r.status),
-        allergies,
+        detailBullets,
       ];
       if (hasAnyEmail) row.push(r.email || "");
       if (hasAnyPhone) row.push(r.phone || "");
@@ -438,54 +517,84 @@ export default function EventRsvps() {
       return;
     }
 
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     pdfHeader(doc, eventTitle || "Evento", "Lista allergie / intolleranze per catering");
 
-    const totalAffected = withAllergies.reduce((sum, x) => sum + (Number(x.r.guestsCount) || 1), 0);
+    const totalWithRequirement = withAllergies.reduce(
+      (sum, x) =>
+        sum +
+        countCateringAllergySubjects(x.r.guestsCount ?? 1, x.r.allergiesDetail, x.allergies),
+      0
+    );
+    const totalPartySeats = withAllergies.reduce((sum, x) => sum + (Number(x.r.guestsCount) || 1), 0);
     doc.setFontSize(10);
     doc.setTextColor(60, 60, 60);
-    doc.text(
-      `Ospiti con allergie segnalate: ${withAllergies.length}  ·  Totale persone coinvolte: ~${totalAffected}`,
-      12,
-      46
-    );
+    const pageInnerW = doc.internal.pageSize.getWidth() - 24;
+    const summaryText = `RSVP con allergie dichiarate: ${withAllergies.length}  ·  Persone con allergia/intolleranza: ${totalWithRequirement}  ·  Posti totali (stessi gruppi): ${totalPartySeats}`;
+    const summaryLines = doc.splitTextToSize(summaryText, pageInnerW);
+    doc.text(summaryLines, 12, 46);
+    const tableStartY = 46 + summaryLines.length * 5 + 4;
 
     // Colonna "Contatto" presente solo se almeno una RSVP ha email/telefono.
     const hasContact = hasAnyEmail || hasAnyPhone;
-    const headers: string[] = ["Nome", "Osp.", "Stato", "Allergie / Intolleranze"];
+    const headers: string[] = ["Nome", "Posti", "Allergici", "Stato", "Allergie"];
     if (hasContact) headers.push("Contatto");
+
+    const tableW = doc.internal.pageSize.getWidth() - 24;
 
     autoTable(doc, {
       head: [headers],
       body: withAllergies.map(({ r, allergies }) => {
+        const allergySubjects = countCateringAllergySubjects(
+          r.guestsCount ?? 1,
+          r.allergiesDetail,
+          allergies
+        );
+        const detailBullets = formatCateringAllergiesBulletList(
+          r.guestsCount ?? 1,
+          r.allergiesDetail,
+          allergies
+        );
         const row: string[] = [
           r.name || "—",
           String(r.guestsCount ?? 1),
+          String(allergySubjects),
           statusLabel(r.status),
-          allergies,
+          detailBullets,
         ];
         if (hasContact) {
           row.push([r.email, r.phone].filter(Boolean).join("\n") || "—");
         }
         return row;
       }),
-      startY: 52,
+      startY: tableStartY,
+      margin: { left: 12, right: 12 },
+      tableWidth: tableW,
       theme: "grid",
-      styles: { fontSize: 10, cellPadding: 3.5, overflow: "linebreak", valign: "top" },
-      headStyles: { fillColor: [244, 196, 107], textColor: 70, fontStyle: "bold" },
+      styles: { fontSize: 9.5, cellPadding: 3, overflow: "linebreak", valign: "top" },
+      headStyles: {
+        fillColor: [244, 196, 107],
+        textColor: 70,
+        fontStyle: "bold",
+        fontSize: 9,
+        halign: "center",
+        valign: "middle",
+      },
       columnStyles: hasContact
         ? {
-            0: { cellWidth: 40, fontStyle: "bold" },
-            1: { cellWidth: 14, halign: "center" },
-            2: { cellWidth: 22 },
-            3: { cellWidth: "auto", textColor: [140, 80, 15], fontStyle: "bold" },
-            4: { cellWidth: 40, fontSize: 9, textColor: [100, 100, 100] },
+            0: { cellWidth: 42, fontStyle: "bold", halign: "left" },
+            1: { cellWidth: 16, halign: "center" },
+            2: { cellWidth: 18, halign: "center", fontStyle: "bold", textColor: [20, 120, 90] },
+            3: { cellWidth: 26, halign: "center" },
+            4: { cellWidth: "auto", textColor: [140, 80, 15], fontStyle: "bold", halign: "left" },
+            5: { cellWidth: 44, fontSize: 8.5, textColor: [100, 100, 100], halign: "left" },
           }
         : {
-            0: { cellWidth: 50, fontStyle: "bold" },
+            0: { cellWidth: 48, fontStyle: "bold", halign: "left" },
             1: { cellWidth: 18, halign: "center" },
-            2: { cellWidth: 28 },
-            3: { cellWidth: "auto", textColor: [140, 80, 15], fontStyle: "bold" },
+            2: { cellWidth: 20, halign: "center", fontStyle: "bold", textColor: [20, 120, 90] },
+            3: { cellWidth: 28, halign: "center" },
+            4: { cellWidth: "auto", textColor: [140, 80, 15], fontStyle: "bold", halign: "left" },
           },
     });
 
@@ -559,18 +668,35 @@ export default function EventRsvps() {
       if (cr?.fieldId !== undefined) existingCustom[cr.fieldId] = cr.answer;
     });
 
+    const flatAllergies = extractAllergies(r) || "";
+    const parsed = parseAllergiesDetailFromRecord(r.allergiesDetail, flatAllergies);
+
     setEditForm({
       name: r.name || "",
       guestsCount: Number(r.guestsCount) || 1,
       status: r.status || "yes",
-      allergies: extractAllergies(r) || "",
+      allergies: flatAllergies,
       customResponses: existingCustom,
       email: r.email || "",
       phone: r.phone || "",
     });
+    setEditAllergy({
+      hasAllergies: parsed.hasAllergies,
+      mode: parsed.allergyMode,
+      wholeParty: parsed.wholePartyAllergies,
+      people: parsed.allergyPeople.length ? parsed.allergyPeople : defaultAllergyPeopleRows(),
+    });
   };
 
-  const cancelEdit = () => setEditingId(null);
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditAllergy({
+      hasAllergies: null,
+      mode: null,
+      wholeParty: "",
+      people: defaultAllergyPeopleRows(),
+    });
+  };
 
   const saveEdit = async (id: string) => {
     try {
@@ -597,13 +723,47 @@ export default function EventRsvps() {
         })
         .filter(Boolean);
 
+      let allergiesOut = "";
+      let allergiesDetailOut: AllergiesDetailPayload | null = null;
+
+      if (!rsvpConfig.askIntolerances || editForm.status === "no") {
+        allergiesOut = editForm.allergies.trim();
+        allergiesDetailOut = null;
+      } else {
+        if (editAllergy.hasAllergies === null) {
+          alert("Rispondi sì o no sulle allergie.");
+          return;
+        }
+        if (editAllergy.hasAllergies === "no") {
+          allergiesOut = "";
+          allergiesDetailOut = null;
+        } else {
+          const built = buildAllergiesPayload({
+            askIntolerances: rsvpConfig.askIntolerances,
+            status: editForm.status,
+            hasAllergies: editAllergy.hasAllergies,
+            guestsCount: Number(editForm.guestsCount) || 1,
+            allergyMode: editAllergy.mode,
+            wholePartyAllergies: editAllergy.wholeParty,
+            allergyPeople: editAllergy.people,
+          });
+          if (!built.ok) {
+            alert(built.error);
+            return;
+          }
+          allergiesOut = built.allergies;
+          allergiesDetailOut = built.allergiesDetail;
+        }
+      }
+
       const res = await apiFetch(`/api/rsvps/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           name: editForm.name,
           guestsCount: Number(editForm.guestsCount) || 1,
           status: editForm.status,
-          allergies: editForm.allergies.trim(),
+          allergies: allergiesOut,
+          allergiesDetail: allergiesDetailOut,
           customResponses: customResponsesPayload,
           email: editForm.email.trim(),
           phone: editForm.phone.trim(),
@@ -710,7 +870,7 @@ export default function EventRsvps() {
                 <input
                   type="text"
                   required
-                  placeholder="Es. Mario Rossi"
+                  placeholder="Nome o gruppo *"
                   value={manualName}
                   onChange={(e) => setManualName(e.target.value)}
                   className="rsvp-input"
@@ -783,7 +943,7 @@ export default function EventRsvps() {
                     <label>Allergie / Intolleranze <span style={{ fontWeight: 400, color: 'var(--text-soft)' }}>(opzionale)</span></label>
                     <input
                       type="text"
-                      placeholder="Es. glutine, lattosio, frutta secca... (vuoto = nessuna)"
+                      placeholder="Allergie o intolleranze (opzionale)"
                       value={manualAllergies}
                       onChange={(e) => setManualAllergies(e.target.value)}
                       className="rsvp-input"
@@ -872,22 +1032,21 @@ export default function EventRsvps() {
             {exportPanelOpen ? (
             <div className="rsvp-collapse-body rsvp-export-body">
             <p className="rsvp-export-lede">
-              Scarica l&apos;elenco in PDF (stampabile) oppure in CSV (Excel / Numbers).
+              PDF da stampare o condividere; CSV da aprire in Excel o Numbers.
             </p>
 
-            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-              {/* ───── Gruppo 1: Elenco completo ───── */}
-              <div style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: '14px', background: 'var(--surface)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.5rem' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(var(--accent-rgb), 0.12)', border: '1px solid rgba(var(--accent-rgb), 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div className="rsvp-export-grid">
+              <div className="rsvp-export-tile">
+                <div className="rsvp-export-tile__head">
+                  <div className="rsvp-export-tile__icon" aria-hidden>
                     <ClipboardList size={16} color="var(--accent)" />
                   </div>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Elenco completo</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-soft)' }}>Tutti gli ospiti + domande personalizzate</div>
-                  </div>
+                  <div className="rsvp-export-tile__title">Elenco completo</div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '0.75rem' }}>
+                <p className="rsvp-export-tile__sub">
+                  Tutte le RSVP: stato, posti, contatti, allergie e risposte alle tue domande.
+                </p>
+                <div className="rsvp-export-tile__actions">
                   <Button variant="primary" onClick={handleExportAllPdf} style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 12px', fontWeight: 700, fontSize: '12px' }}>
                     <FileText size={14} /> PDF
                   </Button>
@@ -897,18 +1056,17 @@ export default function EventRsvps() {
                 </div>
               </div>
 
-              {/* ───── Gruppo 2: Allergie catering ───── */}
-              <div style={{ padding: '1rem', border: '1px solid rgba(244, 196, 107, 0.35)', borderRadius: '14px', background: 'rgba(244, 196, 107, 0.06)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.5rem' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(244, 196, 107, 0.2)', border: '1px solid rgba(244, 196, 107, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div className="rsvp-export-tile rsvp-export-tile--allergies">
+                <div className="rsvp-export-tile__head">
+                  <div className="rsvp-export-tile__icon" aria-hidden>
                     <ChefHat size={16} color="#b8862a" />
                   </div>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Allergie per catering</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-soft)' }}>Solo ospiti con intolleranze segnalate</div>
-                  </div>
+                  <div className="rsvp-export-tile__title">Allergie per catering</div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '0.75rem' }}>
+                <p className="rsvp-export-tile__sub">
+                  Solo RSVP con allergie: posti totali, quante persone nel gruppo e testo dettagliato.
+                </p>
+                <div className="rsvp-export-tile__actions">
                   <Button variant="subtle" onClick={handleExportAllergiesPdf} style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 12px', fontWeight: 700, fontSize: '12px', background: 'rgba(244, 196, 107, 0.85)', color: '#3d2a05', border: '1px solid rgba(244, 196, 107, 1)' }}>
                     <FileText size={14} /> PDF
                   </Button>
@@ -1062,9 +1220,17 @@ export default function EventRsvps() {
                             type="number"
                             min="1"
                             value={editForm.guestsCount}
-                            onChange={(e) =>
-                              setEditForm((prev) => ({ ...prev, guestsCount: Number(e.target.value) || 1 }))
-                            }
+                            onChange={(e) => {
+                              const next = Number(e.target.value) || 1;
+                              setEditForm((prev) => ({ ...prev, guestsCount: next }));
+                              if (next <= 1) {
+                                setEditAllergy((p) =>
+                                  p.mode === "by_person"
+                                    ? { ...p, people: [{ name: "", allergies: p.people[0]?.allergies ?? "" }] }
+                                    : p
+                                );
+                              }
+                            }}
                             className="rsvp-input"
                           />
                         </div>
@@ -1117,18 +1283,226 @@ export default function EventRsvps() {
                             </div>
                           </div>
 
-                          {(rsvpConfig.askIntolerances || editForm.allergies) && (
-                            <div className="input-group" style={{ marginBottom: '1rem' }}>
+                          {!rsvpConfig.askIntolerances ? (
+                            <div className="input-group" style={{ marginBottom: "1rem" }}>
                               <label>
-                                Allergie / Intolleranze <span style={{ fontWeight: 400, color: 'var(--text-soft)' }}>(vuoto = nessuna)</span>
+                                Allergie / intolleranze <span style={{ fontWeight: 400, color: "var(--text-soft)" }}>(testo libero)</span>
                               </label>
                               <input
                                 type="text"
-                                placeholder="Es. glutine, lattosio, frutta secca..."
+                                placeholder="Allergia o intolleranza"
                                 value={editForm.allergies}
                                 onChange={(e) => setEditForm((p) => ({ ...p, allergies: e.target.value }))}
                                 className="rsvp-input"
                               />
+                            </div>
+                          ) : (
+                            <div style={{ marginBottom: "1rem" }}>
+                              <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-soft)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "0.5rem" }}>
+                                Allergie o intolleranze? *
+                              </label>
+                              <div style={{ display: "flex", gap: "8px", marginBottom: "0.75rem" }}>
+                                <Button
+                                  type="button"
+                                  variant={editAllergy.hasAllergies === "yes" ? "primary" : "subtle"}
+                                  onClick={() =>
+                                    setEditAllergy((p) => ({
+                                      ...p,
+                                      hasAllergies: "yes",
+                                      mode: "by_person",
+                                      wholeParty: "",
+                                      people: defaultAllergyPeopleRows(),
+                                    }))
+                                  }
+                                  style={{ flex: 1, justifyContent: "center", fontWeight: 700 }}
+                                >
+                                  Sì
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant={editAllergy.hasAllergies === "no" ? "primary" : "subtle"}
+                                  onClick={() =>
+                                    setEditAllergy({
+                                      hasAllergies: "no",
+                                      mode: null,
+                                      wholeParty: "",
+                                      people: defaultAllergyPeopleRows(),
+                                    })
+                                  }
+                                  style={{ flex: 1, justifyContent: "center", fontWeight: 700 }}
+                                >
+                                  No
+                                </Button>
+                              </div>
+
+                              {editAllergy.hasAllergies === "yes" && (
+                                <div>
+                                  {Number(editForm.guestsCount) > 1 && (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        width: "100%",
+                                        marginBottom: "12px",
+                                      }}
+                                    >
+                                      <label
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "10px",
+                                          cursor: "pointer",
+                                          fontSize: "0.9rem",
+                                          fontWeight: 600,
+                                          color: "var(--text-primary)",
+                                          userSelect: "none",
+                                          maxWidth: "100%",
+                                        }}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={editAllergy.mode === "whole_party"}
+                                          onChange={(e) => {
+                                            const on = e.target.checked;
+                                            if (on) {
+                                              setEditAllergy((p) => {
+                                                const first = p.people.find((x) => x.allergies.trim());
+                                                return {
+                                                  ...p,
+                                                  mode: "whole_party",
+                                                  wholeParty: first?.allergies?.trim() || p.wholeParty,
+                                                  people: defaultAllergyPeopleRows(),
+                                                };
+                                              });
+                                            } else {
+                                              setEditAllergy((p) => {
+                                                const t = p.wholeParty.trim();
+                                                return {
+                                                  ...p,
+                                                  mode: "by_person",
+                                                  wholeParty: "",
+                                                  people: t ? [{ name: "", allergies: t }] : defaultAllergyPeopleRows(),
+                                                };
+                                              });
+                                            }
+                                          }}
+                                          style={{ width: "17px", height: "17px", flexShrink: 0, accentColor: "var(--accent)" }}
+                                        />
+                                        <span>Stessa allergia per tutti gli ospiti</span>
+                                      </label>
+                                    </div>
+                                  )}
+
+                                  {Number(editForm.guestsCount) > 1 && editAllergy.mode === "whole_party" && (
+                                    <div style={{ marginBottom: "10px" }}>
+                                      <textarea
+                                        className="rsvp-input"
+                                        rows={3}
+                                        placeholder={"Descrizione dell'allergia o intolleranza condivisa da tutti *"}
+                                        value={editAllergy.wholeParty}
+                                        onChange={(e) => setEditAllergy((p) => ({ ...p, wholeParty: e.target.value }))}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {((Number(editForm.guestsCount) > 1 && editAllergy.mode !== "whole_party") ||
+                                    Number(editForm.guestsCount) <= 1) && (
+                                    <div style={{ display: "grid", gap: "10px" }}>
+                                      {editAllergy.people.map((row, idx) => (
+                                        <div
+                                          key={idx}
+                                          style={{
+                                            display: "grid",
+                                            gap: "8px",
+                                            alignItems: "center",
+                                            gridTemplateColumns:
+                                              Number(editForm.guestsCount) <= 1
+                                                ? "1fr"
+                                                : editAllergy.people.length > 1
+                                                  ? "1fr 1fr auto"
+                                                  : "1fr 1fr",
+                                          }}
+                                        >
+                                          {Number(editForm.guestsCount) > 1 && (
+                                            <input
+                                              className="rsvp-input"
+                                              autoComplete="off"
+                                              placeholder="Nome (opz.)"
+                                              value={row.name}
+                                              onChange={(e) => {
+                                                const v = e.target.value;
+                                                setEditAllergy((p) => ({
+                                                  ...p,
+                                                  people: p.people.map((x, i) => (i === idx ? { ...x, name: v } : x)),
+                                                }));
+                                              }}
+                                            />
+                                          )}
+                                          <input
+                                            className="rsvp-input"
+                                            autoComplete="off"
+                                            placeholder={
+                                              Number(editForm.guestsCount) <= 1
+                                                ? "Allergia o intolleranza *"
+                                                : "Allergia o intolleranza *"
+                                            }
+                                            value={row.allergies}
+                                            onChange={(e) => {
+                                              const v = e.target.value;
+                                              setEditAllergy((p) => ({
+                                                ...p,
+                                                people: p.people.map((x, i) => (i === idx ? { ...x, allergies: v } : x)),
+                                              }));
+                                            }}
+                                          />
+                                          {Number(editForm.guestsCount) > 1 && editAllergy.people.length > 1 ? (
+                                            <button
+                                              type="button"
+                                              aria-label={`Rimuovi riga ${idx + 1}`}
+                                              title="Rimuovi questa riga"
+                                              onClick={() =>
+                                                setEditAllergy((p) => ({
+                                                  ...p,
+                                                  people: p.people.filter((_, i) => i !== idx),
+                                                }))
+                                              }
+                                              style={{
+                                                border: "1px solid var(--border-color-strong)",
+                                                background: "var(--surface)",
+                                                borderRadius: "10px",
+                                                padding: "10px",
+                                                cursor: "pointer",
+                                                color: "#c45c52",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                              }}
+                                            >
+                                              <Trash2 size={18} aria-hidden />
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      ))}
+                                      {editAllergy.mode !== "whole_party" &&
+                                        Number(editForm.guestsCount) > 1 &&
+                                        editAllergy.people.length < 12 && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={() =>
+                                              setEditAllergy((p) => ({
+                                                ...p,
+                                                people: [...p.people, { name: "", allergies: "" }],
+                                              }))
+                                            }
+                                          >
+                                            + Altra persona
+                                          </Button>
+                                        )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -1180,8 +1554,9 @@ export default function EventRsvps() {
                     <>
                       {/* ALLERGIE — callout color warm con icona */}
                       {(() => {
-                        const allergies = extractAllergies(r);
-                        if (!allergies) return null;
+                        const fallback = extractAllergies(r);
+                        const hasDetail = r.allergiesDetail && typeof r.allergiesDetail === "object";
+                        if (!fallback.trim() && !hasDetail) return null;
                         return (
                           <div style={{
                             display: 'flex', alignItems: 'flex-start', gap: '10px',
@@ -1197,7 +1572,11 @@ export default function EventRsvps() {
                                 Allergie / Intolleranze
                               </div>
                               <div style={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.4, wordBreak: 'break-word' }}>
-                                {allergies}
+                                {hasDetail ? (
+                                  <AllergiesDetailReadout detail={r.allergiesDetail} fallback={fallback} />
+                                ) : (
+                                  fallback.trim()
+                                )}
                               </div>
                             </div>
                           </div>

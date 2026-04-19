@@ -1004,6 +1004,11 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                 {block.widgetProps?.rsvpAskIntolerances !== false && <Check size={12} color="var(--accent)" />}
                               </div>
                             </Button>
+                            {block.widgetProps?.rsvpAskIntolerances !== false && (
+                              <div style={{ padding: '8px 10px', background: 'rgba(var(--accent-rgb), 0.06)', border: '1px solid rgba(var(--accent-rgb), 0.18)', borderRadius: '8px', fontSize: '10px', color: 'var(--text-soft)', lineHeight: 1.45 }}>
+                                Sì/no, stessa allergia per tutti o dettaglio per persona. Export in testo.
+                              </div>
+                            )}
                           </div>
                           
                           <div style={{ textAlign: 'center', marginTop: '4px' }}>
