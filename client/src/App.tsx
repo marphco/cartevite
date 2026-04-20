@@ -57,6 +57,8 @@ function App() {
         <Route path="/rsvps/:slug" element={<EventRsvps />} />
         <Route path="/donations/:slug" element={<EventDonations />} />
         <Route path="/events/:slug/donations" element={<EventDonations />} />
+        <Route path="/gifts/:slug" element={<EventDonations />} />
+        <Route path="/events/:slug/gifts" element={<EventDonations />} />
         <Route path="/invites/:slug" element={<EventInvites />} />
       </Route>
     </Routes>

@@ -306,9 +306,9 @@ export default function Dashboard() {
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => navigate(`/donations/${ev.slug}`)}
+                      onClick={() => navigate(`/gifts/${ev.slug}`)}
                     >
-                      <Gift size={16} style={{ marginRight: 6 }} /> Donazioni
+                      <Gift size={16} style={{ marginRight: 6 }} /> Regali e donazioni
                     </Button>
                     
                     <div className="event-card__actions-secondary">

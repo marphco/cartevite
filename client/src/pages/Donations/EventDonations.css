@@ -1,265 +1,253 @@
-.don-page {
-  min-height: 100vh;
-  background: var(--bg, #f4f1ec);
-  padding: 2.5rem 1.25rem 5rem;
+/* Donazioni: dettagli UI. Layout pagina = EventRsvps.css */
+
+.don-hub-card {
+  padding: 1.1rem 1.25rem 1.15rem;
+  margin-bottom: 0.25rem;
 }
 
-.don-shell {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.don-hub-card__header {
+  margin-bottom: 0.85rem;
 }
 
-.don-topbar {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.don-hub-card__lede {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text-soft);
 }
 
-.don-header {
+/* Tab hub: stessa pill rail degli RSVP; icone un filo più grandi */
+.don-hub-rail {
+  width: 100%;
+  max-width: 460px;
+}
+
+.don-hub-card .rsvp-filter-segment__icon {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+@media (max-width: 720px) {
+  .don-hub-card .rsvp-filter-segment__icon {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+
+.don-page-subtitle {
+  font-size: 0.9rem;
+  max-width: 34rem;
+}
+
+.don-export-lede {
+  margin-top: 0 !important;
+  margin-bottom: 0.75rem !important;
+  font-size: 0.86rem !important;
+  line-height: 1.45 !important;
+  color: var(--text-soft) !important;
+}
+
+.don-export-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.25rem;
+  gap: 0.65rem;
+  align-items: center;
 }
 
-.don-header h1 {
-  margin: 0.4rem 0 0.6rem;
-  font-family: var(--font-display, serif);
-  font-size: clamp(1.8rem, 3vw, 2.4rem);
-  line-height: 1.1;
+.don-export-btn {
+  border-radius: 999px !important;
+  padding: 0.62rem 1.2rem !important;
+  font-weight: 700 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.don-info-card__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #9a8f7a;
+}
+
+.don-list-roadmap-card {
+  padding: 1.35rem 1.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.don-list-roadmap-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  margin-bottom: 0.75rem;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+}
+
+.don-list-roadmap-card__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.don-list-roadmap-card__p {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
   color: var(--text-primary);
 }
 
-.don-eyebrow {
+.don-list-roadmap-card__steps {
   margin: 0;
-  color: var(--accent, #3c4f76);
-  font-weight: 800;
-  letter-spacing: 0.25em;
-  font-size: 0.72rem;
+  padding-left: 1.15rem;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-soft);
 }
 
-.don-subtitle {
-  margin: 0;
-  color: var(--text-muted, #6b6b6b);
-  max-width: 680px;
-  line-height: 1.5;
+.don-list-roadmap-card__steps li + li {
+  margin-top: 0.45rem;
 }
 
-.don-header-actions {
+/* Card regalo: padding e hover meno “pesanti” rispetto al default RSVP */
+.don-gift-list {
+  gap: 0.75rem;
+}
+
+.don-gift-list .rsvp-card {
+  padding: 1.15rem 1.25rem;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.don-gift-list .rsvp-card:hover {
+  transform: none;
+}
+
+.don-gift-list .rsvp-card-header strong {
+  font-size: 1.05rem;
+}
+
+.don-card-meta {
+  margin: 0.25rem 0 0;
   display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.don-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 1rem;
-}
-
-.don-view-switcher {
-  display: flex;
-  padding: 0.4rem !important;
-  gap: 0.3rem;
-  width: fit-content;
-}
-
-.don-view-tab {
-  display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.6rem 1rem;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  border-radius: 8px;
+  gap: 0.35rem;
   font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  color: var(--text-soft);
 }
 
-.don-view-tab:hover {
-  color: var(--text);
+.don-card-meta a {
+  color: inherit;
+  text-decoration: none;
 }
 
-.don-view-tab.is-active {
-  background: var(--accent, #1a1a1a);
-  color: #fff;
-}
-
-.don-filters-card {
-  padding: 1rem 1.25rem !important;
-}
-
-.don-filters-row {
+.don-message-callout {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.8rem 1rem 0.85rem;
+  background: rgba(244, 196, 107, 0.12);
+  border: 1px solid rgba(244, 196, 107, 0.35);
+  border-radius: var(--radius-md, 14px);
 }
 
-.don-filters-chips {
+.don-message-callout__head {
   display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.don-chip {
-  border: 1px solid var(--border, #e4ddd2);
-  background: transparent;
-  color: var(--text-muted);
-  padding: 0.45rem 0.9rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-
-.don-chip:hover {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.don-chip.is-active {
-  background: var(--accent, #1a1a1a);
-  color: #fff;
-  border-color: var(--accent, #1a1a1a);
-}
-
-.don-search {
-  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.8rem;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid var(--border, #e4ddd2);
-  border-radius: 999px;
-  min-width: 240px;
+  min-width: 0;
 }
 
-.don-search input {
-  border: none;
-  outline: none;
-  background: transparent;
-  flex: 1;
-  font-size: 0.85rem;
-  color: var(--text);
+.don-message-callout__icon {
+  flex-shrink: 0;
+  color: #a67c1f;
 }
 
-.don-empty {
-  text-align: center;
-  padding: 3rem 1.5rem !important;
-  color: var(--text-muted);
-}
-
-.don-empty h3 {
-  margin: 0.8rem 0 0.4rem;
-  font-family: var(--font-display, serif);
-  color: var(--text);
-  font-size: 1.4rem;
-}
-
-.don-empty p {
-  margin: 0;
-  max-width: 480px;
-  margin-inline: auto;
-  line-height: 1.5;
-}
-
-.don-table-card {
-  padding: 0 !important;
-  overflow: hidden;
-}
-
-.don-table-wrapper {
-  overflow-x: auto;
-}
-
-.don-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 760px;
-}
-
-.don-table thead th {
-  text-align: left;
-  padding: 0.9rem 1rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
+.don-message-callout__title {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  background: rgba(0, 0, 0, 0.02);
-  border-bottom: 1px solid var(--border, #e4ddd2);
+  color: #6b4a12;
+  line-height: 1.2;
 }
 
-.don-table thead th.num,
-.don-table tbody td.num {
-  text-align: right;
+.don-message-callout__body {
+  margin: 0;
+  padding: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.don-amount-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding-top: 0.1rem;
+}
+
+.don-amount-cell {
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-md, 12px);
+  background: rgba(var(--accent-rgb), 0.05);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.08);
+}
+
+.don-amount-cell--fee {
+  background: rgba(180, 83, 9, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.12);
+}
+
+.don-amount-cell--fee strong {
+  color: #b45309;
   font-variant-numeric: tabular-nums;
 }
 
-.don-table tbody td {
-  padding: 0.9rem 1rem;
-  border-bottom: 1px solid var(--border, #ece6da);
-  font-size: 0.9rem;
-  color: var(--text);
-  vertical-align: middle;
+.don-amount-cell--net {
+  background: rgba(21, 128, 61, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(21, 128, 61, 0.15);
 }
 
-.don-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.don-table tbody tr:hover {
-  background: rgba(0, 0, 0, 0.015);
-}
-
-.don-cell-date {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  white-space: nowrap;
-}
-
-.don-donor {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.don-donor strong {
-  font-weight: 700;
-  color: var(--text);
-}
-
-.don-donor span {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.don-cell-message {
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
-.don-fee {
-  color: #b45309;
-}
-
-.don-net {
+.don-amount-cell--net strong {
   color: #15803d;
-  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.don-amount-label {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.don-amount-cell strong {
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.don-pi-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.don-pi-code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.66rem;
+  word-break: break-all;
+  color: var(--text-soft);
 }
 
 .don-info-card {
@@ -271,82 +259,53 @@
   align-items: flex-start;
 }
 
-.don-info-card strong {
-  color: var(--text);
+.don-info-card__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.don-info-card__title {
   display: block;
-  margin-bottom: 0.3rem;
+  margin: 0 0 0.45rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .don-info-card p {
-  margin: 0;
-  font-size: 0.88rem;
-  line-height: 1.55;
-}
-
-.don-linklike {
-  background: transparent;
-  border: none;
-  padding: 0;
-  color: var(--accent);
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: inherit;
-}
-
-.don-stripe-card {
-  padding: 0 !important;
-  overflow: hidden;
-}
-
-.don-stripe-header {
-  display: flex;
-  gap: 0.8rem;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border, #e4ddd2);
-  align-items: flex-start;
+  margin: 0 0 0.65rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
   color: var(--text-muted);
 }
 
-.don-stripe-header strong {
+.don-info-card p strong {
+  font-weight: 700;
   color: var(--text);
+}
+
+.don-info-card p:last-of-type {
+  margin-bottom: 0;
+}
+
+.don-info-card__subheading {
   display: block;
-  margin-bottom: 0.2rem;
-}
-
-.don-stripe-header p {
-  margin: 0;
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
-.don-stripe-embed {
-  padding: 1.5rem;
-  background: #fff;
+  margin: 0.85rem 0 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
 }
 
 @media (max-width: 720px) {
-  .don-page {
-    padding: 1.5rem 0.75rem 4rem;
+  .don-amount-grid {
+    grid-template-columns: 1fr;
   }
-  .don-header {
+
+  .don-stripe-header {
     flex-direction: column;
-    align-items: stretch;
   }
-  .don-header-actions {
-    width: 100%;
-  }
-  .don-header-actions > * {
-    flex: 1;
-  }
-  .don-filters-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .don-search {
-    min-width: 0;
-  }
-  .don-cell-message {
-    max-width: 160px;
+
+  .don-gift-list .rsvp-card {
+    padding: 1rem 1rem;
   }
 }

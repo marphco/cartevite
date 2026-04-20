@@ -3,8 +3,8 @@ import { ConnectPayments } from '@stripe/react-connect-js';
 import StripeConnectProvider from './StripeConnectProvider';
 
 /**
- * Tabella Stripe nativa con le donazioni ricevute: supporta filtri, dettaglio PI,
- * refund, dispute management — tutto dentro eenvee senza mandare l'host su Stripe.
+ * Stripe Connect — componente `ConnectPayments`: elenco pagamenti sul Connect account
+ * dell’utente (ambito Stripe, non filtrato per singolo evento eenvee).
  */
 const StripeEmbeddedPayments: React.FC = () => {
   return (

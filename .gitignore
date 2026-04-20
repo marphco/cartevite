@@ -167,6 +167,7 @@ WORKLOG.md
 docs/fase1-spec.md
 *.md
 !README.md
+!ROADMAP.md
 diff.txt
 .gemini/
 brain/
