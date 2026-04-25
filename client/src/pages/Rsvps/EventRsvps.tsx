@@ -99,8 +99,8 @@ function extractAllergies(r: RSVP): string {
 
 function formatCustomAnswer(cr: CustomResponse): string {
   if (cr.type === "checkbox") {
-    if (cr.answer === true || cr.answer === "yes" || cr.answer === "Sì") return "Sì";
-    if (cr.answer === false || cr.answer === "no" || cr.answer === "No") return "No";
+    if (cr.answer === true || cr.answer === "yes" || cr.answer === "Sì" || cr.answer === "SÌ") return "Sì";
+    if (cr.answer === false || cr.answer === "no" || cr.answer === "No" || cr.answer === "NO") return "No";
     return cr.answer ? String(cr.answer) : "—";
   }
   return cr.answer ? String(cr.answer) : "—";
@@ -150,18 +150,33 @@ export default function EventRsvps() {
   const [manualName, setManualName] = useState("");
   const [manualGuests, setManualGuests] = useState<string | number>(1);
   const [manualStatus, setManualStatus] = useState<"yes" | "maybe" | "no">("yes");
-  const [manualAllergies, setManualAllergies] = useState("");
+  /** Solo se l'editor disattiva “Chiedi allergie” (sì/no): testo libero, come in modifica carta. */
+  const [manualFreeAllergies, setManualFreeAllergies] = useState("");
   const [manualCustom, setManualCustom] = useState<Record<string, any>>({});
   const [manualSending, setManualSending] = useState(false);
   const [manualError, setManualError] = useState("");
 
+  /** Allineato a RSVPWidget: sì/no + stessa allergia / per persona. */
+  const [manualAllergy, setManualAllergy] = useState<{
+    hasAllergies: "yes" | "no" | null;
+    mode: "whole_party" | "by_person" | null;
+    wholeParty: string;
+    people: AllergyPersonRow[];
+  }>({
+    hasAllergies: null,
+    mode: null,
+    wholeParty: "",
+    people: defaultAllergyPeopleRows(),
+  });
+
   /* --- Config del blocco RSVP dell'evento (domande custom + flag allergie/contatti) --- */
   const [rsvpConfig, setRsvpConfig] = useState<{
+    askGuests: boolean;
     askIntolerances: boolean;
     askEmail: boolean;
     askPhone: boolean;
     customFields: Array<{ id: string; label: string; type: "text" | "checkbox"; required?: boolean }>;
-  }>({ askIntolerances: true, askEmail: false, askPhone: false, customFields: [] });
+  }>({ askGuests: true, askIntolerances: true, askEmail: false, askPhone: false, customFields: [] });
 
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -199,8 +214,6 @@ export default function EventRsvps() {
     people: defaultAllergyPeopleRows(),
   });
 
-  /* --- Extra fields per aggiunta manuale (contatti opzionali, sempre disponibili
-     lato owner indipendentemente da come è configurato il form pubblico) --- */
   const [manualEmail, setManualEmail] = useState("");
   const [manualPhone, setManualPhone] = useState("");
 
@@ -212,6 +225,12 @@ export default function EventRsvps() {
       setEditAllergy((p) => ({ ...p, mode: "by_person", wholeParty: "" }));
     }
   }, [editingId, editForm.guestsCount, editAllergy.mode]);
+
+  useEffect(() => {
+    if (manualPanelOpen && Number(manualGuests) <= 1 && manualAllergy.mode === "whole_party") {
+      setManualAllergy((p) => ({ ...p, mode: "by_person", wholeParty: "" }));
+    }
+  }, [manualPanelOpen, manualGuests, manualAllergy.mode]);
 
   useEffect(() => {
     async function fetchAll() {
@@ -232,6 +251,7 @@ export default function EventRsvps() {
           if (rsvpBlock) {
             const wp = rsvpBlock.widgetProps || {};
             setRsvpConfig({
+              askGuests: wp.rsvpAskGuests !== false,
               askIntolerances: wp.rsvpAskIntolerances !== false, // default true
               askEmail: wp.rsvpAskEmail === true,                // default false
               askPhone: wp.rsvpAskPhone === true,                // default false
@@ -606,33 +626,114 @@ export default function EventRsvps() {
   const handleManualAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setManualError("");
+
+    if (!manualName.trim()) {
+      setManualError("Inserisci il nome o il gruppo.");
+      return;
+    }
+
+    const st = manualStatus;
+    const gc =
+      st === "no" || !rsvpConfig.askGuests
+        ? 1
+        : Math.min(20, Math.max(1, Math.floor(Number(manualGuests)) || 1));
+
+    if (st !== "no") {
+      const cleanEmail = manualEmail.trim();
+      const cleanPhone = manualPhone.trim();
+      if (rsvpConfig.askEmail && rsvpConfig.askPhone && !cleanEmail && !cleanPhone) {
+        setManualError("Inserisci almeno email o telefono, come nel modulo pubblico.");
+        return;
+      }
+      if (rsvpConfig.askEmail && !rsvpConfig.askPhone && !cleanEmail) {
+        setManualError("Inserisci l'email per proseguire.");
+        return;
+      }
+      if (rsvpConfig.askPhone && !rsvpConfig.askEmail && !cleanPhone) {
+        setManualError("Inserisci il numero di telefono per proseguire.");
+        return;
+      }
+      if (rsvpConfig.askEmail && cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        setManualError("L'email inserita non sembra valida. Controlla e riprova.");
+        return;
+      }
+
+      const missingFields = rsvpConfig.customFields.filter(
+        (f) => f.required && (manualCustom[f.id] === undefined || manualCustom[f.id] === "" || manualCustom[f.id] === null)
+      );
+      if (missingFields[0]) {
+        setManualError(`Rispondi alla domanda: "${missingFields[0].label || "Domanda"}"`);
+        return;
+      }
+
+      if (rsvpConfig.askIntolerances && manualAllergy.hasAllergies === null) {
+        setManualError("Indica sì o no sulle allergie o intolleranze.");
+        return;
+      }
+    }
+
     setManualSending(true);
 
-    if (!manualName.trim()) return;
+    const customResponsesPayload =
+      st === "no"
+        ? []
+        : rsvpConfig.customFields.map((f) => ({
+            fieldId: f.id,
+            label: f.label || "Domanda",
+            type: f.type === "checkbox" ? "checkbox" : "text",
+            answer: manualCustom[f.id] ?? null,
+          }));
 
-    // Costruisci payload risposte custom allineato al formato del widget pubblico
-    // (array denormalizzato con label/type snapshotted al momento dell'inserimento).
-    const customResponsesPayload = rsvpConfig.customFields
-      .filter((f) => manualCustom[f.id] !== undefined && manualCustom[f.id] !== "")
-      .map((f) => ({
-        fieldId: f.id,
-        label: f.label || "Domanda",
-        type: f.type === "checkbox" ? "checkbox" : "text",
-        answer: manualCustom[f.id] ?? null,
-      }));
+    let allergiesText = "";
+    let allergiesDetailOut: AllergiesDetailPayload | null = null;
+
+    if (st === "no") {
+      allergiesText = "";
+      allergiesDetailOut = null;
+    } else if (!rsvpConfig.askIntolerances) {
+      allergiesText = manualFreeAllergies.trim();
+      allergiesDetailOut = null;
+    } else {
+      if (manualAllergy.hasAllergies === "no") {
+        allergiesText = "";
+        allergiesDetailOut = null;
+      } else if (manualAllergy.hasAllergies === "yes") {
+        const built = buildAllergiesPayload({
+          askIntolerances: rsvpConfig.askIntolerances,
+          status: st,
+          hasAllergies: manualAllergy.hasAllergies,
+          guestsCount: gc,
+          allergyMode: manualAllergy.mode,
+          wholePartyAllergies: manualAllergy.wholeParty,
+          allergyPeople: manualAllergy.people,
+        });
+        if (!built.ok) {
+          setManualError(built.error);
+          setManualSending(false);
+          return;
+        }
+        allergiesText = built.allergies;
+        allergiesDetailOut = built.allergiesDetail;
+      }
+    }
+
+    const messageOut = rsvpConfig.askIntolerances && st !== "no" && manualAllergy.hasAllergies === "yes" ? "" : "";
+    const cleanEmailF = manualEmail.trim();
+    const cleanPhoneF = manualPhone.trim();
 
     try {
       const res = await apiFetch(`/api/rsvps`, {
         method: "POST",
         body: JSON.stringify({
           eventSlug: slug,
-          name: manualName,
-          email: manualEmail.trim() || null,
-          phone: manualPhone.trim() || null,
-          guestsCount: Number(manualGuests) || 1,
-          message: "",
-          status: manualStatus,
-          allergies: manualAllergies.trim(),
+          name: manualName.trim(),
+          email: st === "no" ? null : cleanEmailF || null,
+          phone: st === "no" ? null : cleanPhoneF || null,
+          guestsCount: gc,
+          message: messageOut,
+          status: st,
+          allergies: allergiesText,
+          ...(allergiesDetailOut ? { allergiesDetail: allergiesDetailOut } : {}),
           customResponses: customResponsesPayload,
         }),
       });
@@ -646,7 +747,13 @@ export default function EventRsvps() {
       setManualName("");
       setManualGuests(1);
       setManualStatus("yes");
-      setManualAllergies("");
+      setManualFreeAllergies("");
+      setManualAllergy({
+        hasAllergies: null,
+        mode: null,
+        wholeParty: "",
+        people: defaultAllergyPeopleRows(),
+      });
       setManualCustom({});
       setManualEmail("");
       setManualPhone("");
@@ -863,8 +970,10 @@ export default function EventRsvps() {
           {manualPanelOpen ? (
           <div className="rsvp-collapse-body">
           <form onSubmit={handleManualAdd}>
-            {/* Riga principale: dati anagrafici minimi */}
-            <div className="rsvp-form-grid">
+            <div
+              className="rsvp-form-grid"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))" }}
+            >
               <div className="input-group">
                 <label>Nome Ospite</label>
                 <input
@@ -877,23 +986,56 @@ export default function EventRsvps() {
                 />
               </div>
 
-              <div className="input-group">
-                <label>Numero Ospiti</label>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="1"
-                  value={manualGuests}
-                  onChange={(e) => setManualGuests(e.target.value)}
-                  className="rsvp-input"
-                />
-              </div>
+              {rsvpConfig.askGuests && manualStatus !== "no" && (
+                <div className="input-group">
+                  <label>Numero Ospiti</label>
+                  <div style={{ position: "relative" }}>
+                    <Users
+                      size={18}
+                      style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.4, pointerEvents: "none" }}
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      placeholder="1"
+                      value={manualGuests}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        setManualGuests(Number.isFinite(v) ? Math.min(20, Math.max(1, v)) : 1);
+                      }}
+                      className="rsvp-input"
+                      style={{ paddingLeft: 40 }}
+                    />
+                  </div>
+                  {rsvpConfig.askIntolerances && (
+                    <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-soft)", lineHeight: 1.4, opacity: 0.9 }}>
+                      Includi tutti i posti (anche bambini).
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="input-group">
                 <label>Stato</label>
                 <select
                   value={manualStatus}
-                  onChange={(e) => setManualStatus(e.target.value as any)}
+                  onChange={(e) => {
+                    const v = e.target.value as "yes" | "maybe" | "no";
+                    setManualStatus(v);
+                    if (v === "no") {
+                      setManualCustom({});
+                      setManualEmail("");
+                      setManualPhone("");
+                      setManualFreeAllergies("");
+                      setManualAllergy({
+                        hasAllergies: null,
+                        mode: null,
+                        wholeParty: "",
+                        people: defaultAllergyPeopleRows(),
+                      });
+                    }
+                  }}
                   className="rsvp-select"
                 >
                   <option value="yes">Partecipa</option>
@@ -903,66 +1045,82 @@ export default function EventRsvps() {
               </div>
             </div>
 
-            {/* DATI AGGIUNTIVI — sezione estesa con contatti opzionali,
-                 allergie (se il form pubblico le chiede) e domande custom.
-                 Mostrata se lo stato non è "Non può" — coerente col form pubblico. */}
             {manualStatus !== "no" && (
               <div className="rsvp-form-subsection">
                 <p className="rsvp-form-subsection__title">Dati aggiuntivi</p>
 
-                {/* Contatti — sempre disponibili lato owner (anche se il form
-                     pubblico non li chiede): utili per promemoria/comunicazioni. */}
-                <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '1rem' }}>
-                  <div className="input-group">
-                    <label>Email <span style={{ fontWeight: 400, color: 'var(--text-soft)' }}>(opzionale)</span></label>
-                    <input
-                      type="email"
-                      placeholder="ospite@esempio.it"
-                      value={manualEmail}
-                      onChange={(e) => setManualEmail(e.target.value)}
-                      className="rsvp-input"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Telefono <span style={{ fontWeight: 400, color: 'var(--text-soft)' }}>(opzionale)</span></label>
-                    <input
-                      type="tel"
-                      placeholder="+39 333 123 4567"
-                      value={manualPhone}
-                      onChange={(e) => setManualPhone(e.target.value)}
-                      className="rsvp-input"
-                      autoComplete="off"
-                    />
-                  </div>
-                </div>
-
-                {/* Allergie / Intolleranze — solo se il form pubblico le chiede */}
-                {rsvpConfig.askIntolerances && (
-                  <div className="input-group" style={{ marginBottom: '1rem' }}>
-                    <label>Allergie / Intolleranze <span style={{ fontWeight: 400, color: 'var(--text-soft)' }}>(opzionale)</span></label>
-                    <input
-                      type="text"
-                      placeholder="Allergie o intolleranze (opzionale)"
-                      value={manualAllergies}
-                      onChange={(e) => setManualAllergies(e.target.value)}
-                      className="rsvp-input"
-                    />
+                {(rsvpConfig.askEmail || rsvpConfig.askPhone) && (
+                  <div style={{ marginBottom: "1.1rem" }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: "1rem",
+                        gridTemplateColumns: rsvpConfig.askEmail && rsvpConfig.askPhone ? "repeat(2, 1fr)" : "1fr",
+                      }}
+                    >
+                      {rsvpConfig.askEmail && (
+                        <div className="input-group">
+                          <label>
+                            Email
+                            {rsvpConfig.askEmail && !rsvpConfig.askPhone && (
+                              <span style={{ color: "var(--accent)" }}> *</span>
+                            )}
+                          </label>
+                          <input
+                            type="email"
+                            placeholder={rsvpConfig.askEmail && rsvpConfig.askPhone ? "Email" : "Email *"}
+                            value={manualEmail}
+                            onChange={(e) => setManualEmail(e.target.value)}
+                            className="rsvp-input"
+                            autoComplete="off"
+                          />
+                        </div>
+                      )}
+                      {rsvpConfig.askPhone && (
+                        <div className="input-group">
+                          <label>
+                            Telefono
+                            {rsvpConfig.askPhone && !rsvpConfig.askEmail && (
+                              <span style={{ color: "var(--accent)" }}> *</span>
+                            )}
+                          </label>
+                          <input
+                            type="tel"
+                            placeholder={rsvpConfig.askEmail && rsvpConfig.askPhone ? "Telefono" : "Telefono *"}
+                            value={manualPhone}
+                            onChange={(e) => setManualPhone(e.target.value)}
+                            className="rsvp-input"
+                            autoComplete="off"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {rsvpConfig.askEmail && rsvpConfig.askPhone && (
+                      <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-soft)", lineHeight: 1.4, opacity: 0.88 }}>
+                        Lascia almeno un recapito (email o telefono) per poter contattare l&apos;ospite.
+                      </p>
+                    )}
                   </div>
                 )}
 
-                {/* Risposte alle domande personalizzate del modulo RSVP */}
                 {rsvpConfig.customFields.length > 0 && (
-                  <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: "1rem",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                      marginBottom: "1.1rem",
+                    }}
+                  >
                     {rsvpConfig.customFields.map((field) => (
                       <div key={field.id} className="input-group">
-                        <label>
+                        <label style={{ textTransform: "uppercase", letterSpacing: "0.05em", fontSize: 11, color: "var(--text-soft)" }}>
                           {field.label || "Domanda"}
-                          {field.required && <span style={{ color: 'var(--accent)' }}> *</span>}
+                          {field.required && <span style={{ color: "var(--accent)" }}> *</span>}
                         </label>
                         {field.type === "checkbox" ? (
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            {(["Sì", "No"] as const).map((opt) => {
+                          <div style={{ display: "flex", gap: 10 }}>
+                            {(["SÌ", "NO"] as const).map((opt) => {
                               const selected = manualCustom[field.id] === opt;
                               return (
                                 <Button
@@ -970,7 +1128,7 @@ export default function EventRsvps() {
                                   type="button"
                                   variant={selected ? "primary" : "subtle"}
                                   onClick={() => setManualCustom((p) => ({ ...p, [field.id]: opt }))}
-                                  style={{ flex: 1, justifyContent: 'center', fontWeight: 700, padding: '10px 12px' }}
+                                  style={{ flex: 1, justifyContent: "center", fontWeight: 800, padding: "10px 12px" }}
                                 >
                                   {opt}
                                 </Button>
@@ -980,7 +1138,7 @@ export default function EventRsvps() {
                         ) : (
                           <input
                             type="text"
-                            placeholder="Risposta dell'ospite..."
+                            placeholder="Scrivi qui la tua risposta..."
                             value={manualCustom[field.id] || ""}
                             onChange={(e) => setManualCustom((p) => ({ ...p, [field.id]: e.target.value }))}
                             className="rsvp-input"
@@ -988,6 +1146,220 @@ export default function EventRsvps() {
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {!rsvpConfig.askIntolerances && (
+                  <div className="input-group" style={{ marginBottom: "0.75rem" }}>
+                    <label>
+                      Allergie / intolleranze <span style={{ fontWeight: 500, color: "var(--text-soft)" }}>(testo libero)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Indica eventuali esigenze alimentari"
+                      value={manualFreeAllergies}
+                      onChange={(e) => setManualFreeAllergies(e.target.value)}
+                      className="rsvp-input"
+                    />
+                  </div>
+                )}
+
+                {rsvpConfig.askIntolerances && (
+                  <div style={{ marginBottom: "0.5rem" }}>
+                    <p
+                      className="rsvp-eyebrow"
+                      style={{
+                        margin: "0 0 0.5rem",
+                        textAlign: "center",
+                        fontSize: 11,
+                        color: "var(--text-soft)",
+                        letterSpacing: "0.08em",
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Allergie o intolleranze? *
+                    </p>
+                    <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: manualAllergy.hasAllergies === "yes" ? 14 : 0 }}>
+                      <Button
+                        type="button"
+                        variant={manualAllergy.hasAllergies === "yes" ? "primary" : "subtle"}
+                        onClick={() =>
+                          setManualAllergy((p) => ({
+                            ...p,
+                            hasAllergies: "yes",
+                            mode: "by_person",
+                            wholeParty: "",
+                            people: defaultAllergyPeopleRows(),
+                          }))
+                        }
+                        style={{ minWidth: 100, fontWeight: 800 }}
+                      >
+                        Sì
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={manualAllergy.hasAllergies === "no" ? "primary" : "subtle"}
+                        onClick={() =>
+                          setManualAllergy({
+                            hasAllergies: "no",
+                            mode: null,
+                            wholeParty: "",
+                            people: defaultAllergyPeopleRows(),
+                          })
+                        }
+                        style={{ minWidth: 100, fontWeight: 800 }}
+                      >
+                        No
+                      </Button>
+                    </div>
+
+                    {manualAllergy.hasAllergies === "yes" && (
+                      <div style={{ marginTop: 4 }}>
+                        {Number(manualGuests) > 1 && (
+                          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+                            <label
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                cursor: "pointer",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                userSelect: "none",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={manualAllergy.mode === "whole_party"}
+                                onChange={(e) => {
+                                  const on = e.target.checked;
+                                  if (on) {
+                                    setManualAllergy((p) => {
+                                      const first = p.people.find((x) => x.allergies.trim());
+                                      return {
+                                        ...p,
+                                        mode: "whole_party",
+                                        wholeParty: first?.allergies?.trim() || p.wholeParty,
+                                        people: defaultAllergyPeopleRows(),
+                                      };
+                                    });
+                                  } else {
+                                    setManualAllergy((p) => {
+                                      const t = p.wholeParty.trim();
+                                      return {
+                                        ...p,
+                                        mode: "by_person",
+                                        wholeParty: "",
+                                        people: t ? [{ name: "", allergies: t }] : defaultAllergyPeopleRows(),
+                                      };
+                                    });
+                                  }
+                                }}
+                                style={{ width: 17, height: 17, accentColor: "var(--accent)" }}
+                              />
+                              <span>Stessa allergia per tutti gli ospiti</span>
+                            </label>
+                          </div>
+                        )}
+
+                        {Number(manualGuests) > 1 && manualAllergy.mode === "whole_party" && (
+                          <div style={{ marginBottom: 10 }}>
+                            <textarea
+                              className="rsvp-input"
+                              rows={3}
+                              placeholder="Descrizione condivisa da tutti gli ospiti *"
+                              value={manualAllergy.wholeParty}
+                              onChange={(e) => setManualAllergy((p) => ({ ...p, wholeParty: e.target.value }))}
+                            />
+                          </div>
+                        )}
+
+                        {((Number(manualGuests) > 1 && manualAllergy.mode !== "whole_party") || Number(manualGuests) <= 1) && (
+                          <div style={{ display: "grid", gap: 10 }}>
+                            {manualAllergy.people.map((row, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  display: "grid",
+                                  gap: 8,
+                                  alignItems: "center",
+                                  gridTemplateColumns:
+                                    Number(manualGuests) <= 1
+                                      ? "1fr"
+                                      : manualAllergy.people.length > 1
+                                        ? "1fr 1fr auto"
+                                        : "1fr 1fr",
+                                }}
+                              >
+                                {Number(manualGuests) > 1 && (
+                                  <input
+                                    className="rsvp-input"
+                                    placeholder="Nome (opz.)"
+                                    value={row.name}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setManualAllergy((p) => ({
+                                        ...p,
+                                        people: p.people.map((x, i) => (i === idx ? { ...x, name: v } : x)),
+                                      }));
+                                    }}
+                                  />
+                                )}
+                                <input
+                                  className="rsvp-input"
+                                  placeholder="Allergia o intolleranza *"
+                                  value={row.allergies}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setManualAllergy((p) => ({
+                                      ...p,
+                                      people: p.people.map((x, i) => (i === idx ? { ...x, allergies: v } : x)),
+                                    }));
+                                  }}
+                                />
+                                {Number(manualGuests) > 1 && manualAllergy.people.length > 1 ? (
+                                  <button
+                                    type="button"
+                                    aria-label="Rimuovi riga"
+                                    onClick={() =>
+                                      setManualAllergy((p) => ({
+                                        ...p,
+                                        people: p.people.filter((_, i) => i !== idx),
+                                      }))
+                                    }
+                                    style={{
+                                      border: "1px solid var(--border-color-strong, rgba(0,0,0,0.12))",
+                                      background: "var(--surface)",
+                                      borderRadius: 10,
+                                      padding: 10,
+                                      cursor: "pointer",
+                                      color: "#c45c52",
+                                    }}
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                ) : null}
+                              </div>
+                            ))}
+                            {manualAllergy.mode !== "whole_party" && Number(manualGuests) > 1 && manualAllergy.people.length < 12 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() =>
+                                  setManualAllergy((p) => ({
+                                    ...p,
+                                    people: [...p.people, { name: "", allergies: "" }],
+                                  }))
+                                }
+                              >
+                                + Altra persona
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1516,32 +1888,32 @@ export default function EventRsvps() {
                                       {field.label || "Domanda"}
                                       {field.required && <span style={{ color: 'var(--accent)' }}> *</span>}
                                     </label>
-                                    {field.type === "checkbox" ? (
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-                                        {(["Sì", "No"] as const).map((opt) => {
-                                          const selected = val === opt;
-                                          return (
-                                            <Button
-                                              key={opt}
-                                              type="button"
-                                              variant={selected ? "primary" : "subtle"}
-                                              onClick={() => setEditForm((p) => ({ ...p, customResponses: { ...p.customResponses, [field.id]: opt } }))}
-                                              style={{ flex: 1, justifyContent: 'center', fontWeight: 700, padding: '10px 12px' }}
-                                            >
-                                              {opt}
-                                            </Button>
-                                          );
-                                        })}
-                                      </div>
-                                    ) : (
-                                      <input
-                                        type="text"
-                                        placeholder="Risposta..."
-                                        value={val || ""}
-                                        onChange={(e) => setEditForm((p) => ({ ...p, customResponses: { ...p.customResponses, [field.id]: e.target.value } }))}
-                                        className="rsvp-input"
-                                      />
-                                    )}
+                        {field.type === "checkbox" ? (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            {(["SÌ", "NO"] as const).map((opt) => {
+                              const selected = val === opt;
+                              return (
+                                <Button
+                                  key={opt}
+                                  type="button"
+                                  variant={selected ? "primary" : "subtle"}
+                                  onClick={() => setEditForm((p) => ({ ...p, customResponses: { ...p.customResponses, [field.id]: opt } }))}
+                                  style={{ flex: 1, justifyContent: 'center', fontWeight: 700, padding: '10px 12px' }}
+                                >
+                                  {opt}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="Scrivi qui la tua risposta..."
+                            value={val || ""}
+                            onChange={(e) => setEditForm((p) => ({ ...p, customResponses: { ...p.customResponses, [field.id]: e.target.value } }))}
+                            className="rsvp-input"
+                          />
+                        )}
                                   </div>
                                 );
                               })}
