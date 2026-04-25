@@ -180,6 +180,8 @@ server/uploads/
 # Strumenti Claude in locale, di solito personale / non parte del prodotto
 .claude/
 .cursorrules
+# Cursor (rules, skills, ecc.) — solo locale; repo pubblica
+/.cursor/
 
 # Cartelle nascosta in root: strumenti AI/IDE, skill symlink, cache, modelli locali.
 # Non sostituisce server/models/ (Mongoose: va versionato). Esclusi .github, .git, .cursor, .vercel.

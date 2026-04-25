@@ -1,8 +1,0 @@
----
-description: Dopo ogni aggiunta di analytics, pixel, script terze parti o tracciamento in produzione, aggiornare documentazione e pagine legali.
-globs: client/**/*,**/index.html,**/main.tsx
----
-
-# Analytics e compliance
-
-Prima o dopo aver integrato strumenti di misura (GA, Plausible, hotjar, pixel, …): leggere e applicare `docs/compliance-maintenance.md` (Cookie page, eventuale banner, Privacy, storico in ROADMAP). Non lasciare solo l’integrazione tecnica.
