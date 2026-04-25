@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { apiFetch } from "../../utils/apiFetch";
+import { isAuthSessionValid } from "../../utils/authSession";
 
 interface RedirectIfAuthProps {
   children: React.ReactNode;
@@ -11,18 +11,17 @@ export default function RedirectIfAuth({ children }: RedirectIfAuthProps) {
   const [isAuth, setIsAuth] = useState(false);
 
   useEffect(() => {
-    async function checkAuth() {
-      try {
-        const res = await apiFetch(`/api/auth/me`);
-        setIsAuth(res.ok);
-      } catch {
-        setIsAuth(false);
-      } finally {
+    let cancelled = false;
+    (async () => {
+      const ok = await isAuthSessionValid();
+      if (!cancelled) {
+        setIsAuth(ok);
         setLoading(false);
       }
-    }
-
-    checkAuth();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) return <p style={{ padding: "2rem" }}>Caricamento…</p>;

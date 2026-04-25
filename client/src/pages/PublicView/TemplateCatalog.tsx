@@ -8,14 +8,24 @@ import { API_BASE } from "../../config/api";
 import "./TemplateCatalog.css";
 
 export default function TemplateCatalog() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialCategory = searchParams.get("category") || "Tutti";
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const navigate = useNavigate();
 
+  const applyCategory = (cat: string) => {
+    setActiveCategory(cat);
+    if (cat === "Tutti") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ category: cat });
+    }
+  };
+
   useEffect(() => {
     const cat = searchParams.get("category");
     if (cat) setActiveCategory(cat);
+    else setActiveCategory("Tutti");
   }, [searchParams]);
 
   const filteredTemplates = activeCategory === "Tutti" 
@@ -52,7 +62,7 @@ export default function TemplateCatalog() {
         <div className="filter-chips">
           <button 
             className={`chip ${activeCategory === "Tutti" ? "active" : ""}`}
-            onClick={() => setActiveCategory("Tutti")}
+            onClick={() => applyCategory("Tutti")}
           >
             Tutti
           </button>
@@ -60,7 +70,7 @@ export default function TemplateCatalog() {
             <button 
               key={cat}
               className={`chip ${activeCategory === cat ? "active" : ""}`}
-              onClick={() => setActiveCategory(cat)}
+              onClick={() => applyCategory(cat)}
             >
               {cat}
             </button>

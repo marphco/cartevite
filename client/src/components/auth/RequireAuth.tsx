@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { apiFetch } from "../../utils/apiFetch";
+import { isAuthSessionValid } from "../../utils/authSession";
 
 export default function RequireAuth() {
   const [loading, setLoading] = useState(true);
@@ -8,18 +8,17 @@ export default function RequireAuth() {
   const location = useLocation();
 
   useEffect(() => {
-    async function checkAuth() {
-      try {
-        const res = await apiFetch(`/api/auth/me`);
-        setIsAuth(res.ok);
-      } catch {
-        setIsAuth(false);
-      } finally {
+    let cancelled = false;
+    (async () => {
+      const ok = await isAuthSessionValid();
+      if (!cancelled) {
+        setIsAuth(ok);
         setLoading(false);
       }
-    }
-
-    checkAuth();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) return <p style={{ padding: "2rem" }}>Verifica accesso…</p>;

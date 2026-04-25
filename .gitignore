@@ -173,4 +173,52 @@ diff.txt
 .gemini/
 brain/
 server/uploads/
+
+# Symlink locali a skill (path assoluti); niente in repo
+/skills/
+
+# Strumenti Claude in locale, di solito personale / non parte del prodotto
+.claude/
 .cursorrules
+
+# Cartelle nascosta in root: strumenti AI/IDE, skill symlink, cache, modelli locali.
+# Non sostituisce server/models/ (Mongoose: va versionato). Esclusi .github, .git, .cursor, .vercel.
+/.aider/
+/.amazonq/
+/.amp/
+/.antigravity/
+/.augment/
+/.bolt/
+/.clawdbot/
+/.cline/
+/.codebuddy/
+/.codegpt/
+/.codex/
+/.cody/
+/.commandcode/
+/.continue/
+/.crush/
+/.devin/
+/.factory/
+/.goose/
+/.hermes/
+/.kilocode/
+/.kiro/
+/.lovable/
+/.mcpjam/
+/.mux/
+/.neovate/
+/.openclaw/
+/.opencode/
+/.openhands/
+/.pi/
+/.playcode/
+/.qoder/
+/.qwen/
+/.replit/
+/.roo/
+/.tabby/
+/.tabnine/
+/.trae/
+/.windsurf/
+/.zencoder/
