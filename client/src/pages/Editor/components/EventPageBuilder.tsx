@@ -555,38 +555,6 @@ export function EventPageBuilder({
           />
         ))}
       </div>
-
-      {/* BUtton Aggiungi Sezione placeholder */}
-      <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-soft)', fontSize: '13px', marginBottom: '16px' }}>
-             Questa è la pagina che i tuoi invitati vedranno scorrendo verso il basso.
-          </p>
-          <button 
-            style={{ 
-              padding: '10px 20px', 
-              borderRadius: '30px', 
-              border: '1px dashed var(--accent)', 
-              backgroundColor: 'transparent',
-              color: 'var(--accent)',
-              fontSize: '13px',
-              cursor: 'pointer'
-            }}
-            onClick={() => {
-              const newBlocks = [...blocks, { 
-                id: 'block-' + Date.now(), 
-                type: 'custom',
-                y: 0, // Required by Block interface
-                title: 'Nuova Sezione', 
-                height: DEFAULT_BLOCK_HEIGHT.custom, 
-                bgColor: '#ffffff' 
-              } as Block];
-              updateEventData({ blocks: newBlocks });
-              pushToHistory();
-            }}
-          >
-            + Aggiungi Sezione
-          </button>
-      </div>
       </div>
     </div>
   );

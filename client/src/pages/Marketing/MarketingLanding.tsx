@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "../../ui";
-import AuthForm from "../../components/ui/AuthForm";
+import { MarketingPublicNav } from "../../components/marketing/MarketingPublicNav";
+import { useMarketingSession } from "../../components/marketing/useMarketingSession";
 import {
   ArrowRight,
   Check,
@@ -12,24 +13,44 @@ import {
   LayoutTemplate,
   Pen,
   CreditCard,
-  CalendarDays,
-  Sparkles,
-  UserPlus,
   MousePointer2,
   Wand2,
   Send,
   ListChecks,
   ShieldOff,
-  X as IconX,
   CalendarClock,
   Palette,
   HelpCircle,
   Heart,
+  ChevronLeft,
+  ChevronRight,
+  Upload,
+  LayoutGrid,
+  Image,
+  Users,
+  Files,
+  LayoutDashboard,
+  Layers,
+  Table,
+  LineChart,
+  Star,
+  Globe,
+  Home,
+  Headphones,
+  Infinity as InfinityIcon,
 } from "lucide-react";
 import EnvelopeAnimation from "../../components/envelope/EnvelopeAnimation";
-import { API_BASE } from "../../config/api";
-import { MARKETING_CATEGORIES } from "../../config/marketingCatalog";
+import { browseMarketingCategories, type MarketingCategory } from "../../config/marketingCatalog";
+import {
+  MARKETING_DISCOVER_HASH,
+  MARKETING_DISCOVER_SECTION_ID,
+} from "../../config/marketingDiscover";
+import { templatesPathForCategory } from "../../config/templateCategoryRoutes";
+import { LEGAL } from "../../config/legalEntity";
 import invitoHero3 from "../../assets/invito-hero3.png";
+import appStoreSvg from "../../assets/app-store.svg";
+import playStoreSvg from "../../assets/play-store.svg";
+import { apiFetch } from "../../utils/apiFetch";
 import "./MarketingLanding.css";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -38,8 +59,8 @@ const HOW_STEPS = [
   {
     icon: MousePointer2,
     n: "1",
-    h: "Scegli un modello",
-    p: "Parti da un design già pronto. Ti basta cambiare nomi e data.",
+    h: "Scegli o carica un design",
+    p: "Parti da un modello pronto, oppure carica il tuo: invito, busta, pagina dell’evento.",
   },
   {
     icon: Wand2,
@@ -88,114 +109,91 @@ const FEATURES = [
   },
 ] as const;
 
+/** Un evento: cosa sblocca l’attivazione (allineato prodotto + roadmap listino coppie). */
+const PLAN_INCLUSION = [
+  { icon: Image, t: "Tutti i design del catalogo" },
+  { icon: Mail, t: "Pagina evento con busta animata" },
+  { icon: Users, t: "Gestione conferme e lista regali" },
+  { icon: MapPin, t: "Mappa interattiva e indicazioni" },
+  { icon: ShieldOff, t: "Nessuna pubblicità per gli invitati" },
+] as const;
+
+/** Roadmap § Subscription Wedding Planner — tre tier. */
+const PLANNER_TIERS = [
+  {
+    name: "Starter",
+    price: "79 €",
+    sub: "al mese",
+    features: [
+      { icon: Files, t: "Fino a 5 eventi attivi" },
+      { icon: LayoutDashboard, t: "Dashboard professionale" },
+      { icon: Palette, t: "Logo personalizzato" },
+      { icon: Send, t: "Assistenza dedicata" },
+    ],
+  },
+  {
+    name: "Pro",
+    price: "129 €",
+    sub: "al mese",
+    features: [
+      { icon: Layers, t: "Fino a 15 eventi attivi" },
+      { icon: Table, t: "Tableau e Libretto inclusi" },
+      { icon: LineChart, t: "Analytics avanzate" },
+      { icon: Star, t: "Supporto prioritario" },
+    ],
+  },
+  {
+    name: "Agency",
+    price: "199 €",
+    sub: "al mese",
+    features: [
+      { icon: InfinityIcon, t: "Eventi illimitati" },
+      { icon: Globe, t: "Sottodominio dedicato" },
+      { icon: Home, t: "Spazio studio riservato" },
+      { icon: Headphones, t: "Account manager dedicato" },
+    ],
+  },
+] as const;
+
 export default function MarketingLanding() {
   const navigate = useNavigate();
+  const location = useLocation();
   const reduceMotion = useReducedMotion();
   const t = (base: number) => (reduceMotion ? 0 : base);
+  const [planTab, setPlanTab] = useState(0); // 0: un evento, 1: planner
+  const [activeTierForm, setActiveTierForm] = useState<string | null>(null);
+  const [plannerFormStatus, setPlannerFormStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
-  const [user, setUser] = useState<boolean | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [authModal, setAuthModal] = useState<null | "login" | "register">(null);
+  const marketingSession = useMarketingSession();
+  const { user } = marketingSession;
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`${API_BASE}/api/auth/me`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : { user: null }))
-      .then((d: { user?: unknown }) => {
-        if (!cancelled) setUser(!!d?.user);
-      })
-      .catch(() => {
-        if (!cancelled) setUser(false);
-      })
-      .finally(() => {
-        if (!cancelled) setAuthLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const closeAuthModal = useCallback(() => setAuthModal(null), []);
-
-  useEffect(() => {
-    if (!authModal) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeAuthModal();
-    };
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [authModal, closeAuthModal]);
-
-  const goTemplates = (categoryName?: string) => {
-    if (categoryName) navigate(`/templates?category=${encodeURIComponent(categoryName)}`);
-    else navigate("/templates");
+  /** Catalogo modelli (entry principale del funnel: scegli → account → attivazione). */
+  const goCatalog = () => {
+    navigate("/templates");
   };
 
+  /** CTA principale: utenti collegati → dashboard; ospiti → catalogo (non aprire subito la registrazione). */
   const goPrimary = () => {
     if (user) navigate("/dashboard");
-    else setAuthModal("register");
+    else goCatalog();
   };
 
-  const onAuthSuccess = useCallback(() => {
-    setAuthModal(null);
-    navigate("/dashboard");
-  }, [navigate]);
+  const primaryLabel = user ? "Vai ai miei eventi" : "Sfoglia il catalogo";
 
-  const primaryLabel = user ? "Vai ai miei eventi" : "Crea il tuo evento";
+  useLayoutEffect(() => {
+    if (location.pathname !== "/") return;
+    if (location.hash !== MARKETING_DISCOVER_HASH) return;
+    const el = document.getElementById(MARKETING_DISCOVER_SECTION_ID);
+    if (!el) return;
+    const instant = reduceMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: instant ? "auto" : "smooth", block: "start" });
+    });
+  }, [location.pathname, location.hash, reduceMotion]);
 
   return (
     <div className="ml-page">
-      <nav className="ml-nav" aria-label="Principale">
-        <div className="ml-nav__inner">
-          <button
-            type="button"
-            className="ml-logo"
-            onClick={() => navigate("/")}
-            aria-label="eenvee — torna alla home"
-          >
-            <img src="/logo-eenvee.svg" alt="eenvee" />
-          </button>
-          <div className="ml-nav__actions">
-            <button
-              type="button"
-              className="ml-nav-btn"
-              onClick={() => goTemplates()}
-              aria-label="Sfoglia i modelli"
-            >
-              <Sparkles size={18} strokeWidth={2.1} />
-              <span>Modelli</span>
-            </button>
-            {user ? (
-              <button
-                type="button"
-                className="ml-nav-btn ml-nav-btn--primary"
-                onClick={() => navigate("/dashboard")}
-                aria-busy={authLoading || undefined}
-                aria-label="I tuoi eventi"
-              >
-                <CalendarDays size={18} strokeWidth={2.1} />
-                <span>I tuoi eventi</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="ml-nav-btn ml-nav-btn--primary"
-                onClick={() => setAuthModal("login")}
-                aria-busy={authLoading || undefined}
-                aria-label="Entra o crea un account"
-              >
-                <UserPlus size={18} strokeWidth={2.1} />
-                <span>Entra</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </nav>
+      <MarketingPublicNav {...marketingSession} />
 
       {/* HERO */}
       <header className="ml-hero">
@@ -232,7 +230,7 @@ export default function MarketingLanding() {
               transition={{ duration: t(0.45), delay: t(0.08), ease }}
             >
               Invito animato, pagina dell’evento, conferme, mappa e regali.
-              Lo crei in pochi minuti, lo paghi una volta sola.
+              Lo metti in piedi in pochi minuti e condividi il link con chi inviti.
             </motion.p>
 
             <motion.div
@@ -245,17 +243,16 @@ export default function MarketingLanding() {
                 {primaryLabel}
                 <ArrowRight size={18} strokeWidth={2.4} />
               </Button>
-              <Button
-                variant="outline"
-                className="ml-hero__secondary"
-                onClick={() => goTemplates()}
-              >
-                Vedi i modelli
-              </Button>
             </motion.div>
 
+            <p className="ml-hero__filelink">
+              Hai già la grafica?{" "}
+              <Link to={templatesPathForCategory("Il tuo file")}>Caricala</Link>
+              {", scegli formato e busta: in due clic l’invito è pronto da condividere."}
+            </p>
+
             <ul className="ml-hero__trust" aria-label="Punti di fiducia">
-              <li><Check size={14} strokeWidth={2.6} /> 49 € una tantum</li>
+              <li><Check size={14} strokeWidth={2.6} /> Soli 69 € per evento</li>
               <li><Check size={14} strokeWidth={2.6} /> Senza canone</li>
               <li><Check size={14} strokeWidth={2.6} /> Senza pubblicità</li>
             </ul>
@@ -267,8 +264,8 @@ export default function MarketingLanding() {
         </div>
       </header>
 
-      {/* HOW IT WORKS */}
-      <section className="ml-section ml-how" aria-labelledby="how-title">
+      {/* HOW IT WORKS — anchor nav «Scopri eenvee» (come funziona, cosa include, perché sceglierci) */}
+      <section id={MARKETING_DISCOVER_SECTION_ID} className="ml-section ml-how" aria-labelledby="how-title">
         <header className="ml-section__head">
           <span className="ml-eyebrow ml-eyebrow--alt">Come funziona</span>
           <h2 id="how-title" className="ml-h2">In tre passi sei online.</h2>
@@ -279,12 +276,14 @@ export default function MarketingLanding() {
             <motion.li
               key={n}
               className="ml-how__cell"
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: t(0.45), delay: t(i * 0.08), ease }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.6, delay: i * 0.1, ease: "easeOut" }}
             >
-              <span className="ml-how__ic" aria-hidden><Icon size={22} strokeWidth={2.1} /></span>
+              <div className="ml-how__ic" aria-hidden>
+                <Icon size={24} strokeWidth={2.2} />
+              </div>
               <span className="ml-how__n" aria-hidden>{n}</span>
               <h3 className="ml-how__h">{h}</h3>
               <p className="ml-how__p">{p}</p>
@@ -307,12 +306,19 @@ export default function MarketingLanding() {
             <motion.article
               key={h}
               className="ml-features__cell"
-              initial={{ opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-40px" }}
-              transition={{ duration: t(0.4), delay: t((i % 3) * 0.06), ease }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              whileInView={{ opacity: 1, scale: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: (i % 3) * 0.1 }}
             >
-              <span className="ml-features__ic" aria-hidden><Icon size={20} strokeWidth={2.1} /></span>
+              <motion.span 
+                className="ml-features__ic" 
+                aria-hidden
+                whileHover={{ y: -5, rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              >
+                <Icon size={22} strokeWidth={2.2} />
+              </motion.span>
               <h3 className="ml-features__h">{h}</h3>
               <p className="ml-features__p">{p}</p>
             </motion.article>
@@ -320,104 +326,312 @@ export default function MarketingLanding() {
         </div>
       </section>
 
-      {/* VALUE STATEMENT (replaces compare table) */}
-      <section className="ml-section ml-value" aria-labelledby="value-title">
-        <div className="ml-value__card">
-          <div className="ml-value__layout">
-            <div className="ml-value__main">
-              <span className="ml-eyebrow ml-eyebrow--alt">Perché eenvee</span>
-              <h2 id="value-title" className="ml-value__h">
-                <span className="ml-value__h-line">Tutto incluso.</span>
-                <em className="ml-value__h-accent">Al prezzo più basso.</em>
-              </h2>
-              <p className="ml-value__p">
-                <span className="ml-value__lead">49 € una sola volta.</span> Niente canoni, niente
-                costi a sorpresa.
-                <br />
-                Più ricco degli&nbsp;altri, costa meno&nbsp;di&nbsp;tutti.
+      {/* Prezzi — stesso linguaggio visivo delle sezioni Come funziona / Cosa ricevono */}
+      <section className="ml-section ml-plan" aria-labelledby="plan-section-title">
+        <header className="ml-section__head">
+          <span className="ml-eyebrow ml-eyebrow--alt">Piani e prezzi</span>
+          <h2 id="plan-section-title" className="ml-h2">
+            Il prezzo giusto per il tuo evento.
+          </h2>
+          <p className="ml-h2__sub">
+            Semplice e trasparente: un unico pagamento per il tuo evento o un abbonamento flessibile per professionisti.
+          </p>
+        </header>
+
+        <div className="ml-plan__bar" role="tablist" aria-label="Modalità d’utilizzo">
+          <button
+            type="button"
+            className={`ml-plan__opt${planTab === 0 ? " ml-plan__opt--on" : ""}`}
+            role="tab"
+            id="plan-tab-0"
+            aria-selected={planTab === 0}
+            tabIndex={planTab === 0 ? 0 : -1}
+            onClick={() => setPlanTab(0)}
+          >
+            <span className="ml-plan__opt-t">Per il tuo evento</span>
+            <span className="ml-plan__opt-d">Nessun abbonamento</span>
+          </button>
+          <button
+            type="button"
+            className={`ml-plan__opt${planTab === 1 ? " ml-plan__opt--on" : ""}`}
+            role="tab"
+            id="plan-tab-1"
+            aria-selected={planTab === 1}
+            tabIndex={planTab === 1 ? 0 : -1}
+            onClick={() => setPlanTab(1)}
+          >
+            <span className="ml-plan__opt-t">Per professionisti</span>
+            <span className="ml-plan__opt-d">Piani in abbonamento</span>
+          </button>
+        </div>
+
+        {planTab === 0 && (
+          <div className="ml-plan__grid ml-plan__grid--split">
+            <div className="ml-plan__copy" role="tabpanel" id="plan-panel-0" aria-labelledby="plan-tab-0">
+              <h3 className="ml-plan__h">Scegli il design, dai vita al tuo progetto</h3>
+              <p className="ml-plan__lede">
+                Scegli il design perfetto nel catalogo e sbloccalo quando sei pronto a condividere. Accesso illimitato a ogni funzione.
+              </p>
+              <ul className="ml-plan__simple" aria-label="Cosa sblocchi con l’attivazione">
+                {PLAN_INCLUSION.map(({ icon: Ic, t: line }) => (
+                  <li key={line}>
+                    <span className="ml-plan__simple-ic" aria-hidden>
+                      <Ic size={14} strokeWidth={3} />
+                    </span>
+                    {line}
+                  </li>
+                ))}
+              </ul>
+              {/* Rimosso link Vedi i modelli */}
+            </div>
+            <div className="ml-plan__aside" aria-label="Riepilogo prezzo">
+              <div className="ml-plan__stick">
+                <p className="ml-plan__stick-ey">Il tuo progetto</p>
+                <p className="ml-plan__stick-total" aria-label="Sessantanove euro">
+                  <span className="ml-plan__stick-curr">69&nbsp;€</span>
+                  <span className="ml-plan__stick-sub">per iniziare</span>
+                </p>
+                <p className="ml-plan__stick-oneliner">
+                  Invito, pagina, conferme, mappa e regali. Accesso illimitato.
+                </p>
+                <Button className="ml-plan__stick-cta" onClick={goPrimary}>
+                  {user ? "Vai ai miei eventi" : "Inizia dal catalogo"}
+                  <ArrowRight size={18} strokeWidth={2.3} />
+                </Button>
+                <p className="ml-plan__stick-note">
+                  <span>Pagamento sicuro via</span>{" "}
+                  <img
+                    src="/stripe-wordmark.svg"
+                    alt="Stripe"
+                    className="ml-final__stripe-logo"
+                    width={50}
+                    height={22}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {planTab === 1 && (
+          <div className="ml-plan__planner" role="tabpanel" id="plan-panel-1" aria-labelledby="plan-tab-1">
+            <div className="ml-plan__planner-intro">
+              <h3 className="ml-plan__h">Tutti i tuoi eventi in un unico posto</h3>
+              <p className="ml-plan__lede">
+                Scegli il piano più adatto alla tua attività. Primo mese in omaggio, disdici quando vuoi.
               </p>
             </div>
-            <aside className="ml-value__aside" aria-hidden="true">
-              <div className="ml-value__mosaic">
-                <div className="ml-value__tile">
-                  <ListChecks size={22} strokeWidth={2.1} />
-                </div>
-                <div className="ml-value__tile">
-                  <Sparkles size={22} strokeWidth={2.1} />
-                </div>
-                <div className="ml-value__tile ml-value__tile--wide">
-                  <Heart size={22} strokeWidth={2.1} />
-                </div>
-              </div>
-            </aside>
+            <ol className="ml-plan__tier-grid" aria-label="Piani subscription per wedding planner">
+              {PLANNER_TIERS.map((tier) => {
+                const isActive = activeTierForm === tier.name;
+
+                return (
+                  <li key={tier.name} className="ml-plan__tier-wrapper">
+                    <div
+                      className={`ml-plan__tier-card ${isActive ? "ml-plan__tier-card--active" : ""}`}
+                    >
+                      {isActive ? (
+                        <div className="ml-plan__tier-form-container">
+                          {plannerFormStatus === "success" ? (
+                            <div className="ml-plan__tier-success">
+                              <Check size={32} className="ml-plan__tier-success-ic" />
+                              <p>Richiesta ricevuta!</p>
+                              <span className="ml-plan__tier-success-sub">
+                                Ti contatteremo a breve per attivare il tuo piano e il mese di prova gratuita.
+                              </span>
+                              <button
+                                className="ml-plan__tier-back"
+                                onClick={() => {
+                                  setActiveTierForm(null);
+                                  setPlannerFormStatus("idle");
+                                }}
+                              >
+                                Chiudi
+                              </button>
+                            </div>
+                          ) : (
+                            <form
+                              className="ml-plan__tier-form"
+                              onSubmit={async (e) => {
+                                e.preventDefault();
+                                setPlannerFormStatus("loading");
+                                try {
+                                  const fd = new FormData(e.currentTarget);
+                                  const payload = {
+                                    fullName: fd.get("fullName"),
+                                    email: fd.get("email"),
+                                    phone: fd.get("phone"),
+                                    tier: tier.name
+                                  };
+                                  
+                                  const res = await apiFetch("/api/marketing/professional-request", {
+                                    method: "POST",
+                                    body: JSON.stringify(payload)
+                                  });
+                                  
+                                  if (res.ok) setPlannerFormStatus("success");
+                                  else setPlannerFormStatus("error");
+                                } catch (err) {
+                                  setPlannerFormStatus("error");
+                                }
+                              }}
+                            >
+                              <span className="ml-plan__tier-form-title">Piano {tier.name}</span>
+                              <p className="ml-plan__tier-form-intro">
+                                Richiedi l'attivazione del tuo mese di prova gratuita e scopri tutte le funzioni del piano.
+                              </p>
+                              <input type="text" name="fullName" required placeholder="Nome e Cognome" className="ml-plan__tier-input" />
+                              <input type="email" name="email" required placeholder="Email" className="ml-plan__tier-input" />
+                              <input
+                                type="tel"
+                                name="phone"
+                                placeholder="Telefono (opzionale)"
+                                className="ml-plan__tier-input"
+                                onInput={(e) => e.currentTarget.value = e.currentTarget.value.replace(/[^0-9+]/g, '')}
+                              />
+                              <div className="ml-plan__tier-form-btns">
+                                <button
+                                  type="button"
+                                  className="ml-plan__tier-cancel"
+                                  onClick={() => setActiveTierForm(null)}
+                                >
+                                  Annulla
+                                </button>
+                                <Button type="submit" size="sm" className="ml-plan__tier-submit" disabled={plannerFormStatus === "loading"}>
+                                  {plannerFormStatus === "loading" ? "Inviando..." : "Invia"}
+                                </Button>
+                              </div>
+                            </form>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="ml-plan__tier-card-head">
+                            <span className="ml-plan__tier-name">{tier.name}</span>
+                          </div>
+                          <ul className="ml-plan__tier-list">
+                            {tier.features.map((feat) => (
+                              <li key={feat.t}>
+                                <feat.icon size={14} strokeWidth={2.5} className="ml-plan__tier-ic" />
+                                {feat.t}
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="ml-plan__tier-price-box">
+                            <span className="ml-plan__tier-price" aria-label={`${tier.price} ${tier.sub}`}>
+                              {tier.price}
+                              <span className="ml-plan__tier-every">{tier.sub}</span>
+                            </span>
+                          </div>
+                          <button
+                            className="ml-plan__tier-cta"
+                            onClick={() => setActiveTierForm(tier.name)}
+                          >
+                            Seleziona piano
+                            <ArrowRight size={14} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+            {/* Rimosso footer ingombrante */}
           </div>
-        </div>
+        )}
       </section>
 
-      {/* CATALOG / OCCASIONS */}
-      <section className="ml-section ml-catalog" aria-labelledby="cat-title">
-        <header className="ml-section__head">
-          <span className="ml-eyebrow ml-eyebrow--alt">Da dove parto</span>
-          <h2 id="cat-title" className="ml-h2">Per quale occasione lo crei?</h2>
-          <p className="ml-h2__sub">Scegli un design pronto. Cambi tutto come ti piace.</p>
-        </header>
-        <div className="ml-catalog__grid">
-          {MARKETING_CATEGORIES.map((item, i) => (
-            <motion.button
-              type="button"
-              key={item.name}
-              className="ml-cat-card"
-              onClick={() => goTemplates(item.name)}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-40px" }}
-              transition={{ duration: t(0.42), delay: t(i * 0.05), ease }}
-            >
-              <div className="ml-cat-card__img-wrap">
-                <img src={item.image} alt="" className="ml-cat-card__img" loading="lazy" />
-                <div className="ml-cat-card__shade" aria-hidden />
-              </div>
-              <div className="ml-cat-card__body">
-                <h3 className="ml-cat-card__h">{item.name}</h3>
-                <p className="ml-cat-card__p">{item.blurb}</p>
-                <span className="ml-cat-card__go">
-                  Vedi i modelli <ArrowRight size={14} strokeWidth={2.4} />
-                </span>
-              </div>
-            </motion.button>
-          ))}
-        </div>
-        <div className="ml-catalog__cta">
-          <Button variant="outline" className="ml-ghost-btn" onClick={() => goTemplates()}>
-            Apri il catalogo completo
-          </Button>
-        </div>
-      </section>
-
-      {/* FINAL CTA / PRICING */}
-      <section className="ml-section ml-final" aria-labelledby="price-title">
-        <div className="ml-final__inner">
-          <span className="ml-eyebrow ml-eyebrow--alt">Prezzo</span>
-          <h2 id="price-title" className="ml-final__price">
-            <span className="ml-final__amount">49&nbsp;€</span>
-            <span className="ml-final__suffix">una tantum, per evento</span>
+      {/* Occasioni — dopo il perché / come, prima del prezzo */}
+      <section className="ml-section ml-explore" aria-labelledby="explore-title">
+        <header className="ml-section__head ml-explore__head">
+          <span className="ml-eyebrow ml-eyebrow--alt">Catalogo</span>
+          <h2 id="explore-title" className="ml-h2">
+            Parti dal tipo di evento
           </h2>
-          <p className="ml-final__p">
-            Un pagamento unico per attivare l’evento. Zero abbonamenti, zero pubblicità per chi
-            riceve l’invito.
+          <p className="ml-h2__sub">
+            Tocchi la categoria e lavori solo con modelli coerenti per tono e stile, senza mescolare il
+            resto.
           </p>
-          <ul className="ml-final__inc" aria-label="Cosa è incluso">
-            <li><LayoutTemplate size={14} strokeWidth={2.4} /> Pagina dell’evento</li>
-            <li><ListChecks size={14} strokeWidth={2.4} /> Conferme illimitate</li>
-            <li><MapPin size={14} strokeWidth={2.4} /> Mappa e indicazioni</li>
-            <li><Gift size={14} strokeWidth={2.4} /> Lista regali</li>
-            <li><ShieldOff size={14} strokeWidth={2.4} /> Senza pubblicità</li>
-          </ul>
-          <Button className="ml-final__btn" onClick={goPrimary}>
-            <CreditCard size={18} />
-            {user ? "Vai ai tuoi eventi" : "Inizia adesso"}
-          </Button>
-          <p className="ml-final__note">Pagamento sicuro · 49&nbsp;€ una sola volta · niente canone.</p>
+        </header>
+        <HomeCategoryStrip reduceMotion={!!reduceMotion} t={t} />
+      </section>
+
+      {/* APP DOWNLOAD — Visual: Push Notifications with Brand Logo */}
+      <section className="ml-section ml-download" aria-labelledby="app-title">
+        <div className="ml-download__container">
+          <div className="ml-download__content">
+            <span className="ml-eyebrow ml-eyebrow--alt">In tasca, ovunque</span>
+            <h2 id="app-title" className="ml-h2">Portalo sempre con te.</h2>
+            <p className="ml-download__p">
+              Gestisci il tuo evento, rispondi ai messaggi e controlla le conferme in tempo reale. 
+              Tutto il controllo di eenvee in un'app elegante e veloce.
+            </p>
+            <div className="ml-download__stores">
+              <a href="#" className="ml-download__store-btn" aria-label="Scarica su App Store">
+                <img src={appStoreSvg} alt="App Store" style={{ height: '44px', width: 'auto' }} />
+              </a>
+              <a href="#" className="ml-download__store-btn" aria-label="Disponibile su Google Play">
+                <img src={playStoreSvg} alt="Google Play" style={{ height: '44px', width: 'auto' }} />
+              </a>
+            </div>
+          </div>
+          
+          <div className="ml-download__visual">
+            <div className="ml-download__notif-stage">
+              {/* Notifica 1 */}
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                viewport={{ once: true }}
+              >
+                <motion.div 
+                  className="ml-download__push"
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <div className="ml-download__push-icon">
+                    <img src="/favicon.svg" alt="eenvee" />
+                  </div>
+                  <div className="ml-download__push-body">
+                    <div className="ml-download__push-head">
+                      <strong>eenvee</strong>
+                      <span>ora</span>
+                    </div>
+                    <p><strong>Nuova conferma</strong>: Marco Rossi e +2 invitati.</p>
+                  </div>
+                </motion.div>
+              </motion.div>
+
+              {/* Notifica 2 */}
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                viewport={{ once: true }}
+              >
+                <motion.div 
+                  className="ml-download__push ml-download__push--alt"
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                >
+                  <div className="ml-download__push-icon">
+                    <img src="/favicon.svg" alt="eenvee" />
+                  </div>
+                  <div className="ml-download__push-body">
+                    <div className="ml-download__push-head">
+                      <strong>eenvee</strong>
+                      <span>2m fa</span>
+                    </div>
+                    <p><strong>Lista regali</strong>: Ricevuto nuovo contributo di 150€.</p>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -429,40 +643,105 @@ export default function MarketingLanding() {
           <Link to="/cookie">Cookie</Link>
         </div>
       </footer>
+    </div>
+  );
+}
 
-      {authModal && (
-        <div
-          className="ml-auth-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="auth-modal-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeAuthModal();
-          }}
-        >
-          <div className="ml-auth-modal">
-            <button
-              type="button"
-              className="ml-auth-modal__close"
-              onClick={closeAuthModal}
-              aria-label="Chiudi"
-            >
-              <IconX size={18} strokeWidth={2.4} />
-            </button>
-            <header className="ml-auth-modal__head">
-              <h2 id="auth-modal-title" className="ml-auth-modal__title">
-                {authModal === "login" ? "Bentornato" : "Crea il tuo account"}
-              </h2>
-              <p className="ml-auth-modal__sub">
-                {authModal === "login"
-                  ? "Entra per gestire i tuoi eventi."
-                  : "Bastano email e password per cominciare."}
-              </p>
-            </header>
-            <AuthForm initialMode={authModal} onAuthSuccess={onAuthSuccess} />
-          </div>
-        </div>
-      )}
+/** Due card per colonna, scroll orizzontale: con molte sezioni resta un’unica pista orizzontale. */
+function chunkCategoriesForTwoRows(items: MarketingCategory[]) {
+  const out: MarketingCategory[][] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    out.push(items.slice(i, i + 2));
+  }
+  return out;
+}
+
+function HomeCategoryStrip({
+  reduceMotion,
+  t,
+}: {
+  reduceMotion: boolean;
+  t: (base: number) => number;
+}) {
+  const navigate = useNavigate();
+  const stripRef = useRef<HTMLDivElement>(null);
+  const items = useMemo(() => browseMarketingCategories(), []);
+  const columns = useMemo(() => chunkCategoriesForTwoRows(items), [items]);
+
+  const scrollStrip = (dir: -1 | 1) => {
+    const el = stripRef.current;
+    if (!el) return;
+    const isDesktop = typeof window !== "undefined" && window.matchMedia("(min-width: 720px)").matches;
+    /* mobile: scatto per colonna a 2 card; desktop: scatto per singola card (riga unica) */
+    const stepEl = (
+      isDesktop
+        ? el.querySelector(".ml-explore-card--duo")
+        : el.querySelector(".ml-explore__col")
+    ) as HTMLElement | null;
+    const w = stepEl?.getBoundingClientRect().width ?? 0;
+    const gap = parseFloat(getComputedStyle(el).columnGap) || parseFloat(getComputedStyle(el).gap) || 12;
+    const step = w + (Number.isFinite(gap) ? gap : 12);
+    el.scrollBy({ left: dir * step, behavior: "smooth" });
+  };
+
+  return (
+    <div className="ml-explore__slider">
+      <button
+        type="button"
+        className="ml-explore__chev ml-explore__chev--prev"
+        onClick={() => scrollStrip(-1)}
+        aria-label="Scorri le categorie indietro"
+      >
+        <ChevronLeft size={22} strokeWidth={2.2} />
+      </button>
+      <div
+        ref={stripRef}
+        className="ml-explore__strip ml-explore__strip--duo"
+        tabIndex={0}
+        role="region"
+        aria-label="Categorie: scorri per vederle tutte"
+      >
+        {columns.map((col, colIdx) => {
+          const colKey = col.map((c) => c.name).join("·");
+          return (
+            <div className="ml-explore__col" key={colKey}>
+              {col.map((item, ri) => {
+                const i = colIdx * 2 + ri;
+                return (
+                  <motion.button
+                    type="button"
+                    key={item.name}
+                    className="ml-explore-card ml-explore-card--duo"
+                    onClick={() => navigate(templatesPathForCategory(item.name))}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-24px" }}
+                    transition={{
+                      duration: reduceMotion ? 0 : t(0.35),
+                      delay: reduceMotion ? 0 : t(i * 0.04),
+                      ease,
+                    }}
+                  >
+                    <span className="ml-explore-card__media">
+                      <img src={item.image} alt="" className="ml-explore-card__img" loading="lazy" />
+                      <span className="ml-explore-card__shade" aria-hidden />
+                      <span className="ml-explore-card__title">{item.name}</span>
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        className="ml-explore__chev ml-explore__chev--next"
+        onClick={() => scrollStrip(1)}
+        aria-label="Scorri le categorie avanti"
+      >
+        <ChevronRight size={22} strokeWidth={2.2} />
+      </button>
     </div>
   );
 }
@@ -637,7 +916,7 @@ function ProductLoop() {
         </div>
 
         <div className="ml-stage__ribbon" aria-hidden>
-          <strong>49&nbsp;€</strong>
+          <strong>69&nbsp;€</strong>
           <span>tutto incluso</span>
         </div>
       </div>

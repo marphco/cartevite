@@ -90,7 +90,7 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
   }, []);
 
   const props = block.widgetProps || {};
-  const presetAmounts: number[] = props.paymentPresetAmounts || [25, 50, 100, 200];
+  const presetAmounts: number[] = props.paymentPresetAmounts || [50, 100, 200, 300];
   const allowCustomAmount = props.paymentAllowCustomAmount !== false;
   const minAmount = typeof props.paymentMinAmount === 'number' ? props.paymentMinAmount : 1;
   const maxAmount = typeof props.paymentMaxAmount === 'number' ? props.paymentMaxAmount : 5000;

@@ -92,7 +92,7 @@ const SectionToolbar: React.FC<SectionToolbarProps> = ({
       style={{
         position: isMobileLayout ? 'fixed' : 'absolute',
         top: isMobileLayout ? 'auto' : '0', 
-        bottom: isMobileLayout ? '110px' : 'auto', 
+        bottom: isMobileLayout ? '130px' : 'auto', 
         right: isMobileLayout ? 'auto' : '-82px', 
         left: isMobileLayout ? '50%' : 'auto',
         transform: isMobileLayout ? 'translateX(-50%)' : 'none',

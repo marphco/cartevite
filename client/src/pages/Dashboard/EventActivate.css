@@ -1,0 +1,57 @@
+.event-activate-page {
+  min-height: 100vh;
+  padding: 2rem clamp(1rem, 4vw, 2.5rem) 3rem;
+  background: linear-gradient(145deg, rgba(26, 188, 156, 0.06), rgba(174, 140, 163, 0.07)), var(--bg-body);
+}
+
+.event-activate-nav {
+  max-width: min(960px, 100%);
+  margin: 0 auto 1rem;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.event-activate-shell {
+  max-width: min(520px, 100%);
+  margin: 0 auto 1.5rem;
+}
+
+.event-activate-head {
+  text-align: center;
+}
+
+.event-activate-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.event-activate-lede {
+  margin: 0.65rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.event-activate-card {
+  max-width: 28rem;
+  margin: 4rem auto;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(60, 79, 118, 0.1);
+  text-align: center;
+}
+
+.event-activate-loading {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.event-activate-error {
+  margin: 0 0 1.25rem;
+  color: #c94a4a;
+  line-height: 1.5;
+}

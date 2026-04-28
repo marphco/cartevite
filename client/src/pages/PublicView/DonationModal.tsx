@@ -582,9 +582,26 @@ const AmountStep: React.FC<AmountStepProps> = ({
         {creating ? <><Loader2 size={16} className="spin" /> Preparo il pagamento…</> : 'Continua al pagamento'}
       </button>
 
-      <div style={{ fontSize: '11px', color: '#888', textAlign: 'center', lineHeight: 1.5 }}>
-        Pagamento sicuro via Stripe · carta, Apple Pay, Google Pay, SEPA.<br/>
-        eenvee non conserva i dati della tua carta.
+      <div style={{ fontSize: '10px', color: '#888', textAlign: 'center', letterSpacing: '0.02em', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', opacity: 0.8, filter: palette.isDark ? 'brightness(0) invert(1)' : 'none' }}>
+          <span style={{ fontSize: '10px' }}>Pagamento sicuro via</span>
+          <img src={stripeLogo} alt="Stripe" style={{ height: '11px', width: 'auto', display: 'block' }} />
+        </div>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          gap: '12px', 
+          opacity: 0.5,
+          filter: palette.isDark ? 'brightness(0) invert(1)' : 'none' 
+        }}>
+          <img src={visaLogo} alt="Visa" style={{ height: '9px', width: 'auto', display: 'block' }} />
+          <img src={mastercardLogo} alt="Mastercard" style={{ height: '13px', width: 'auto', display: 'block' }} />
+          <img src={amexLogo} alt="Amex" style={{ height: '11px', width: 'auto', display: 'block' }} />
+          <img src={applePayLogo} alt="Apple Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
+          <img src={googlePayLogo} alt="Google Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
+          <img src={sepaLogo} alt="SEPA" style={{ height: '11px', width: 'auto', display: 'block' }} />
+        </div>
       </div>
     </form>
   );

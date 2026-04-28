@@ -19,8 +19,8 @@ const unlockIntentLimiter = rateLimit({
   message: { message: "Troppe richieste. Riprova fra un minuto." },
 });
 
-/** €49 una tantum — allineato a roadmap commerciale */
-const EVENT_UNLOCK_AMOUNT_CENTS = 4900;
+/** €69 una tantum — listino commerciale (roadmap / business plan 2026-04) */
+const EVENT_UNLOCK_AMOUNT_CENTS = 6900;
 
 function clientOrigin(): string {
   const raw = process.env.CLIENT_ORIGINS || "http://localhost:5173";
@@ -207,7 +207,7 @@ router.post("/checkout", requireAuth, async (req: AuthRequest, res: Response) =>
             currency: "eur",
             unit_amount: EVENT_UNLOCK_AMOUNT_CENTS,
             product_data: {
-              name: "Eenvee — Piano Evento (49 €)",
+              name: "Eenvee — Piano Evento (69 €)",
               description: `${ev.title} (${eventSlug})`,
             },
           },

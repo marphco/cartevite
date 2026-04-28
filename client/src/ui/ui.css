@@ -58,7 +58,17 @@
   background: var(--accent);
   color: #ffffff; /* White text on Tiffany button */
   white-space: nowrap; /* Previene wrap del testo su mobile */
-  flex-shrink: 0; /* Previene la deformazione a cerchio se flex space manca */
+  flex-shrink: 0;
+}
+
+.ui-button--sm {
+  padding: 0.35rem 1rem;
+  font-size: 0.85rem;
+}
+
+.ui-button--lg {
+  padding: 0.8rem 1.8rem;
+  font-size: 1.1rem;
 }
 
 .ui-button:hover {

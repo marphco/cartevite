@@ -56,12 +56,15 @@ const requirePaidForGalleryUpload = async (req: Request, res: Response, next: Ne
     const { slug } = req.query;
     if (!slug) return res.status(400).json({ error: "Missing slug" });
 
+    // Consenti l'upload libero nella modalità demo/template (senza evento DB associato)
+    if (slug === "demo") return next();
+
     const ev = await Event.findOne({ slug: slug as string });
     if (!ev) return res.status(404).json({ error: "Evento non trovato" });
 
     // In sviluppo sempre ok; in produzione serve piano Evento (pagato).
     if (!isPaidPlan(ev.plan) && process.env.NODE_ENV === "production") {
-      return res.status(403).json({ error: "Caricamento galleria e video disponibile con il piano Evento (49 €)." });
+      return res.status(403).json({ error: "Caricamento galleria e video disponibile con il piano Evento (69 €)." });
     }
 
     next();

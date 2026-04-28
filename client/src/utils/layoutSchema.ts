@@ -133,7 +133,20 @@ export function createBlockInstance(type: string): Block {
   };
 }
 
-export const TEMPLATE_CATEGORIES = ["Matrimonio", "Feste", "Business", "Battesimo & Nascite"];
+export const TEMPLATE_CATEGORIES = [
+  "Il tuo file",
+  "Matrimonio",
+  "Serate e party",
+  "Business",
+  "Battesimo & Nascite",
+  /* Nuove voci: modelli in arrivo, catalogo già filtrabile per categoria. */
+  "Compleanni Adulti",
+  "Compleanni Bambini",
+  "Cresime",
+  "Comunioni",
+  "Lauree",
+  "Baby Shower",
+];
 
 export interface Layer {
   id: string;
@@ -155,7 +168,7 @@ export interface PrebuiltTemplate {
   category: string;
   thumbnail: string;
   canvas: {
-    bgImage: string;
+    bgImage: string | null;
     width: number;
     height: number;
   };
@@ -164,12 +177,36 @@ export interface PrebuiltTemplate {
     accent: string;
     background: string;
     fonts: { heading: string; body: string };
+    /** Busta consigliata in editor; orizzontale per inviti wide. */
+    envelopeFormat?: "vertical" | "horizontal";
   };
   layers: Layer[];
   blocks: Block[];
 }
 
+/** Ordine nell'array = ordine predefinito in UI catalogo / nuovo evento (stesso gruppo categoria). */
 export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
+  // --- Il tuo file (formato scelto in modale / pagina nuovo evento) ---
+  {
+    id: "upload_custom",
+    name: "Carica il tuo file",
+    category: "Il tuo file",
+    thumbnail: "",
+    canvas: { bgImage: null, width: 800, height: 800 },
+    theme: {
+      preset: "garden",
+      accent: "#2f7f6f",
+      background: "#ffffff",
+      fonts: { heading: "Cormorant Garamond", body: "Inter" },
+      envelopeFormat: "vertical",
+    },
+    layers: [],
+    blocks: [
+      { id: "m1", type: "map", order: 1, height: 560, props: { title: "Dove & Quando", address: "", mapUrl: "" } },
+      { id: "r1", type: "rsvp", order: 2, height: 600, props: {}, widgetProps: { formY: 360 } },
+    ],
+  },
+
   // --- MATRIMONIO ---
   {
     id: "wedding_floral",
@@ -248,11 +285,11 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     ]
   },
 
-  // --- FESTE ---
+  // --- SERATE E PARTY ---
   {
     id: "party_retro",
     name: "Neon Party",
-    category: "Feste",
+    category: "Serate e party",
     thumbnail: "https://media.eenvee.com/templates/party_retro.png",
     canvas: {
       bgImage: "https://media.eenvee.com/templates/party_retro.png",
@@ -325,6 +362,29 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
       { id: "l1", type: "text", text: "Siamo felici di annunciare il battesimo di", x: "center", y: 160, fontSize: 20, fontFamily: "Inter", fontWeight: "300", color: "#555555", textAlign: "center", width: "max-content" },
       { id: "l2", type: "text", text: "Leonardo", x: "center", y: 268, fontSize: 96, fontFamily: "Alex Brush", fontWeight: "normal", color: "#a0cecb", textAlign: "center", width: "max-content" },
       { id: "l3", type: "text", text: "Domenica 18 Ottobre 2026\nChiesa di San Lorenzo, ore 11:00\nSeguirà rinfresco presso Villa Flora.", x: "center", y: 760, fontSize: 20, fontFamily: "Inter", fontWeight: "normal", color: "#444444", textAlign: "center", width: "max-content" }
+    ],
+    blocks: [
+      { id: "r1", type: "rsvp", order: 1, height: 600, props: {}, widgetProps: { formY: 360 } }
+    ]
+  },
+  {
+    id: "business_dinner",
+    name: "Cena di Gala (Orizzontale)",
+    category: "Business",
+    thumbnail: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&w=1000&q=80",
+    canvas: {
+      bgImage: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&w=1000&q=80",
+      width: 1000,
+      height: 700
+    },
+    theme: {
+      preset: "noir",
+      accent: "#b7945d",
+      background: "#050506",
+      fonts: { heading: "Playfair Display", body: "Inter" }
+    },
+    layers: [
+      { id: "l1", type: "text", text: "Gala Dinner", x: "center", y: 300, fontSize: 64, fontFamily: "Playfair Display", fontWeight: "bold", color: "#ffffff", textAlign: "center", width: "max-content" }
     ],
     blocks: [
       { id: "r1", type: "rsvp", order: 1, height: 600, props: {}, widgetProps: { formY: 360 } }

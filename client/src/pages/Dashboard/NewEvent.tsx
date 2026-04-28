@@ -11,12 +11,32 @@ import { Surface, Button } from "../../ui";
 import { CheckCircle2, ArrowRight, Calendar } from "lucide-react";
 import CanvasPreview from "../../components/canvas/CanvasPreview";
 import ItalianDatePicker from "../../components/datepicker/ItalianDatePicker";
+import InviteFormatPicker from "../PublicView/InviteFormatPicker";
+import {
+  UPLOAD_CUSTOM_TEMPLATE_ID,
+  applyUploadFormatToTemplate,
+  parseInviteFormat,
+  type InviteUploadFormat,
+} from "../PublicView/templateCatalogUtils";
 import "./NewEvent.css";
 
 export default function NewEvent() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const templateFromUrl = searchParams.get("templateId");
+  const formatFromUrl = parseInviteFormat(searchParams.get("format"));
+  const uploadFormatResolved: InviteUploadFormat = formatFromUrl ?? "square";
+
+  const basePreselected =
+    templateFromUrl && PREBUILT_TEMPLATES.some((t) => t.id === templateFromUrl)
+      ? PREBUILT_TEMPLATES.find((t) => t.id === templateFromUrl) ?? null
+      : null;
+
+  const preselectedTemplate = useMemo(() => {
+    if (!basePreselected) return null;
+    if (basePreselected.id !== UPLOAD_CUSTOM_TEMPLATE_ID) return basePreselected;
+    return applyUploadFormatToTemplate(basePreselected, uploadFormatResolved);
+  }, [basePreselected, uploadFormatResolved]);
 
   const [title, setTitle] = useState("");
   const [dateDisplay, setDateDisplay] = useState("");
@@ -29,6 +49,19 @@ export default function NewEvent() {
   const [error, setError] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerAnchorRef = useRef<HTMLDivElement>(null);
+
+  const setUploadFormatInUrl = (f: InviteUploadFormat) => {
+    if (selectedTemplate !== UPLOAD_CUSTOM_TEMPLATE_ID && templateFromUrl !== UPLOAD_CUSTOM_TEMPLATE_ID) return;
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev);
+        n.set("templateId", UPLOAD_CUSTOM_TEMPLATE_ID);
+        n.set("format", f);
+        return n;
+      },
+      { replace: true }
+    );
+  };
 
   const canSubmit = useMemo(() => {
     const titleOk = title.trim().length >= 2;
@@ -61,8 +94,12 @@ export default function NewEvent() {
     setLoading(true);
 
     try {
-      const template = PREBUILT_TEMPLATES.find((t) => t.id === selectedTemplate);
-      if (!template) throw new Error("Template non trovato");
+      const raw = PREBUILT_TEMPLATES.find((t) => t.id === selectedTemplate);
+      if (!raw) throw new Error("Template non trovato");
+      const template =
+        raw.id === UPLOAD_CUSTOM_TEMPLATE_ID
+          ? applyUploadFormatToTemplate(raw, parseInviteFormat(searchParams.get("format")) ?? "square")
+          : raw;
 
       const res = await apiFetch(`/api/events`, {
         method: "POST",
@@ -88,7 +125,7 @@ export default function NewEvent() {
       }
 
       const createdItem = await res.json();
-      navigate(`/edit/${createdItem.slug}`);
+      navigate(`/activate/${createdItem.slug}`);
     } catch (err: unknown) {
       console.error(err);
       setError(err instanceof Error ? err.message : "Non siamo riusciti a creare l'evento. Riprova.");
@@ -96,6 +133,9 @@ export default function NewEvent() {
       setLoading(false);
     }
   };
+
+  const isUploadFlow =
+    preselectedTemplate?.id === UPLOAD_CUSTOM_TEMPLATE_ID || selectedTemplate === UPLOAD_CUSTOM_TEMPLATE_ID;
 
   return (
     <div className="new-event-page" lang="it">
@@ -107,14 +147,21 @@ export default function NewEvent() {
         </nav>
 
         <form onSubmit={handleSubmit} className="new-event-form" noValidate>
-          {/* Blocco 1: dati evento + azione principale in alto */}
           <Surface variant="glass" className="new-event-card new-event-card--form">
             <div className="new-event-card__top">
               <div className="new-event-card__intro">
                 <span className="new-event-card__eyebrow">Nuovo evento</span>
                 <h1 className="new-event-card__title">Dettagli</h1>
                 <p className="new-event-card__lede">
-                  Nome e data dell’evento. Potrai modificarli anche in seguito dall’editor.
+                  {preselectedTemplate ? (
+                    <>
+                      Aggiungi <strong>nome e data</strong> dell’evento. Puoi modificarli anche dopo.
+                      {" "}
+                      Per un altro modello usa il pulsante nel riquadro sotto.
+                    </>
+                  ) : (
+                    <>Nome e data dell’evento. Potrai modificarli anche in seguito dall’editor.</>
+                  )}
                 </p>
               </div>
               <Button
@@ -202,47 +249,105 @@ export default function NewEvent() {
             {error ? <p className="new-event-error">{error}</p> : null}
           </Surface>
 
-          {/* Blocco 2: solo catalogo grafiche */}
-          <Surface variant="glass" className="new-event-card new-event-card--catalog">
-            <h2 className="new-event-catalog__title">Catalogo inviti</h2>
-            <p className="new-event-catalog__lede">
-              Scegli una grafica di partenza. Nell’editor potrai cambiare testi, colori e immagini.
-            </p>
-            <div className="template-grid">
-              {PREBUILT_TEMPLATES.map((tmpl) => (
-                <div
-                  key={tmpl.id}
-                  className={`template-card ${selectedTemplate === tmpl.id ? "selected" : ""}`}
-                  onClick={() => setSelectedTemplate(tmpl.id)}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={selectedTemplate === tmpl.id}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelectedTemplate(tmpl.id);
-                    }
-                  }}
-                >
-                  <div className="template-cover">
-                    <CanvasPreview
-                      catalogThumb
-                      canvas={tmpl.canvas as any}
-                      layers={tmpl.layers as any}
+          {preselectedTemplate ? (
+            <Surface variant="glass" className="new-event-card new-event-card--picked">
+              <div className={`new-event-picked${isUploadFlow ? " new-event-picked--upload" : ""}`}>
+                {isUploadFlow ? (
+                  <div className="new-event-picked__formats">
+                    <InviteFormatPicker
+                      value={uploadFormatResolved}
+                      onChange={setUploadFormatInUrl}
+                      heading="Formato invito e busta"
                     />
-                    {selectedTemplate === tmpl.id && (
-                      <div className="template-selected-badge">
-                        <CheckCircle2 color="white" fill="var(--accent)" size={28} />
-                      </div>
-                    )}
                   </div>
-                  <div className="template-info">
-                    <h3>{tmpl.name}</h3>
-                  </div>
+                ) : null}
+                <div className="new-event-picked__preview">
+                  <CanvasPreview
+                    catalogThumb
+                    canvas={preselectedTemplate.canvas as never}
+                    layers={preselectedTemplate.layers as never}
+                  />
                 </div>
-              ))}
-            </div>
-          </Surface>
+                <div className="new-event-picked__body">
+                  <span className="new-event-picked__eyebrow">Modello</span>
+                  <h2 className="new-event-picked__title">
+                    {preselectedTemplate.id === UPLOAD_CUSTOM_TEMPLATE_ID
+                      ? "Carica il tuo file"
+                      : preselectedTemplate.name}
+                  </h2>
+                  <p className="new-event-picked__cat">{preselectedTemplate.category}</p>
+                  <p className="new-event-picked__hint">
+                    Poi completi il pagamento (69&nbsp;€) e accedi all’editor per invito, busta e
+                    pagina dell’evento.
+                  </p>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="new-event-picked__change"
+                    onClick={() => navigate("/templates")}
+                  >
+                    Cambia modello
+                  </Button>
+                </div>
+              </div>
+            </Surface>
+          ) : (
+            <Surface variant="glass" className="new-event-card new-event-card--catalog">
+              <h2 className="new-event-catalog__title">Catalogo inviti</h2>
+              <p className="new-event-catalog__lede">
+                Scegli una grafica di partenza. Nell’editor potrai cambiare testi, colori e
+                immagini.
+              </p>
+              <div className="template-grid">
+                {PREBUILT_TEMPLATES.map((tmpl) => (
+                  <div
+                    key={tmpl.id}
+                    className={`template-card ${selectedTemplate === tmpl.id ? "selected" : ""}`}
+                    onClick={() => {
+                      setSelectedTemplate(tmpl.id);
+                      if (tmpl.id === UPLOAD_CUSTOM_TEMPLATE_ID) {
+                        setSearchParams(
+                          { templateId: UPLOAD_CUSTOM_TEMPLATE_ID, format: "square" },
+                          { replace: true }
+                        );
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedTemplate === tmpl.id}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedTemplate(tmpl.id);
+                        if (tmpl.id === UPLOAD_CUSTOM_TEMPLATE_ID) {
+                          setSearchParams(
+                            { templateId: UPLOAD_CUSTOM_TEMPLATE_ID, format: "square" },
+                            { replace: true }
+                          );
+                        }
+                      }
+                    }}
+                  >
+                    <div className="template-cover">
+                      <CanvasPreview
+                        catalogThumb
+                        canvas={tmpl.canvas as any}
+                        layers={tmpl.layers as any}
+                      />
+                      {selectedTemplate === tmpl.id && (
+                        <div className="template-selected-badge">
+                          <CheckCircle2 color="white" fill="var(--accent)" size={28} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="template-info">
+                      <h3>{tmpl.name}</h3>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Surface>
+          )}
         </form>
       </div>
     </div>

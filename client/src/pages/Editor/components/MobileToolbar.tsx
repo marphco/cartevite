@@ -5,12 +5,13 @@ import {
   Shapes, Type, ChevronUp, Minus, Plus, Circle, ArrowRight, 
   ArrowLeft, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, 
   ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone, Monitor, Upload,
-  AlignJustify, CreditCard, Banknote
+  AlignJustify, CreditCard, Banknote, MapPin, CheckSquare, Images, Video as VideoIcon, Gift, Pencil
 } from 'lucide-react';
 import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
 import CustomColorPicker from "./CustomColorPicker";
 import PaymentSection from "./sidebar/PaymentSection";
+import { DEFAULT_BLOCK_HEIGHT } from "../../../utils/blockHeight";
 import { AVAILABLE_FONTS, getFontPreviewText, loadGoogleFont, AVAILABLE_LINERS, AVAILABLE_SCENARIO_BGS } from "./EditorHelpers";
 import type { Layer, CanvasProps, Block } from "../../../types/editor";
 import { apiFetch } from "../../../utils/apiFetch";
@@ -229,7 +230,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'widget_settings' ? (() => {
+                  {activeMobileTab === 'add_section' ? 'Aggiungi Sezione' : activeMobileTab === 'font' ? 'Font' : activeMobileTab === 'size' ? 'Dimensioni' : activeMobileTab === 'format' ? 'Formato' : activeMobileTab === 'color' ? 'Colore' : activeMobileTab === 'image_opacity' ? 'Opacità Immagine' : activeMobileTab === 'bg_invito' ? 'Sfondo Invito' : activeMobileTab === 'envelope_colors' ? 'Colori Busta' : activeMobileTab === 'envelope_format' ? 'Formato Busta' : activeMobileTab === 'envelope_liner' ? 'Interno Busta' : activeMobileTab === 'scenario_bg' ? 'Scenario' : activeMobileTab === 'rsvp_content' ? 'Testo Form' : activeMobileTab === 'rsvp_style' ? 'Stile Form' : activeMobileTab === 'rsvp_questions' ? 'Domande RSVP' : activeMobileTab === 'payment_setup' ? 'Pagamenti' : activeMobileTab === 'payment_content' ? 'Contenuto Regali' : activeMobileTab === 'payment_amounts' ? 'Importi' : activeMobileTab === 'payment_style' ? 'Obiettivo & Stile' : activeMobileTab === 'widget_settings' ? (() => {
                     const t = blocks?.find(b => b.id === selectedBlockId)?.type;
                     if (t === 'gallery') return 'Galleria';
                     if (t === 'video') return 'Video';
@@ -534,7 +535,10 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                         <Button 
                           variant="ghost" 
                           style={{ width: '100%', justifyContent: 'center', color: 'salmon', fontSize: '12px' }} 
-                          onClick={() => setCanvasProps((prev: CanvasProps) => ({ ...prev, bgImage: null }))}
+                          onClick={() => {
+                            setCanvasProps((prev: CanvasProps) => ({ ...prev, bgImage: null }));
+                            setIsEditingBackground(false);
+                          }}
                         >
                           Rimuovi Immagine
                         </Button>
@@ -907,12 +911,50 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                      {displayColorPicker === 'coverLiner' && (
                        <div style={{ padding: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                           <CustomColorPicker color={event.theme?.coverLinerColor || '#ffffff'} onChange={(color) => updateTheme({ coverLinerColor: color })} />
-                       </div>
+                      </div>
                      )}
                   </div>
                 )}
 
-                {/* RSVP STYLE TAB */}
+                {/* RSVP - TAB 1: CONTENUTO */}
+                {activeMobileTab === 'rsvp_content' && selectedBlockId && blocks && (
+                  <div style={{ width: '100%' }}>
+                    <div style={{ marginBottom: '16px', width: '100%' }}>
+                      <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>Titolo RSVP</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: 'var(--surface)', border: '1px solid var(--border)', width: '100%', boxSizing: 'border-box' }}>
+                        <Pencil size={12} style={{ color: 'var(--text-soft)', flexShrink: 0 }} />
+                        <input
+                          type="text"
+                          value={blocks.find(b => b.id === selectedBlockId)?.widgetProps?.rsvpTitle ?? 'GENTILE CONFERMA'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setBlocks(blocks.map(b => b.id === selectedBlockId ? { ...b, widgetProps: { ...b.widgetProps, rsvpTitle: val } } : b));
+                            setIsDirty && setIsDirty(true);
+                          }}
+                          style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', minWidth: 0, width: '100%' }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '16px', width: '100%' }}>
+                      <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>Descrizione RSVP</label>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: 'var(--surface)', border: '1px solid var(--border)', width: '100%', boxSizing: 'border-box' }}>
+                        <Pencil size={12} style={{ color: 'var(--text-soft)', flexShrink: 0, marginTop: '3px' }} />
+                        <textarea
+                          value={blocks.find(b => b.id === selectedBlockId)?.widgetProps?.rsvpDescription ?? 'Ti preghiamo di confermare la tua presenza entro il 30 Giugno 2026.'}
+                          rows={3}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setBlocks(blocks.map(b => b.id === selectedBlockId ? { ...b, widgetProps: { ...b.widgetProps, rsvpDescription: val } } : b));
+                            setIsDirty && setIsDirty(true);
+                          }}
+                          style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', minWidth: 0, width: '100%', resize: 'vertical' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* RSVP - TAB 2: STILE */}
                 {activeMobileTab === 'rsvp_style' && selectedBlockId && blocks && (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {(() => {
@@ -1097,6 +1139,186 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                     nel MobileToolbar (richiederebbe `slug` e handler di upload
                     duplicati). Su mobile l'utente può comunque incollare un
                     link YouTube/Vimeo come sorgente video senza upload. */}
+                {activeMobileTab === 'add_section' && (
+                  <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px'}}>
+                      <Button variant="primary" style={{width: '100%', justifyContent: 'center'}} onClick={() => {
+                        if (blocks && setBlocks) {
+                          setIsDirty && setIsDirty(true);
+                          setBlocks([...blocks, { id: 'block-' + Date.now(), type: 'canvas', y: 0, height: 480, bgColor: '#ffffff', props: { bgColor: '#ffffff' }, order: blocks.length } as any]);
+                          pushToHistory();
+                          setActiveMobileTab(null);
+                        }
+                      }}>
+                        <Plus size={16} style={{marginRight: 6}}/> Vuota
+                      </Button>
+                      
+                      <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                        if (blocks && setBlocks) {
+                          setIsDirty && setIsDirty(true);
+                          const newBlockId = 'block-map-' + Date.now();
+                          setBlocks([...blocks, {
+                            id: newBlockId,
+                            type: 'map',
+                            order: blocks.length,
+                            y: 0,
+                            height: 560,
+                            bgColor: '#f9f9f9',
+                            props: { address: '', zoom: 15, bgColor: '#f9f9f9' }
+                          }]);
+                          pushToHistory();
+                          setActiveMobileTab(null);
+                        }
+                      }}>
+                        <MapPin size={16} style={{marginRight: 6}}/> Mappa
+                      </Button>
+                      
+                      <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                        if (blocks && setBlocks) {
+                          setIsDirty && setIsDirty(true);
+                          const newBlockId = 'block-rsvp-' + Date.now();
+                          
+                          setBlocks([...blocks, {
+                            id: newBlockId,
+                            type: 'rsvp',
+                            order: blocks.length,
+                            y: 0,
+                            height: 750,
+                            bgColor: '#1a1a1a',
+                            props: { bgColor: '#1a1a1a' },
+                            widgetProps: { 
+                              rsvpTitle: 'GENTILE CONFERMA',
+                              rsvpDescription: 'Ti preghiamo di confermare la tua presenza entro il 30 Giugno 2026.'
+                            }
+                          } as any]);
+                          pushToHistory();
+                          setActiveMobileTab(null);
+                        }
+                      }}>
+                        <CheckSquare size={16} style={{marginRight: 6}}/> RSVP
+                      </Button>
+
+                      <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                        if (blocks && setBlocks && setLayers) {
+                          setIsDirty && setIsDirty(true);
+                          const newBlockId = 'block-gallery-' + Date.now();
+                          const galleryLayers = [
+                            ...(layers || []),
+                            {
+                              id: 'layer-gallery-title-' + newBlockId + '-' + Date.now(),
+                              blockId: newBlockId,
+                              type: 'text',
+                              text: 'LA NOSTRA GALLERIA',
+                              x: 'center',
+                              y: 40,
+                              width: 600,
+                              fontSize: 28,
+                              fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
+                              textAlign: 'center',
+                              color: event.theme?.accent || 'var(--accent)'
+                            }
+                          ];
+                          setBlocks([...blocks, {
+                            id: newBlockId,
+                            type: 'gallery',
+                            order: blocks.length,
+                            y: 0,
+                            height: 660,
+                            bgColor: '#ffffff',
+                            props: {
+                              bgColor: '#ffffff',
+                              images: [],
+                              layout: 'masonry',
+                              columns: 3,
+                              gap: 12
+                            }
+                          } as any]);
+                          setLayers(galleryLayers as any);
+                          pushToHistory();
+                          setActiveMobileTab(null);
+                        }
+                      }}>
+                        <Images size={16} style={{marginRight: 6}}/> Galleria
+                      </Button>
+
+                      <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                        if (blocks && setBlocks && setLayers) {
+                          setIsDirty && setIsDirty(true);
+                          const newBlockId = 'block-video-' + Date.now();
+                          const videoLayers = [
+                            ...(layers || []),
+                            {
+                              id: 'layer-video-title-' + newBlockId + '-' + Date.now(),
+                              blockId: newBlockId,
+                              type: 'text',
+                              text: 'IL NOSTRO VIDEO',
+                              x: 'center',
+                              y: 40,
+                              width: 600,
+                              fontSize: 28,
+                              fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
+                              textAlign: 'center',
+                              color: '#ffffff'
+                            }
+                          ];
+                          setBlocks([...blocks, {
+                            id: newBlockId,
+                            type: 'video',
+                            order: blocks.length,
+                            y: 0,
+                            height: 700,
+                            bgColor: '#050506',
+                            props: {
+                              bgColor: '#050506',
+                              videoUrl: '',
+                              autoplay: false,
+                              loop: false,
+                              muted: true,
+                              controls: true
+                            }
+                          } as any]);
+                          setLayers(videoLayers as any);
+                          pushToHistory();
+                          setActiveMobileTab(null);
+                        }
+                      }}>
+                        <VideoIcon size={16} style={{marginRight: 6}}/> Video
+                      </Button>
+
+                      <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                        if (blocks && setBlocks && setLayers) {
+                          setIsDirty && setIsDirty(true);
+                          const newBlockId = 'block-payment-' + Date.now();
+                          setBlocks([...blocks, {
+                            id: newBlockId,
+                            type: 'payment',
+                            order: blocks.length,
+                            y: 0,
+                            height: 760,
+                            bgColor: '#1a1a1a',
+                            props: { bgColor: '#1a1a1a' },
+                            widgetProps: {
+                              paymentTitle: '',
+                              paymentDescription: '',
+                              paymentPresetAmounts: [50, 100, 200, 300],
+                              paymentMinAmount: 1,
+                              paymentMaxAmount: 5000,
+                              paymentShowProgress: false,
+                              paymentAccentColor: '#C9A961',
+                              paymentMode: 'gift',
+                              mobileOrder: 5,
+                            }
+                          } as any]);
+                          pushToHistory();
+                          setActiveMobileTab(null);
+                        }
+                      }}>
+                        <Gift size={16} style={{marginRight: 6}}/> Regali
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {activeMobileTab === 'widget_settings' && selectedBlockId && blocks && (
                   <div style={{ flex: 1, minWidth: 0, maxWidth: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {(() => {
@@ -1429,7 +1651,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                               return "Modifica Sezione";
                             })()}
                          </span>
-                         <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 1, width: '150px' }}>Visualizza su</span>
+                         <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 1, width: '100px', textAlign: 'left', paddingLeft: '4px' }}>Visualizza su</span>
                        </div>
 
                        {/* RIGA CONTROLLI */}
@@ -1442,23 +1664,31 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                               if (block && block.type === 'rsvp') {
                                 return (
                                   <>
-                                    <MobileIconBtn 
-                                      icon={Palette} 
-                                      label="Stile" 
-                                      variant={activeMobileTab === 'rsvp_style' ? 'primary' : 'ghost'}
-                                      onClick={() => setActiveMobileTab('rsvp_style')} 
-                                    />
-                                    <MobileIconBtn 
-                                      icon={Settings2} 
-                                      label="Campi" 
-                                      variant={activeMobileTab === 'rsvp_questions' ? 'primary' : 'ghost'}
-                                      onClick={() => setActiveMobileTab('rsvp_questions')} 
-                                    />
-                                    <MobileIconBtn 
-                                      icon={Type} 
-                                      label="+ Testo" 
-                                      onClick={addTextLayer} 
-                                    />
+                                    <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flex: 1, overflowX: 'auto', minWidth: 0 }}>
+                                      <MobileIconBtn 
+                                        icon={AlignJustify} 
+                                        label="Testo" 
+                                        variant={activeMobileTab === 'rsvp_content' ? 'primary' : 'ghost'}
+                                        onClick={() => setActiveMobileTab('rsvp_content')} 
+                                      />
+                                      <MobileIconBtn 
+                                        icon={Palette} 
+                                        label="Stile" 
+                                        variant={activeMobileTab === 'rsvp_style' ? 'primary' : 'ghost'}
+                                        onClick={() => setActiveMobileTab('rsvp_style')} 
+                                      />
+                                      <MobileIconBtn 
+                                        icon={Settings2} 
+                                        label="Campi" 
+                                        variant={activeMobileTab === 'rsvp_questions' ? 'primary' : 'ghost'}
+                                        onClick={() => setActiveMobileTab('rsvp_questions')} 
+                                      />
+                                      <MobileIconBtn 
+                                        icon={Type} 
+                                        label="+ Testo" 
+                                        onClick={addTextLayer} 
+                                      />
+                                    </div>
                                   </>
                                 );
                               }
@@ -1536,7 +1766,8 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                   <MobileIconBtn 
                                     icon={Plus} 
                                     label="Sezione" 
-                                    onClick={() => alert("Funzionalità in arrivo!")} 
+                                    variant={activeMobileTab === 'add_section' ? 'primary' : 'ghost'}
+                                    onClick={() => setActiveMobileTab(activeMobileTab === 'add_section' ? null : 'add_section')} 
                                   />
                                   <MobileIconBtn 
                                     icon={Type} 
@@ -1564,12 +1795,14 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                          {/* BLOCCO VISTA (Destra) */}
                          <div style={{ 
                            display: 'flex', 
+                           flexDirection: 'column',
                            background: 'rgba(0,0,0,0.2)', 
-                           padding: '2px', 
-                           borderRadius: '100px',
+                           padding: '4px', 
+                           borderRadius: '12px',
                            border: '1px solid rgba(255,255,255,0.08)',
-                           width: '150px',
-                           flexShrink: 0
+                           width: '100px',
+                           flexShrink: 0,
+                           gap: '4px'
                          }}>
                            <button 
                              onClick={() => setPreviewMobile?.(true)}
@@ -1577,19 +1810,19 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                flex: 1,
                                background: previewMobile ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
                                border: 'none',
-                               borderRadius: '100px',
-                               padding: '7px 0',
+                               borderRadius: '8px',
+                               padding: '6px 10px',
                                display: 'flex',
                                alignItems: 'center',
-                               justifyContent: 'center',
-                               gap: '5px',
+                               justifyContent: 'flex-start',
+                               gap: '8px',
                                color: previewMobile ? '#000' : 'rgba(255,255,255,0.75)',
                                transition: 'all 0.2s',
                                cursor: 'pointer'
                              }}
                            >
-                             <Smartphone size={14} style={{ opacity: previewMobile ? 1 : 0.8 }} />
-                             <span style={{ fontSize: '10px', fontWeight: 900 }}>MOBILE</span>
+                             <Smartphone size={13} style={{ opacity: previewMobile ? 1 : 0.8 }} />
+                             <span style={{ fontSize: '10px', fontWeight: 700 }}>Mobile</span>
                            </button>
                            <button 
                              onClick={() => setPreviewMobile?.(false)}
@@ -1597,19 +1830,19 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                flex: 1,
                                background: !previewMobile ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
                                border: 'none',
-                               borderRadius: '100px',
-                               padding: '7px 0',
+                               borderRadius: '8px',
+                               padding: '6px 10px',
                                display: 'flex',
                                alignItems: 'center',
-                               justifyContent: 'center',
-                               gap: '5px',
+                               justifyContent: 'flex-start',
+                               gap: '8px',
                                color: !previewMobile ? '#000' : 'rgba(255,255,255,0.75)',
                                transition: 'all 0.2s',
                                cursor: 'pointer'
                              }}
                            >
-                             <Monitor size={14} style={{ opacity: !previewMobile ? 1 : 0.8 }} />
-                             <span style={{ fontSize: '10px', fontWeight: 900 }}>DESKTOP</span>
+                             <Monitor size={13} style={{ opacity: !previewMobile ? 1 : 0.8 }} />
+                             <span style={{ fontSize: '10px', fontWeight: 700 }}>Desktop</span>
                            </button>
                          </div>
                        </div>

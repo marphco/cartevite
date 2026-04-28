@@ -133,6 +133,7 @@ export interface EventData {
   _id?: string;
   slug?: string;
   title: string;
+  plan?: "free" | "paid" | string;
   status?: string;
   date?: string;
   dateTBD?: boolean;

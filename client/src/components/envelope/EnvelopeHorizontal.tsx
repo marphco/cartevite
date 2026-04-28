@@ -120,7 +120,10 @@ export default function EnvelopeHorizontal({
 
     if (isEventPage) {
        if (windowDims.w <= 768) return 0.95;
-       return windowDims.w > 1200 ? 1.35 : 1.15; 
+       const base = windowDims.w > 1200 ? 1.35 : 1.15;
+       // Laptop: cap in base all'altezza viewport per evitare clipping
+       if (windowDims.h < 900) return base * (windowDims.h / 900);
+       return base;
     }
 
     const baseW = 600;
@@ -194,6 +197,10 @@ export default function EnvelopeHorizontal({
 
   const currentLinerSrc = (pocketLinerImg === "none" || linerImg === "none") ? null : (pocketLinerImg || linerImg);
   const currentScale = getSceneScale();
+  const isLandscapeCard = !!(canvasProps && canvasProps.width > canvasProps.height);
+  const cardRotation = isLandscapeCard ? 0 : -90;
+  const cardClosedScale = isLandscapeCard ? 0.92 : 1.3;
+  const cardExtractedScale = isLandscapeCard ? 1.2 : 1.45;
 
   return (
     <div className={`paperless-wrapper ${phase}`}>
@@ -346,12 +353,12 @@ export default function EnvelopeHorizontal({
                 >
                   <motion.div 
                     className="envelope-card-content" 
-                    initial={{ y: "0%", x: "0%", scale: 1, rotate: -90 }}
+                    initial={{ y: "0%", x: "0%", scale: 1, rotate: cardRotation }}
                     animate={{ 
                       y: phase === "extracted" ? "18%" : (phase === "extracting" ? "-130%" : "0%"), 
                       x: "0%" , 
-                      scale: phase === "extracted" ? 1.45 : 1.3, 
-                      rotate: phase === "extracted" ? 0 : -90, 
+                      scale: phase === "extracted" ? cardExtractedScale : cardClosedScale, 
+                      rotate: phase === "extracted" ? 0 : cardRotation, 
                       zIndex: phase === "extracted" ? 10 : 2 
                     }} 
                     transition={{ 

@@ -250,7 +250,7 @@ export interface PaidEventBuyerReceiptParams {
   invoiceRequested?: boolean;
 }
 
-/** Ricevuta acquisto piano Evento (49 €) — stessa struttura visiva dell’email «Grazie per il tuo regalo». */
+/** Ricevuta acquisto piano Evento (69 €) — stessa struttura visiva dell’email «Grazie per il tuo regalo». */
 export async function sendPaidEventBuyerReceipt(params: PaidEventBuyerReceiptParams) {
   const { buyerEmail, buyerName, eventTitle, eventSlug, amountCents, invoiceRequested } = params;
   const eventUrl = `${SITE_URL}/e/${eventSlug}`;
@@ -319,7 +319,7 @@ export async function sendPaidEventOpsNotification(params: PaidEventOpsNotificat
   const inner = `
     <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:22px;margin:0 0 14px;color:${C_NAVY};text-align:center;">Nuovo acquisto — piano Evento</h1>
     <p style="margin:0 0 16px;color:#444;">
-      <strong>${escapeHtml(buyerName)}</strong> ha acquistato il piano Evento (49 € una tantum) per <strong>${escapeHtml(eventTitle)}</strong>.
+      <strong>${escapeHtml(buyerName)}</strong> ha acquistato il piano Evento (69 € una tantum) per <strong>${escapeHtml(eventTitle)}</strong>.
     </p>
     <table role="presentation" width="100%" style="border-collapse:collapse;margin:0 0 4px;background:#f6f5f1;border-radius:8px;overflow:hidden;">
       <tr>

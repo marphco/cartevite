@@ -78,7 +78,7 @@ const PageSection: React.FC<PageSectionProps> = ({
   showVisibility = true
 }) => {
    const selectedBlock = blocks?.find(b => b.id === selectedBlockId);
-  const [activeRsvpTab, setActiveRsvpTab] = React.useState<'style' | 'questions'>('style');
+  const [activeRsvpTab, setActiveRsvpTab] = React.useState<'content' | 'style' | 'questions'>('content');
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
   const [galleryUploading, setGalleryUploading] = React.useState(false);
   const [galleryDragIndex, setGalleryDragIndex] = React.useState<number | null>(null);
@@ -1043,29 +1043,73 @@ const PageSection: React.FC<PageSectionProps> = ({
                     marginBottom: '20px',
                     border: '1px solid var(--border)' 
                   }}>
-                    {(['style', 'questions'] as const).map((tab) => (
+                    {(['content', 'questions', 'style'] as const).map((tab) => (
                       <Button
                         key={tab}
                         variant={activeRsvpTab === tab ? 'primary' : 'ghost'}
                         onClick={() => setActiveRsvpTab(tab)}
                         style={{
-                          flex: 1,
-                          padding: '6px 2px',
-                          fontSize: '9px',
-                          fontWeight: 800,
+                          flex: 1, 
+                          padding: '6px 0', 
+                          fontSize: '11px', 
+                          fontWeight: 700, 
                           borderRadius: '100px',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
+                          display: 'flex',
+                          alignItems: 'center',
                           justifyContent: 'center'
                         }}
                       >
-                        {tab === 'style' ? 'Stile' : 'Domande'}
+                        {tab === 'content' ? 'Testo' : tab === 'style' ? 'Stile' : 'Domande'}
                       </Button>
                     ))}
                   </div>
 
+                  {/* TAB 1: CONTENUTO */}
+                  {activeRsvpTab === 'content' && (
+                    <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>Titolo RSVP</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                          <Pencil size={12} style={{ color: 'var(--text-soft)', flexShrink: 0 }} />
+                          <input
+                            type="text"
+                            value={selectedBlock.widgetProps?.rsvpTitle ?? 'GENTILE CONFERMA'}
+                            onChange={(e) => {
+                              if (onUpdateBlock && selectedBlock) {
+                                onUpdateBlock(selectedBlock.id as string, { widgetProps: { rsvpTitle: e.target.value } });
+                              } else if (blocks && setBlocks) {
+                                setIsDirty(true);
+                                setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, widgetProps: { ...b.widgetProps, rsvpTitle: e.target.value } } : b));
+                              }
+                            }}
+                            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', minWidth: 0 }}
+                          />
+                        </div>
+                      </div>
 
-                  {/* TAB: STILE */}
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>Descrizione RSVP</label>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                          <Pencil size={12} style={{ color: 'var(--text-soft)', flexShrink: 0, marginTop: '3px' }} />
+                          <textarea
+                            value={selectedBlock.widgetProps?.rsvpDescription ?? 'Ti preghiamo di confermare la tua presenza entro il 30 Giugno 2026.'}
+                            rows={3}
+                            onChange={(e) => {
+                              if (onUpdateBlock && selectedBlock) {
+                                onUpdateBlock(selectedBlock.id as string, { widgetProps: { rsvpDescription: e.target.value } });
+                              } else if (blocks && setBlocks) {
+                                setIsDirty(true);
+                                setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, widgetProps: { ...b.widgetProps, rsvpDescription: e.target.value } } : b));
+                              }
+                            }}
+                            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', minWidth: 0, resize: 'vertical' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: STILE */}
                   {activeRsvpTab === 'style' && (
                     <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1432,65 +1476,24 @@ const PageSection: React.FC<PageSectionProps> = ({
               </Button>
               
               <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
-                if (blocks && setBlocks && setLayers) {
+                if (blocks && setBlocks) {
                   setIsDirty(true);
                   const newBlockId = 'block-rsvp-' + Date.now();
                   
-                  const newLayers = [
-                    ...layers,
-                    {
-                      id: 'layer-rsvp-title-' + newBlockId + '-' + Date.now(),
-                      blockId: newBlockId,
-                      type: 'text',
-                      text: "GENTILE CONFERMA",
-                      x: 'center',
-                      y: 100,
-                      width: 600,
-                      fontSize: 32,
-                      fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
-                      textAlign: 'center',
-                      color: event.theme?.accent || 'var(--accent)'
-                    },
-                    {
-                      id: 'layer-rsvp-desc-' + newBlockId + '-' + Date.now(),
-                      blockId: newBlockId,
-                      type: 'text',
-                      text: "Ti preghiamo di confermare la tua presenza entro il 30 Giugno 2026.",
-                      x: 'center',
-                      y: 160,
-                      width: 600,
-                      fontSize: 16,
-                      fontFamily: event.theme?.fonts?.body || 'Inter',
-                      textAlign: 'center',
-                      color: '#ffffff'
-                    }
-                  ];
-                  
-                  // [FIX] Prima era `bgColor: 'transparent'` → il form adattava la sua
-                  // palette a una sezione "senza bg" (fallback light), ma il layer desc
-                  // veniva creato con `color: '#ffffff'` e il titolo con l'accent tema
-                  // (spesso chiaro) → su una pagina a sfondo chiaro il risultato era
-                  // illeggibile "al primo colpo", l'utente doveva cambiare bg manualmente
-                  // per far tornare la leggibilità. Default ora = nero scuro: c'è peso
-                  // visivo immediato, testi bianchi + accent si vedono subito.
-                  //
-                  // [FIX] `formY` esplicito a 360 (prima era implicito = 50% = 275 su
-                  // altezza 550). Con titolo layer a y=100 + desc a y=160, il form a
-                  // 275 veniva centrato su transform(-50%, -50%) → partiva da ~125 e
-                  // **invadeva** il desc. A 360 il form parte dopo il desc con gap
-                  // sufficiente a evitare la sovrapposizione.
                   setBlocks([...blocks, {
                     id: newBlockId,
                     type: 'rsvp',
                     order: blocks.length,
                     y: 0,
-                    height: 550,
+                    height: 750,
                     bgColor: '#1a1a1a',
                     props: { bgColor: '#1a1a1a' },
-                    widgetProps: { formY: 360 }
+                    widgetProps: { 
+                      rsvpTitle: 'GENTILE CONFERMA',
+                      rsvpDescription: 'Ti preghiamo di confermare la tua presenza entro il 30 Giugno 2026.'
+                    }
                   } as any]);
                   
-                  setLayers(newLayers as any);
                   pushToHistory();
                 }
               }}>
@@ -1601,24 +1604,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                 if (blocks && setBlocks && setLayers) {
                   setIsDirty(true);
                   const newBlockId = 'block-payment-' + Date.now();
-                  // Stesso pattern di gallery/video: titolo = layer testo libero a y=40,
-                  // così l'utente ha controllo pieno su font/colore.
-                  const paymentLayers = [
-                    ...layers,
-                    {
-                      id: 'layer-payment-title-' + newBlockId + '-' + Date.now(),
-                      blockId: newBlockId,
-                      type: 'text',
-                      text: 'BUSTA DIGITALE',
-                      x: 'center',
-                      y: 40,
-                      width: 600,
-                      fontSize: 28,
-                      fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
-                      textAlign: 'center',
-                      color: '#f4c46b'
-                    }
-                  ];
+
                   // Altezza = titolo layer (40 top + ~50) + gap + card payment (full state
                   // con icon, titolo interno, desc, 4 preset + custom input + CTA + footer
                   // ~560px) + padding bottom (24) + breathing ≈ 760.
@@ -1636,7 +1622,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                     widgetProps: {
                       paymentTitle: '',
                       paymentDescription: '',
-                      paymentPresetAmounts: [25, 50, 100, 200],
+                      paymentPresetAmounts: [50, 100, 200, 300],
                       paymentMinAmount: 1,
                       paymentMaxAmount: 5000,
                       paymentShowProgress: false,
@@ -1645,7 +1631,6 @@ const PageSection: React.FC<PageSectionProps> = ({
                       mobileOrder: 5,
                     }
                   } as any]);
-                  setLayers(paymentLayers as any);
                   pushToHistory();
                 }
               }}>

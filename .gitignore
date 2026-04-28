@@ -163,6 +163,7 @@ dist
 # Task, project planning, and AI generated files
 task.md
 implementation_plan.md
+AGENTS.md
 WORKLOG.md
 docs/fase1-spec.md
 *.md

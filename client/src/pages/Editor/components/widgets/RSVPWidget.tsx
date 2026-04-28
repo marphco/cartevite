@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Users, Send, Trash2 } from 'lucide-react';
+import { CheckCircle2, Users, Send, Trash2, MailOpen } from 'lucide-react';
 import type { Block, EventTheme } from '../../../../types/editor';
 import { apiFetch } from '../../../../utils/apiFetch';
 import {
@@ -172,29 +172,33 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
     //  · entrambi OFF → nessun controllo (non li chiediamo proprio).
     const cleanEmail = (email || "").trim();
     const cleanPhone = (phone || "").trim();
-    if (askEmail && askPhone && !cleanEmail && !cleanPhone) {
-      setErrorMsg("Inserisci almeno email o telefono per consentirci di contattarti.");
-      return;
-    }
-    if (askEmail && !askPhone && !cleanEmail) {
-      setErrorMsg("Inserisci la tua email per proseguire.");
-      return;
-    }
-    if (askPhone && !askEmail && !cleanPhone) {
-      setErrorMsg("Inserisci il tuo numero di telefono per proseguire.");
-      return;
-    }
-    // Basic email shape check (solo se valorizzata): evita typo ovvi tipo "mario@".
-    if (askEmail && cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-      setErrorMsg("L'email inserita non sembra valida. Controlla e riprova.");
-      return;
+    if (status !== 'no') {
+      if (askEmail && askPhone && !cleanEmail && !cleanPhone) {
+        setErrorMsg("Inserisci almeno email o telefono per consentirci di contattarti.");
+        return;
+      }
+      if (askEmail && !askPhone && !cleanEmail) {
+        setErrorMsg("Inserisci la tua email per proseguire.");
+        return;
+      }
+      if (askPhone && !askEmail && !cleanPhone) {
+        setErrorMsg("Inserisci il tuo numero di telefono per proseguire.");
+        return;
+      }
+      // Basic email shape check (solo se valorizzata): evita typo ovvi tipo "mario@".
+      if (askEmail && cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        setErrorMsg("L'email inserita non sembra valida. Controlla e riprova.");
+        return;
+      }
     }
 
     // MANDATORY CUSTOM FIELDS CHECK
-    const missingFields = (props.customFields || []).filter((f: any) => f.required && !customResponses[f.id]);
-    if (missingFields.length > 0 && missingFields[0]) {
-      setErrorMsg(`Per favore, rispondi alla domanda: "${missingFields[0].label}"`);
-      return;
+    if (status !== 'no') {
+      const missingFields = (props.customFields || []).filter((f: any) => f.required && !customResponses[f.id]);
+      if (missingFields.length > 0 && missingFields[0]) {
+        setErrorMsg(`Per favore, rispondi alla domanda: "${missingFields[0].label}"`);
+        return;
+      }
     }
 
     setIsSending(true);
@@ -295,16 +299,53 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
     fontFamily: 'inherit'
   };
 
+  const cardPadding = isMobile ? '24px 18px' : '36px 28px';
+  const cardBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)';
+  const cardShadow = isDark
+    ? '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)'
+    : '0 4px 20px rgba(0,0,0,0.06)';
+
   return (
     <div style={{
       width: '100%',
-      maxWidth: '600px',
+      maxWidth: '620px',
       margin: '0 auto',
-      background: 'transparent',
-      borderRadius: '24px',
-      padding: isMobile ? '24px' : '0 40px', // Horizontal padding only, vertical managed by parent
-      color: colors.text
+      background: cardBg,
+      border: `1px solid ${cardBorder}`,
+      boxShadow: cardShadow,
+      borderRadius: '20px',
+      padding: cardPadding,
+      color: colors.text,
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '20px',
     }}>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center', marginBottom: '8px' }}>
+        <div style={{
+          width: '52px', height: '52px',
+          borderRadius: '14px',
+          background: `${primaryColor}1A`,
+          border: `1px solid ${primaryColor}40`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <MailOpen size={24} color={primaryColor} />
+        </div>
+        <div style={{
+          fontSize: isMobile ? '20px' : '24px',
+          fontWeight: 700,
+          fontFamily: theme?.fonts?.heading || 'var(--font-heading, serif)',
+          lineHeight: 1.2,
+          color: colors.text
+        }}>
+          {title}
+        </div>
+        <div style={{ fontSize: '14px', color: colors.textSoft, lineHeight: 1.6, maxWidth: '480px' }}>
+          {desc}
+        </div>
+      </div>
 
       {isDone ? (
         <div style={{ 

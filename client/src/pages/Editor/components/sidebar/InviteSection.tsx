@@ -185,7 +185,10 @@ const InviteSection: React.FC<InviteSectionProps> = ({
             <Button 
               variant="ghost" 
               style={{ width: '100%', justifyContent: 'center', fontSize: '10px', color: 'salmon' }} 
-              onClick={() => setCanvasProps((prev: CanvasProps) => ({ ...prev, bgImage: null }))}
+              onClick={() => {
+                setCanvasProps((prev: CanvasProps) => ({ ...prev, bgImage: null }));
+                setIsEditingBackground(false);
+              }}
             >
               Rimuovi Immagine
             </Button>

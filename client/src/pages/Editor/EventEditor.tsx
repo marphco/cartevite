@@ -131,58 +131,7 @@ export default function EventEditor() {
     };
   }, []);
 
-  // --- AUTO-INITIALIZE RSVP LAYERS (MIGRATION) ---
-  useEffect(() => {
-    if (!event || !blocks || blocks.length === 0) return;
-    
-    let layersAdded = false;
-    const newLayersToAdd: Layer[] = [];
-    
-    blocks.forEach(block => {
-      if (block.type === 'rsvp') {
-        const hasLayers = layers.some(l => l.blockId === block.id);
-        if (!hasLayers) {
-          const titleText = block.widgetProps?.rsvpTitle || "GENTILE CONFERMA";
-          const descText = block.widgetProps?.rsvpDescription || "Ti preghiamo di confermare la tua presenza entro il 30 Giugno 2026.";
-          
-          newLayersToAdd.push({
-            id: 'layer-rsvp-title-' + block.id + '-' + Date.now(),
-            blockId: block.id || '',
-            type: 'text',
-            text: titleText,
-            x: 'center',
-            y: 100,
-            width: 600,
-            fontSize: 32,
-            fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
-            textAlign: 'center',
-            color: event.theme?.accent || 'var(--accent)'
-          });
-          
-          newLayersToAdd.push({
-            id: 'layer-rsvp-desc-' + block.id + '-' + Date.now(),
-            blockId: block.id || '',
-            type: 'text',
-            text: descText,
-            x: 'center',
-            y: 160,
-            width: 600,
-            fontSize: 16,
-            fontFamily: event.theme?.fonts?.body || 'Inter',
-            textAlign: 'center',
-            color: '#ffffff'
-          });
-          
-          layersAdded = true;
-        }
-      }
-    });
 
-    if (layersAdded) {
-      setLayers(prev => [...prev, ...newLayersToAdd]);
-      setIsDirty(true);
-    }
-  }, [event, blocks, setLayers, setIsDirty]);
 
   // --- KEY HANDLER FOR BG ---
   useEffect(() => {
@@ -282,7 +231,13 @@ export default function EventEditor() {
     try {
       const r2Url = await uploadToR2(file);
       if (type === 'canvas') {
-        setCanvasProps(prev => ({ ...prev, bgImage: r2Url }));
+        setCanvasProps(prev => ({ 
+          ...prev, 
+          bgImage: r2Url,
+          bgX: undefined,
+          bgY: undefined,
+          bgScale: undefined 
+        }));
         setIsEditingBackground(true);
       } else if (type === 'liner') {
         updateTheme({ coverLiner: r2Url, coverPocketLiner: r2Url });

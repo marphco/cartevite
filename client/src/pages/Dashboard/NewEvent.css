@@ -256,6 +256,135 @@
   font-size: 0.9rem;
 }
 
+/* Modello già scelto da /templates (niente secondo catalogo intero) */
+.new-event-card--picked {
+  padding: 0;
+}
+
+.new-event-picked {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: clamp(1.15rem, 3vw, 1.75rem);
+}
+
+@media (min-width: 640px) {
+  .new-event-picked:not(.new-event-picked--upload) {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 1.35rem;
+  }
+}
+
+/* Carica file: scelta formato sopra, anteprima + testi sotto */
+.new-event-picked--upload {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.15rem;
+}
+
+@media (min-width: 700px) {
+  .new-event-picked--upload {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .new-event-picked--upload .new-event-picked__formats {
+    flex: 1 1 100%;
+    width: 100%;
+    order: -1;
+  }
+
+  .new-event-picked--upload .new-event-picked__preview {
+    margin: 0;
+    width: 200px;
+    flex-shrink: 0;
+  }
+
+  .new-event-picked--upload .new-event-picked__body {
+    flex: 1;
+    min-width: 220px;
+  }
+}
+
+.new-event-picked__formats {
+  width: 100%;
+}
+
+.new-event-picked__preview {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid rgba(60, 79, 118, 0.1);
+  background: var(--bg-canvas);
+  aspect-ratio: 4 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .new-event-picked__preview {
+    margin: 0;
+    width: 200px;
+  }
+}
+
+.new-event-picked__preview > div {
+  width: 100%;
+}
+
+.new-event-picked__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 0.35rem;
+}
+
+.new-event-picked__eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.new-event-picked__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 3vw, 1.65rem);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.new-event-picked__cat {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.new-event-picked__hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-width: 40ch;
+}
+
+.new-event-picked__change {
+  margin-top: 0.75rem !important;
+}
+
 /* Catalogo (secondo blocco) */
 .new-event-catalog__title {
   margin: 0;

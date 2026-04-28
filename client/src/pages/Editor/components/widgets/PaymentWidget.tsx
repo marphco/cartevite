@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Gift, Heart, AlertCircle } from 'lucide-react';
+import { Gift, Heart, AlertCircle, Loader2 } from 'lucide-react';
 import { getAdaptivePalette } from '../../../../utils/colorUtils';
 import { apiFetch } from '../../../../utils/apiFetch';
+import visaLogo from '../../../../assets/visa.svg';
+import mastercardLogo from '../../../../assets/mastercard.svg';
+import amexLogo from '../../../../assets/amex.svg';
+import applePayLogo from '../../../../assets/apple-pay.svg';
+import googlePayLogo from '../../../../assets/google-pay.svg';
+import sepaLogo from '../../../../assets/sepa.svg';
+import stripeLogo from '../../../../assets/stripe.svg';
 
 export interface PaymentWidgetProps {
   eventSlug?: string;
@@ -326,8 +333,26 @@ const PaymentWidget: React.FC<PaymentWidgetProps> = ({
         {effectiveCta}
       </button>
 
-      <div style={{ fontSize: '11px', color: palette.textMuted, textAlign: 'center', letterSpacing: '0.02em' }}>
-        Pagamento sicuro via Stripe · carta, Apple Pay, Google Pay, SEPA
+      <div style={{ fontSize: '10px', color: palette.textMuted, textAlign: 'center', letterSpacing: '0.02em', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', opacity: 0.8 }}>
+          <span style={{ fontSize: '10px' }}>Pagamento sicuro via</span>
+          <img src={stripeLogo} alt="Stripe" style={{ height: '11px', width: 'auto', display: 'block' }} />
+        </div>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          gap: '12px', 
+          opacity: 0.5,
+          filter: palette.isDark ? 'brightness(0) invert(1)' : 'none' 
+        }}>
+          <img src={visaLogo} alt="Visa" style={{ height: '9px', width: 'auto', display: 'block' }} />
+          <img src={mastercardLogo} alt="Mastercard" style={{ height: '13px', width: 'auto', display: 'block' }} />
+          <img src={amexLogo} alt="Amex" style={{ height: '11px', width: 'auto', display: 'block' }} />
+          <img src={applePayLogo} alt="Apple Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
+          <img src={googlePayLogo} alt="Google Pay" style={{ height: '12px', width: 'auto', display: 'block' }} />
+          <img src={sepaLogo} alt="SEPA" style={{ height: '9px', width: 'auto', display: 'block' }} />
+        </div>
       </div>
       {/* min/max visibili come hint silenzioso */}
       <span style={{ display: 'none' }} data-min={minAmount} data-max={maxAmount} />

@@ -15,6 +15,7 @@ import uploadsRouter from "./routes/uploads.js";
 import stripeConnectRoutes from "./routes/stripeConnectRoutes.js";
 import donationRoutes from "./routes/donationRoutes.js";
 import stripeWebhookRoutes from "./routes/stripeWebhookRoutes.js";
+import marketingRoutes from "./routes/marketingRoutes.js";
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use("/api/rsvps", rsvpRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/stripe/connect", stripeConnectRoutes);
 app.use("/api/donations", donationRoutes);
+app.use("/api/marketing", marketingRoutes);
 
 app.get("/", (req: Request, res: Response) => res.json({ message: "eenvee API is running" }));
 

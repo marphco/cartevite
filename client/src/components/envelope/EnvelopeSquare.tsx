@@ -168,7 +168,10 @@ export default function EnvelopeSquare({
 
     if (isEventPage) {
        if (windowDims.w <= 768) return 1.0;
-       return windowDims.w > 1200 ? 1.35 : 1.15; 
+       const base = windowDims.w > 1200 ? 1.35 : 1.15;
+       // Laptop: cap in base all'altezza viewport per evitare clipping
+       if (windowDims.h < 900) return base * (windowDims.h / 900);
+       return base;
     }
 
     const baseDim = 500;

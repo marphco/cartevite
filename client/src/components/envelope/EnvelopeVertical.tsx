@@ -135,7 +135,10 @@ export default function EnvelopeVertical({
     // Se siamo nella Pagina Pubblica, carichiamo la dimensione al massimo impatto
     if (isEventPage) {
        if (windowDims.w <= 768) return 0.95;
-       return windowDims.w > 1200 ? 1.25 : 1.1; 
+       const base = windowDims.w > 1200 ? 1.25 : 1.1;
+       // Laptop: cap in base all'altezza viewport per evitare clipping
+       if (windowDims.h < 900) return base * (windowDims.h / 900);
+       return base;
     }
 
     const baseW = 510;

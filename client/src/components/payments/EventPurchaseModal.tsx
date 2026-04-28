@@ -17,7 +17,7 @@ function getStripePromise() {
   return stripePromise;
 }
 
-const UNLOCK_EUR = 49;
+const UNLOCK_EUR = 69;
 const labelStyle: React.CSSProperties = {
   fontSize: "11px",
   textTransform: "uppercase",

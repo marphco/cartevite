@@ -4,6 +4,7 @@ import { Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import MarketingLanding from "./pages/Marketing/MarketingLanding";
 import NewEvent from "./pages/Dashboard/NewEvent";
+import EventActivate from "./pages/Dashboard/EventActivate";
 import TemplateCatalog from "./pages/PublicView/TemplateCatalog";
 import EventPublic from "./pages/PublicView/EventPublic";
 import EventEditor from "./pages/Editor/EventEditor";
@@ -44,7 +45,8 @@ function App() {
       {/* rotta pubblica scan mobile per import contatti */}
       <Route path="/import/:slug" element={<MobileImport />} />
 
-      {/* catalogo template pubblico */}
+      {/* catalogo template pubblico (categoria opzionale in path) */}
+      <Route path="/templates/:categorySlug" element={<TemplateCatalog />} />
       <Route path="/templates" element={<TemplateCatalog />} />
 
       {/* pagina informativa regali digitali (pubblica) */}
@@ -62,6 +64,7 @@ function App() {
       <Route element={<RequireAuth />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/new" element={<NewEvent />} />
+        <Route path="/activate/:slug" element={<EventActivate />} />
         <Route path="/edit/:slug" element={<EventEditor />} />
         <Route path="/rsvps/:slug" element={<EventRsvps />} />
         <Route path="/donations/:slug" element={<EventDonations />} />

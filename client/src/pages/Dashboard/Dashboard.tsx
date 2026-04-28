@@ -411,7 +411,7 @@ export default function Dashboard() {
                           onClick={() => setPurchaseModal({ slug: ev.slug, title: ev.title })}
                           style={{ color: "var(--accent)", border: "1px solid var(--accent)", marginRight: "auto" }}
                         >
-                          <Star size={14} style={{ marginRight: 6 }} /> Attiva evento (49 €)
+                          <Star size={14} style={{ marginRight: 6 }} /> Attiva evento (69 €)
                         </Button>
                       )}
                       

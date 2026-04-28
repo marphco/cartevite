@@ -537,6 +537,16 @@
   }
 }
 
+/* 7. LAPTOP: viewport corta, riduco distanze per evitare clipping */
+@media (min-width: 769px) and (max-height: 900px) {
+  .envelope-action-btn {
+    bottom: -100px;
+  }
+  .envelope-replay-btn {
+    bottom: -160px;
+  }
+}
+
 .custom-slider {
   -webkit-appearance: none;
   appearance: none;

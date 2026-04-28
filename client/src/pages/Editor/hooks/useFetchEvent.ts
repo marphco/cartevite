@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../../../utils/apiFetch";
 import { PREBUILT_TEMPLATES } from "../../../utils/layoutSchema";
+import {
+  UPLOAD_CUSTOM_TEMPLATE_ID,
+  applyUploadFormatToTemplate,
+  parseInviteFormat,
+} from "../../../pages/PublicView/templateCatalogUtils";
 import type { EventData, EventTheme, Layer, Block, CanvasProps } from "../../../types/editor";
 import { normalizeBlocksForEditor } from "../../../utils/blockHeight";
 
@@ -51,13 +57,19 @@ export function useFetchEvent(
   { setEvent, setLayers, setBlocks, setCanvasProps }: UseFetchEventProps
 ) {
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
     async function fetchEvent() {
       if (slug === 'demo') {
         const templateId = searchParams.get('templateId');
-        const template = PREBUILT_TEMPLATES.find(t => t.id === templateId) || PREBUILT_TEMPLATES[0];
+        const fmt = parseInviteFormat(searchParams.get("format"));
+        const raw = PREBUILT_TEMPLATES.find((t) => t.id === templateId) || PREBUILT_TEMPLATES[0];
+        const template =
+          raw.id === UPLOAD_CUSTOM_TEMPLATE_ID
+            ? applyUploadFormatToTemplate(raw, fmt ?? "square")
+            : raw;
         if (!cancelled && template) {
           setEvent(withTheme({ 
             title: "Prova Design - " + template.name, 
@@ -81,6 +93,11 @@ export function useFetchEvent(
         const data = await res.json();
 
         if (!cancelled) {
+          // Guard: se il piano non è pagato, redirect ad attivazione
+          if (data.plan && data.plan !== "paid") {
+            navigate(`/activate/${slug}`, { replace: true });
+            return;
+          }
           setEvent(withTheme(data));
           const draft = loadDraft();
           if (draft && draft.layers) {
@@ -105,7 +122,7 @@ export function useFetchEvent(
     }
     fetchEvent();
     return () => { cancelled = true; };
-  }, [slug, loadDraft, searchParams, setDraftRestored, setIsDirty, setEvent, setLayers, setBlocks, setCanvasProps]);
+  }, [slug, loadDraft, searchParams, setDraftRestored, setIsDirty, setEvent, setLayers, setBlocks, setCanvasProps, navigate]);
 
   return { 
     loading, 
