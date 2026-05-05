@@ -1,0 +1,2399 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Surface, Button } from "../../../../ui";
+import {
+  LayoutGrid, Plus, Trash2, Heart, HeartOff, Zap,
+  Circle, Square, Users, Pencil, ChevronUp, ChevronDown, ChevronRight,
+  AlertTriangle, Sparkles, X, Search, UserPlus, Minus, RotateCcw
+} from "lucide-react";
+import type { Block, EventData } from "../../../../types/editor";
+import { apiFetch } from "../../../../utils/apiFetch";
+import { optimizeSeating } from "../../../../utils/seatingEngine";
+import type { SplitWarning } from "../../../../utils/seatingEngine";
+import EventPurchaseModal from "../../../../components/payments/EventPurchaseModal";
+import CustomColorPicker from '../CustomColorPicker';
+
+interface TableauSidebarProps {
+  selectedBlock: Block;
+  onUpdateBlock: (blockId: string, updates: Partial<Block>) => void;
+  eventRsvps: any[];
+  hasTableauAccess?: boolean | undefined;
+  slug?: string | undefined;
+  eventTitle?: string | undefined;
+  updateEventData?: ((updates: Partial<EventData>, pushToHistory?: () => void) => void) | undefined;
+  event?: EventData | null | undefined;
+}
+
+const CustomTableSelect: React.FC<{
+  value: string;
+  tables: any[];
+  assignments: any[];
+  onChange: (tableId: string) => void;
+  placeholder?: string;
+  isBulk?: boolean;
+}> = ({ value, tables, assignments, onChange, placeholder = "Seleziona tavolo...", isBulk }) => {
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, isAbove: false, maxHeight: 280 });
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedTable = tables.find(t => t.id === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!dropdownRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+        setIsOpen(false);
+      }
+    };
+    const handleScroll = () => {
+      if (isOpen && dropdownRef.current) {
+        const rect = dropdownRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const isAbove = spaceBelow < 280;
+        const maxHeight = isAbove ? Math.max(150, rect.top - 40) : Math.min(280, spaceBelow - 40);
+        
+        setCoords({
+          top: isAbove ? rect.top - 10 : rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+          isAbove,
+          maxHeight
+        });
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('scroll', handleScroll, true);
+      handleScroll(); // Calcola posizione iniziale
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [isOpen]);
+
+  const toggleDropdown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+  };
+
+  return (
+    <div ref={dropdownRef} style={{ width: '100%' }}>
+      <button
+        onClick={toggleDropdown}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: isBulk ? '12px 16px' : '8px 12px',
+          background: 'var(--surface-light)',
+          border: isOpen ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
+          borderRadius: '100px',
+          cursor: 'pointer',
+          outline: 'none',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: isOpen ? '0 4px 12px rgba(var(--accent-rgb), 0.15)' : 'none'
+        }}
+      >
+        <span style={{ 
+          fontSize: isBulk ? '12px' : '11px', 
+          fontWeight: 700, 
+          color: selectedTable ? 'var(--text-primary)' : 'var(--text-soft)',
+          lineHeight: 1.2,
+          textAlign: 'left'
+        }}>
+          {value === 'multiple' ? 'Misto (Vedi singoli)' : (selectedTable?.name || placeholder)}
+        </span>
+        <ChevronDown size={14} style={{ 
+          color: 'var(--accent)', 
+          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 0.3s ease',
+          flexShrink: 0,
+          marginLeft: '8px'
+        }} />
+      </button>
+
+      {isOpen && createPortal(
+        <div 
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            transform: coords.isAbove ? 'translateY(-100%)' : 'none',
+            width: Math.max(coords.width, 240),
+            background: '#ffffff',
+            border: '1.5px solid var(--border)',
+            borderRadius: '24px',
+            boxShadow: '0 30px 90px rgba(0,0,0,0.3)',
+            zIndex: 999999,
+            maxHeight: `${coords.maxHeight}px`,
+            overflowY: 'auto',
+            padding: '8px',
+            animation: coords.isAbove ? 'none' : 'fadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+          <div 
+            onClick={() => { onChange(''); setIsOpen(false); }}
+            style={{
+              padding: '12px 14px',
+              borderRadius: '10px',
+              fontSize: '12px',
+              fontWeight: 800,
+              color: value === '' ? 'var(--accent)' : 'var(--text-soft)',
+              background: value === '' ? 'rgba(var(--accent-rgb), 0.1)' : 'transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '4px',
+              transition: 'all 0.2s ease',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
+            }}
+            onMouseEnter={(e) => {
+              if (value !== '') e.currentTarget.style.background = 'rgba(0,0,0,0.04)';
+            }}
+            onMouseLeave={(e) => {
+              if (value !== '') e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            Non assegnato
+          </div>
+          {tables.map(t => {
+            const occupancy = assignments.filter(a => a.tableId === t.id).reduce((acc, a) => acc + (a.numPeople || 1), 0);
+            const isFull = occupancy >= t.capacity;
+            const isSelected = t.id === value;
+            
+            return (
+              <div 
+                key={t.id}
+                onClick={(e) => { 
+                  e.stopPropagation();
+                  onChange(t.id); 
+                  setIsOpen(false); 
+                }}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: isSelected ? '#fff' : 'var(--text-primary)',
+                  background: isSelected ? 'var(--accent)' : 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  marginBottom: '2px',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.background = 'rgba(var(--accent-rgb), 0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                  <LayoutGrid size={12} strokeWidth={2.5} style={{ flexShrink: 0, opacity: isSelected ? 1 : 0.4 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.name}</span>
+                </div>
+                <div style={{ 
+                  fontSize: '9px', 
+                  fontWeight: 900,
+                  color: isSelected ? '#fff' : (isFull ? '#ef4444' : 'var(--text-soft)'),
+                  background: isSelected ? 'rgba(255,255,255,0.2)' : (isFull ? '#fee2e2' : 'rgba(0,0,0,0.05)'),
+                  padding: '2px 6px',
+                  borderRadius: '100px',
+                  flexShrink: 0,
+                  marginLeft: '4px'
+                }}>
+                  {occupancy}/{t.capacity}
+                </div>
+              </div>
+            );
+          })}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
+// --- GUEST SEARCH SELECT (for Rules) ---
+const GuestSearchSelect: React.FC<{
+  value: string;
+  placeholder: string;
+  guests: any[];
+  assignments?: any[];
+  onChange: (id: string) => void;
+}> = ({ value, placeholder, guests, assignments = [], onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const selectedGuest = guests.find(g => g.id === value);
+  const filteredGuests = guests
+    .filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, 'it'));
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!wrapperRef.current?.contains(event.target as Node)) setIsOpen(false);
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  return (
+    <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
+      <div
+        onClick={() => { setIsOpen(o => !o); setSearch(''); }}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 12px',
+          background: '#fff',
+          border: isOpen ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
+          borderRadius: '100px',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          boxSizing: 'border-box'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+          <Sparkles size={13} color={selectedGuest ? 'var(--accent)' : 'var(--text-soft)'} />
+          <span style={{
+            fontSize: '12px',
+            fontWeight: 700,
+            color: selectedGuest ? 'var(--text-primary)' : 'rgba(0,0,0,0.3)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {selectedGuest ? selectedGuest.name : placeholder}
+          </span>
+        </div>
+        <ChevronDown size={14} style={{ color: 'var(--accent)', opacity: 0.5, flexShrink: 0, marginLeft: '8px' }} />
+      </div>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 4px)',
+          left: 0,
+          right: 0,
+          background: '#fff',
+          border: '1.5px solid var(--border)',
+          borderRadius: '20px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+          zIndex: 99999,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          maxHeight: '220px'
+        }}>
+          <div style={{ padding: '10px 10px 6px', flexShrink: 0 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'var(--surface-light)', border: '1.5px solid var(--border)',
+              borderRadius: '100px', padding: '7px 12px'
+            }}>
+              <Search size={13} color="var(--text-soft)" style={{ flexShrink: 0 }} />
+              <style>{`.gsearch::placeholder{color:var(--text-soft);opacity:1}`}</style>
+              <input
+                autoFocus
+                className="gsearch"
+                placeholder="Cerca..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  flex: 1, border: 'none', outline: 'none',
+                  background: 'transparent', fontSize: '12px', fontWeight: 600,
+                  color: 'var(--text-primary)', caretColor: 'var(--accent)'
+                }}
+              />
+            </div>
+          </div>
+          <div style={{ overflowY: 'auto', padding: '4px 8px 8px' }}>
+            {filteredGuests.length > 0 ? filteredGuests.map(g => {
+              const isSelected = g.id === value;
+              const isAssigned = assignments.some((a: any) => a.guestId === g.id && a.tableId);
+              return (
+                <div
+                  key={g.id}
+                  onClick={() => { onChange(g.id); setIsOpen(false); }}
+                  style={{
+                    padding: '9px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
+                    color: isSelected ? '#fff' : 'var(--text-primary)',
+                    background: isSelected ? 'var(--accent)' : 'transparent',
+                    cursor: 'pointer', transition: 'all 0.15s ease',
+                    marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '10px',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = 'rgba(var(--accent-rgb), 0.06)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <div style={{
+                    width: '9px', height: '9px', borderRadius: '50%', flexShrink: 0,
+                    background: isSelected ? '#fff' : (isAssigned ? 'var(--accent)' : '#f59e0b'),
+                    boxShadow: isSelected ? 'none' : (isAssigned ? '0 0 0 2px rgba(var(--accent-rgb),0.15)' : '0 0 0 2px rgba(245,158,11,0.18)')
+                  }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.name}</span>
+                </div>
+              );
+            }) : (
+              <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: 'var(--text-soft)', opacity: 0.5 }}>
+                Nessun ospite trovato
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TableauSidebar: React.FC<TableauSidebarProps> = ({ 
+  selectedBlock, 
+  onUpdateBlock, 
+  eventRsvps,
+  hasTableauAccess = false,
+  slug,
+  eventTitle = "Evento",
+  updateEventData,
+  event
+}) => {
+  const [activeTab, setActiveTab] = useState<'tables' | 'guests'>('tables');
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [guestA, setGuestA] = useState('');
+  const [guestB, setGuestB] = useState('');
+  const [manualGuestName, setManualGuestName] = useState('');
+  const [manualGuestCount, setManualGuestCount] = useState(1);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [confirmDeleteTableId, setConfirmDeleteTableId] = useState<string | null>(null);
+  const [seatingWarnings, setSeatingWarnings] = useState<SplitWarning[]>([]);
+
+  useEffect(() => {
+    if (confirmDeleteTableId) {
+      const timer = setTimeout(() => {
+        setConfirmDeleteTableId(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [confirmDeleteTableId]);
+
+  const [displayColorPicker, setDisplayColorPicker] = useState<boolean | string>(false);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const [capacityWarning, setCapacityWarning] = useState<{
+    tableId: string;
+    tableIndex: number;
+    guestCount: number;
+    capacity: number;
+    incomingGuests: { id: string; name: string }[];
+    snapshotAssignments: any[];
+    onConfirm: (idsToCommit?: string[]) => void;
+    onRedirect: (newTableId: string) => void;
+  } | null>(null);
+  const [constraintWarning, setConstraintWarning] = useState<{
+    type: 'avoid' | 'together';
+    guestName: string;
+    otherGuestName: string;
+    otherTableName?: string;
+    onConfirm: () => void;
+  } | null>(null);
+  // Tracking sessione modale: ospiti "in arrivo" che l'utente ha già riassegnato esplicitamente in questo modale
+  const [modalHandledIds, setModalHandledIds] = useState<string[]>([]);
+  const [confirmDeleteManualId, setConfirmDeleteManualId] = useState<string | null>(null);
+  const [confirmResetAssignments, setConfirmResetAssignments] = useState(false);
+  // Modale overflow ospiti > posti
+  const [showOverflowModal, setShowOverflowModal] = useState(false);
+  const [newTableNameInput, setNewTableNameInput] = useState('');
+  const [newTableCapacityInput, setNewTableCapacityInput] = useState(10);
+
+  // Reset del tracking ogni volta che il modale apre/cambia contesto
+  useEffect(() => {
+    setModalHandledIds([]);
+  }, [capacityWarning]);
+
+  // Auto-reset double-check elimina ospite manuale
+  useEffect(() => {
+    if (confirmDeleteManualId) {
+      const t = setTimeout(() => setConfirmDeleteManualId(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [confirmDeleteManualId]);
+
+  // Auto-reset double-check azzera assegnazioni
+  useEffect(() => {
+    if (confirmResetAssignments) {
+      const t = setTimeout(() => setConfirmResetAssignments(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [confirmResetAssignments]);
+
+  const config = selectedBlock.widgetProps || {};
+  const tables = config.tableauTables || [];
+  const assignments = (config.tableauAssignments || []) as any[];
+  const constraints = config.tableauConstraints || [];
+
+  const allGuests = [
+    ...eventRsvps
+      .filter(r => r.status === 'yes')
+      .flatMap(r => (r.guests || [{ name: r.name }]).map((g: any, idx: number) => ({
+        id: `${r._id || r.id}-${idx}`,
+        name: g.name
+      }))),
+    ...assignments
+      .filter((a: any) => a.guestId.startsWith('manual-'))
+      .flatMap((a: any) => {
+        const namesArr: string[] = (a.names && Array.isArray(a.names) && a.names.length > 0)
+          ? a.names
+          : [a.guestName];
+        return namesArr.map((n: string, i: number) => ({
+          // Primo membro usa l'id del gruppo (così assegnazioni continuano a funzionare).
+          // Membri successivi usano un sub-id univoco per la dropdown ma riferiscono lo stesso gruppo.
+          id: i === 0 ? a.guestId : `${a.guestId}__sub${i}`,
+          name: n || `${a.guestName} ${i + 1}`
+        }));
+      })
+  ];
+
+  // Totali capienza vs ospiti confermati
+  const totalRsvpGuests = eventRsvps
+    .filter((r: any) => r.status === 'yes')
+    .reduce((acc: number, r: any) => acc + (r.guestsCount || 1), 0);
+  const totalManualGuests = assignments
+    .filter((a: any) => a.guestId.startsWith('manual-'))
+    .reduce((acc: number, a: any) => acc + (a.numPeople || 1), 0);
+  const totalConfirmedGuests = totalRsvpGuests + totalManualGuests;
+  const totalCapacity = tables.reduce((acc: number, t: any) => acc + (t.capacity || 0), 0);
+  const missingSeats = Math.max(0, totalConfirmedGuests - totalCapacity);
+  const spareSeats = Math.max(0, totalCapacity - totalConfirmedGuests);
+
+  // Helper: apre il modale overflow con valori suggeriti, dato un missing calcolato (anche proiettato)
+  const openOverflowModal = (missing: number) => {
+    if (missing <= 0) return;
+    setShowOverflowModal(true);
+    setNewTableNameInput(`Tavolo ${tables.length + 1}`);
+    setNewTableCapacityInput(Math.max(2, missing));
+  };
+
+  const closeOverflowModal = () => {
+    setShowOverflowModal(false);
+  };
+
+  const patchConfig = (patch: any) => {
+    if (!hasTableauAccess) return;
+    onUpdateBlock(selectedBlock.id!, {
+      widgetProps: { ...config, ...patch }
+    });
+  };
+
+  // Normalizza i sub-id dei membri di gruppi manuali (manual-X__subN -> manual-X)
+  // perché in `assignments` esiste solo il record del gruppo, non dei singoli membri.
+  const normalizeGuestId = (id: string) => id.replace(/__sub\d+$/, '');
+
+  const checkConstraintConflict = (guestIds: string[], targetTableId: string) => {
+    for (const guestId of guestIds) {
+      const gIdNorm = normalizeGuestId(guestId);
+      for (const c of constraints as any[]) {
+        const c1 = normalizeGuestId(c.guestId1);
+        const c2 = normalizeGuestId(c.guestId2);
+        if (c1 !== gIdNorm && c2 !== gIdNorm) continue;
+        const otherId = c1 === gIdNorm ? c2 : c1;
+        const otherAssignment = assignments.find((a: any) => a.guestId === otherId);
+        if (c.type === 'avoid' && otherAssignment?.tableId === targetTableId) {
+          return {
+            type: 'avoid' as const,
+            guestName: allGuests.find(g => g.id === guestId)?.name || 'Ospite',
+            otherGuestName: allGuests.find(g => g.id === otherId || normalizeGuestId(g.id) === otherId)?.name || 'Ospite',
+          };
+        }
+        if (c.type === 'together' && otherAssignment?.tableId && otherAssignment.tableId !== targetTableId) {
+          return {
+            type: 'together' as const,
+            guestName: allGuests.find(g => g.id === guestId)?.name || 'Ospite',
+            otherGuestName: allGuests.find(g => g.id === otherId || normalizeGuestId(g.id) === otherId)?.name || 'Ospite',
+            otherTableName: tables.find((t: any) => t.id === otherAssignment.tableId)?.name || 'altro tavolo',
+          };
+        }
+      }
+    }
+    return null;
+  };
+
+  const handleOptimize = () => {
+    // Se ci sono più ospiti che posti, l'ottimizzazione non può funzionare bene.
+    // Mostra il modale per aumentare capienza/aggiungere tavolo invece di lanciarla.
+    if (missingSeats > 0) {
+      openOverflowModal(missingSeats);
+      return;
+    }
+    const manualAll = assignments.filter((a: any) => a.guestId.startsWith('manual-'));
+    const manualAssigned = manualAll.filter((a: any) => a.tableId);
+    const manualUnassigned = manualAll.filter((a: any) => !a.tableId);
+    const preOccupancy = new Map<string, number>();
+    manualAssigned.forEach((a: any) => {
+      preOccupancy.set(a.tableId, (preOccupancy.get(a.tableId) || 0) + (a.numPeople || 1));
+    });
+    const result = optimizeSeating(tables, eventRsvps, constraints, preOccupancy);
+
+    // Calcolo occupazione dopo gli RSVP per piazzare anche i manuali non assegnati
+    const occupancyAfter = new Map<string, number>(preOccupancy);
+    result.assignments.forEach((a: any) => {
+      occupancyAfter.set(a.tableId, (occupancyAfter.get(a.tableId) || 0) + 1);
+    });
+    // Greedy: gruppi più grandi per primi nei tavoli con spazio
+    const sortedManuals = [...manualUnassigned].sort((a: any, b: any) => (b.numPeople || 1) - (a.numPeople || 1));
+    const placedManuals = sortedManuals.map((m: any) => {
+      const groupSize = m.numPeople || 1;
+      const targetTable = tables.find((t: any) => {
+        const occ = occupancyAfter.get(t.id) || 0;
+        return (t.capacity - occ) >= groupSize;
+      });
+      if (targetTable) {
+        occupancyAfter.set(targetTable.id, (occupancyAfter.get(targetTable.id) || 0) + groupSize);
+        return { ...m, tableId: targetTable.id };
+      }
+      return m;
+    });
+
+    const finalManuals = [...manualAssigned, ...placedManuals];
+    patchConfig({ tableauAssignments: [...finalManuals, ...result.assignments] });
+    if (result.warnings.length > 0) {
+      setSeatingWarnings(result.warnings);
+    }
+  };
+
+  const handleActivate = () => {
+    setIsPurchaseModalOpen(true);
+  };
+
+  const addTable = () => {
+    const newTable = {
+      id: `table-${Date.now()}`,
+      name: `Tavolo ${tables.length + 1}`,
+      capacity: 10,
+      shape: 'round' as const,
+      x: 400,
+      y: 300
+    };
+    patchConfig({ tableauTables: [...tables, newTable] });
+  };
+
+  const removeTable = (id: string) => {
+    patchConfig({ 
+      tableauTables: tables.filter((t: any) => t.id !== id),
+      tableauAssignments: assignments.filter((a: any) => a.tableId !== id)
+    });
+  };
+
+  const moveTable = (index: number, direction: -1 | 1) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= tables.length) return;
+    const next = [...tables];
+    const temp = next[index];
+    next[index] = next[newIndex];
+    next[newIndex] = temp;
+    patchConfig({ tableauTables: next });
+  };
+
+  return (
+    <Surface variant="soft" className="panel-section" style={{ position: 'relative', overflow: hasTableauAccess ? 'visible' : 'hidden', minHeight: '400px' }}>
+      {!hasTableauAccess && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 1000,
+          background: '#ffffff',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+          textAlign: 'center',
+        }}>
+          <div style={{
+            width: '48px', height: '48px', borderRadius: '12px',
+            background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: '16px',
+          }}>
+            <LayoutGrid size={24} />
+          </div>
+          <h4 style={{ margin: '0 0 8px', fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>Tableau Premium</h4>
+          <p style={{ margin: '0 0 20px', fontSize: '11px', lineHeight: 1.5, color: 'var(--text-soft)', maxWidth: '200px' }}>
+            Attiva l'add-on per gestire i tavoli, gli ospiti e usare l'algoritmo intelligente.
+          </p>
+          <Button 
+            variant="primary" 
+            style={{ width: '100%', justifyContent: 'center' }}
+            onClick={handleActivate}
+          >
+            Attiva ora per €15
+          </Button>
+
+          {slug && (
+            <EventPurchaseModal 
+              open={isPurchaseModalOpen}
+              onClose={() => setIsPurchaseModalOpen(false)}
+              eventSlug={slug}
+              eventTitle={eventTitle}
+              purchaseType="tableau_addon"
+              onUnlocked={() => {
+                // Notifica successo e aggiorna stato locale senza refresh
+                setIsPurchaseModalOpen(false);
+                if (updateEventData) {
+                  updateEventData({ 
+                    addons: { 
+                      ...(event?.addons || {}), 
+                      tableau: true 
+                    } 
+                  });
+                }
+              }}
+            />
+          )}
+        </div>
+      )}
+      
+      {/* HEADER */}
+      <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px', paddingBottom: '14px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{
+            width: '36px', height: '36px', borderRadius: '10px',
+            background: 'rgba(var(--accent-rgb), 0.12)',
+            border: '1px solid rgba(var(--accent-rgb), 0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+          }}>
+            <Users size={18} color="var(--accent)" />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>Stai modificando</div>
+            <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>Tableau de Mariage</h3>
+          </div>
+        </div>
+        
+        <p style={{ fontSize: '10px', color: 'var(--text-soft)', lineHeight: 1.4, margin: '0 0 12px' }}>
+          Pubblica il tableau in pagina pubblica solo quando sarai sicuro della disposizione definitiva.
+        </p>
+
+        {!showPublishConfirm ? (
+          <Button 
+            variant={config.tableauIsPublished ? "subtle" : "primary"}
+            onClick={() => setShowPublishConfirm(true)}
+            style={{ width: '100%', fontSize: '11px', height: '32px', justifyContent: 'center', borderRadius: '100px' }}
+          >
+            {config.tableauIsPublished ? "Rendi Privato (Bozza)" : "Pubblica Tableau"}
+          </Button>
+        ) : (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowPublishConfirm(false)}
+              style={{ flex: 1, fontSize: '10px', height: '32px', borderRadius: '100px' }}
+            >
+              Annulla
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                patchConfig({ tableauIsPublished: !config.tableauIsPublished });
+                setShowPublishConfirm(false);
+              }}
+              style={{ flex: 1, fontSize: '10px', height: '32px', borderRadius: '100px', background: config.tableauIsPublished ? '#ff4d4d' : 'var(--accent)' }}
+            >
+              {config.tableauIsPublished ? "Sì, nascondi" : "Sì, pubblica"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* TITOLI E DESCRIZIONE */}
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', letterSpacing: '0.05em' }}>Titolo Tableau</label>
+        <div style={{ display: 'flex', alignItems: 'center', background: 'transparent', borderRadius: '0' }}>
+          <Pencil size={14} style={{ color: 'var(--text-soft)', marginRight: '12px', flexShrink: 0 }} />
+          <input
+            type="text"
+            value={config.tableauTitle ?? 'TABLEAU DE MARIAGE'}
+            onChange={e => patchConfig({ tableauTitle: e.target.value })}
+            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', minWidth: 0 }}
+          />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '32px' }}>
+        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', letterSpacing: '0.05em' }}>Descrizione Tableau</label>
+        <div style={{ display: 'flex', alignItems: 'flex-start', background: 'transparent', borderRadius: '0' }}>
+          <Pencil size={14} style={{ color: 'var(--text-soft)', marginRight: '12px', marginTop: '3px', flexShrink: 0 }} />
+          <textarea
+            value={config.tableauDescription ?? 'Cerca il tuo nome per trovare il tuo posto.'}
+            onChange={e => patchConfig({ tableauDescription: e.target.value })}
+            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', minWidth: 0, resize: 'vertical' }}
+            rows={2}
+          />
+        </div>
+      </div>
+
+      {/* COLORE ACCENTO WIDGET - GLOBALE */}
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>
+          Stile
+        </label>
+        <Button
+          variant={displayColorPicker === 'tableauAccent' ? 'primary' : 'subtle'}
+          onClick={() => setDisplayColorPicker(displayColorPicker === 'tableauAccent' ? false : 'tableauAccent')}
+          style={{ width: '100%', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '100px' }}
+        >
+          <span style={{ fontSize: '12px', fontWeight: 600 }}>Pulsanti & Accenti</span>
+          <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: config.tableauAccentColor || 'var(--accent)', border: '1px solid rgba(0,0,0,0.1)' }} />
+        </Button>
+        {displayColorPicker === 'tableauAccent' && (
+          <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '8px' }}>
+            <CustomColorPicker
+              color={config.tableauAccentColor || '#1a1a1a'}
+              onChange={(color) => patchConfig({ tableauAccentColor: color })}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* TABS */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '24px', background: 'var(--surface-light)', padding: '3px', borderRadius: '100px', border: '1px solid var(--border)' }}>
+        <Button 
+          variant={activeTab === 'tables' ? 'primary' : 'ghost'} 
+          onClick={() => setActiveTab('tables')}
+          style={{ flex: 1, padding: '6px 2px', fontSize: '10px', height: 'auto', fontWeight: 800, borderRadius: '100px', textTransform: 'uppercase', letterSpacing: '0.05em', justifyContent: 'center' }}
+        >
+          Tavoli
+        </Button>
+        <Button
+          variant={activeTab === 'guests' ? 'primary' : 'ghost'}
+          onClick={() => {
+            const wasOnTables = activeTab !== 'guests';
+            setActiveTab('guests');
+            if (wasOnTables && missingSeats > 0) openOverflowModal(missingSeats);
+          }}
+          style={{ flex: 1, padding: '6px 2px', fontSize: '10px', height: 'auto', fontWeight: 800, borderRadius: '100px', textTransform: 'uppercase', letterSpacing: '0.05em', justifyContent: 'center' }}
+        >
+          Ospiti &amp; Regole
+        </Button>
+      </div>
+
+      {/* CONTENT: TABLES */}
+      {activeTab === 'tables' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* COPERTURA POSTI — overview ospiti vs capienza */}
+          {totalConfirmedGuests > 0 && (() => {
+            const isOver = missingSeats > 0;
+            const isExact = missingSeats === 0 && spareSeats === 0;
+            const cappedCovered = Math.min(totalConfirmedGuests, totalCapacity);
+            const pct = totalConfirmedGuests > 0 ? Math.min(100, Math.round((cappedCovered / totalConfirmedGuests) * 100)) : 0;
+            const accent = isOver ? '#f59e0b' : 'var(--accent)';
+            const accentBg = isOver ? 'rgba(245, 158, 11, 0.08)' : 'rgba(var(--accent-rgb), 0.06)';
+            const accentBorder = isOver ? 'rgba(245, 158, 11, 0.25)' : 'rgba(var(--accent-rgb), 0.18)';
+            return (
+              <div style={{
+                padding: '16px 18px', borderRadius: '18px',
+                background: accentBg, border: `1.5px solid ${accentBorder}`,
+                display: 'flex', flexDirection: 'column', gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
+                  <div>
+                    <div style={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: accent, marginBottom: '4px' }}>
+                      Copertura posti
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1, fontFamily: 'var(--font-heading)' }}>
+                      {totalCapacity} <span style={{ fontSize: '13px', opacity: 0.4, fontWeight: 600 }}>/</span> {totalConfirmedGuests}
+                    </div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '4px' }}>
+                      Posti / Ospiti
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '6px 10px', borderRadius: '100px',
+                    background: '#fff', border: `1.5px solid ${accentBorder}`,
+                    fontSize: '11px', fontWeight: 900, color: accent,
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {pct}%
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div style={{ width: '100%', height: '6px', borderRadius: '100px', background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: accent, borderRadius: '100px', transition: 'width 0.3s ease' }} />
+                </div>
+                {/* Status */}
+                <div style={{ fontSize: '11px', color: 'var(--text-primary)', lineHeight: 1.4, fontWeight: 600 }}>
+                  {isOver ? (
+                    <>⚠ <strong>{missingSeats} {missingSeats === 1 ? 'ospite senza posto' : 'ospiti senza posto'}</strong> — aggiungi un tavolo o aumenta capienza.</>
+                  ) : isExact ? (
+                    <>✓ Perfetto: tutti gli ospiti hanno un posto, nessuno avanzato.</>
+                  ) : (
+                    <>✓ Tutti coperti — <strong>{spareSeats} {spareSeats === 1 ? 'posto libero' : 'posti liberi'}</strong> (puoi ridurre capienza o lasciare margine).</>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          <Button variant="primary" style={{ width: '100%', justifyContent: 'center' }} onClick={addTable}>
+            <Plus size={16} style={{ marginRight: 8 }} /> Aggiungi Tavolo
+          </Button>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+            {tables.map((table: any, idx: number) => (
+              <Surface key={table.id} variant="soft" style={{ 
+                padding: '20px', 
+                borderRadius: '32px', 
+                border: '1.5px solid var(--border)',
+                background: 'var(--surface)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                transition: 'all 0.2s ease',
+                position: 'relative'
+              }}>
+                {/* RIGA 1: NOME E FRECCE */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px', display: 'block' }}>Nome Tavolo</label>
+                    <div style={{ 
+                      display: 'flex', alignItems: 'center', gap: '8px', 
+                      background: 'transparent', padding: '0', borderRadius: '0',
+                      borderBottom: '1.5px solid var(--border-subtle)'
+                    }}>
+                      <Pencil size={14} style={{ opacity: 0.3, flexShrink: 0 }} />
+                      <input 
+                        value={table.name}
+                        onChange={(e) => {
+                          const next = tables.map((t: any) => t.id === table.id ? { ...t, name: e.target.value } : t);
+                          patchConfig({ tableauTables: next });
+                        }}
+                        placeholder="Es: Maradona"
+                        style={{ 
+                          background: 'transparent', border: 'none', outline: 'none', 
+                          fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', width: '100%',
+                          padding: '8px 0'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ 
+                    display: 'flex', flexDirection: 'column', gap: '8px', 
+                    background: 'rgba(var(--accent-rgb), 0.03)', padding: '6px', borderRadius: '16px',
+                    border: '1.5px solid var(--border-subtle)', flexShrink: 0
+                  }}>
+                    <button 
+                      disabled={idx === 0}
+                      onClick={() => moveTable(idx, -1)}
+                      style={{ 
+                        width: '32px', height: '32px', borderRadius: '10px', border: 'none',
+                        background: 'transparent', display: 'flex', flexDirection: 'column', 
+                        alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                        opacity: idx === 0 ? 0.2 : 1
+                      }}
+                    >
+                      <ChevronUp size={14} color="var(--text-primary)" />
+                      <span style={{ fontSize: '5px', fontWeight: 900, color: 'var(--text-soft)' }}>SU</span>
+                    </button>
+                    <button 
+                      disabled={idx === tables.length - 1}
+                      onClick={() => moveTable(idx, 1)}
+                      style={{ 
+                        width: '32px', height: '32px', borderRadius: '10px', border: 'none',
+                        background: 'transparent', display: 'flex', flexDirection: 'column', 
+                        alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                        opacity: idx === tables.length - 1 ? 0.2 : 1
+                      }}
+                    >
+                      <ChevronDown size={14} color="var(--text-primary)" />
+                      <span style={{ fontSize: '5px', fontWeight: 900, color: 'var(--text-soft)' }}>GIÙ</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* RIGA 2: POSTI E ELIMINA */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div style={{ width: '100px' }}>
+                    <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', display: 'block' }}>Capienza</label>
+                    <div style={{ 
+                      display: 'flex', alignItems: 'center', 
+                      background: 'var(--surface-light)', padding: '10px 14px', borderRadius: '16px',
+                      border: '1.5px solid var(--border-subtle)'
+                    }}>
+                      <Users size={14} style={{ opacity: 0.3, marginRight: '8px', flexShrink: 0 }} />
+                      <input 
+                        type="number"
+                        value={table.capacity}
+                        onChange={(e) => {
+                          const next = tables.map((t: any) => t.id === table.id ? { ...t, capacity: parseInt(e.target.value) || 0 } : t);
+                          patchConfig({ tableauTables: next });
+                        }}
+                        style={{ 
+                          background: 'transparent', border: 'none', outline: 'none', 
+                          fontSize: '14px', fontWeight: 800, color: 'var(--accent)', width: '100%'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {confirmDeleteTableId === table.id ? (
+                    <button 
+                      onClick={() => { removeTable(table.id); setConfirmDeleteTableId(null); }}
+                      style={{ 
+                        background: '#fee2e2', border: 'none', borderRadius: '16px', 
+                        width: '56px', height: '56px', display: 'flex', flexDirection: 'column', 
+                        alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: '2px',
+                        animation: 'fadeIn 0.2s ease', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.08)'
+                      }}
+                    >
+                      <Trash2 size={16} color="#ef4444" strokeWidth={3} />
+                      <span style={{ fontSize: '7px', fontWeight: 900, color: '#ef4444', textTransform: 'uppercase' }}>Sicuro?</span>
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => setConfirmDeleteTableId(table.id)}
+                      style={{ 
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                        background: 'none', border: 'none', cursor: 'pointer', opacity: 0.8
+                      }}
+                    >
+                      <Trash2 size={20} color="#ef4444" />
+                      <span style={{ fontSize: '7px', fontWeight: 900, color: '#ef4444', textTransform: 'uppercase', opacity: 0.6 }}>Elimina</span>
+                    </button>
+                  )}
+                </div>
+              </Surface>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CONTENT: GUESTS + RULES */}
+      {activeTab === 'guests' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+          {/* ── MOTORE INTELLIGENTE ── */}
+          <div style={{
+            padding: '20px 0',
+            background: 'transparent',
+            display: 'flex', flexDirection: 'column', gap: '14px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '14px', background: 'var(--accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                boxShadow: '0 6px 18px rgba(var(--accent-rgb), 0.35)'
+              }}>
+                <Sparkles size={22} color="#fff" />
+              </div>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '0.02em', lineHeight: 1.2 }}>Motore Intelligente</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-soft)', marginTop: '3px', lineHeight: 1.3 }}>Definisci vincoli, poi ottimizza con un click</div>
+              </div>
+            </div>
+
+            {/* Selettori ospiti */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <GuestSearchSelect value={guestA} placeholder="Ospite A" guests={allGuests} assignments={assignments} onChange={setGuestA} />
+              <div style={{ textAlign: 'center', fontSize: '12px', fontWeight: 900, color: 'var(--text-soft)', opacity: 0.3 }}>&</div>
+              <GuestSearchSelect value={guestB} placeholder="Ospite B" guests={allGuests} assignments={assignments} onChange={setGuestB} />
+            </div>
+
+            {/* Bottoni vincoli */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => {
+                  if (guestA && guestB && guestA !== guestB) {
+                    patchConfig({ tableauConstraints: [...constraints, { type: 'together', guestId1: guestA, guestId2: guestB }] });
+                    setGuestA(''); setGuestB('');
+                  }
+                }}
+                style={{
+                  flex: '1 1 0', minWidth: 0, width: 0,
+                  height: '40px', borderRadius: '100px', fontSize: '11px', fontWeight: 800,
+                  background: 'var(--accent)', color: '#fff', border: 'none',
+                  boxShadow: '0 4px 14px rgba(var(--accent-rgb), 0.3)', transition: 'all 0.2s ease',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  cursor: 'pointer', padding: 0
+                }}
+              >
+                <Heart size={12} color="#fff" fill="#fff" /> Insieme
+              </button>
+              <button
+                onClick={() => {
+                  if (guestA && guestB && guestA !== guestB) {
+                    patchConfig({ tableauConstraints: [...constraints, { type: 'avoid', guestId1: guestA, guestId2: guestB }] });
+                    setGuestA(''); setGuestB('');
+                  }
+                }}
+                style={{
+                  flex: '1 1 0', minWidth: 0, width: 0,
+                  height: '40px', borderRadius: '100px', fontSize: '11px', fontWeight: 800,
+                  background: 'rgba(239, 68, 68, 0.06)', color: '#dc2626',
+                  border: '1.5px solid rgba(239, 68, 68, 0.15)', transition: 'all 0.2s ease',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  cursor: 'pointer', padding: 0
+                }}
+              >
+                <HeartOff size={12} color="#dc2626" /> Separati
+              </button>
+            </div>
+
+            {/* Chips vincoli */}
+            {constraints.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {constraints.map((c: any, i: number) => {
+                  const g1 = allGuests.find(g => g.id === c.guestId1)?.name || 'Ospite';
+                  const g2 = allGuests.find(g => g.id === c.guestId2)?.name || 'Ospite';
+                  return (
+                    <div key={i} style={{
+                      padding: '10px 12px', background: c.type === 'together' ? 'rgba(var(--accent-rgb), 0.04)' : 'rgba(239,68,68,0.04)',
+                      borderRadius: '14px', border: c.type === 'together' ? '1.5px solid rgba(var(--accent-rgb), 0.15)' : '1.5px solid rgba(239,68,68,0.15)',
+                      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          width: '24px', height: '24px', borderRadius: '7px', flexShrink: 0,
+                          background: c.type === 'together' ? 'rgba(var(--accent-rgb), 0.1)' : 'rgba(239,68,68,0.08)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1px'
+                        }}>
+                          {c.type === 'together' ? <Heart size={11} color="var(--accent)" fill="var(--accent)" /> : <HeartOff size={11} color="#ef4444" />}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '8px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: c.type === 'together' ? 'var(--accent)' : '#ef4444', marginBottom: '3px' }}>
+                            {c.type === 'together' ? 'Insieme' : 'Separati'}
+                          </div>
+                          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                            {g1} <span style={{ opacity: 0.3, fontWeight: 400 }}>&</span> {g2}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => patchConfig({ tableauConstraints: constraints.filter((_: any, idx: number) => idx !== i) })}
+                        style={{
+                          width: '24px', height: '24px', borderRadius: '50%',
+                          background: c.type === 'together' ? 'rgba(var(--accent-rgb), 0.08)' : 'rgba(239,68,68,0.08)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none',
+                          cursor: 'pointer', transition: 'all 0.2s ease', flexShrink: 0, marginTop: '1px'
+                        }}
+                      >
+                        <X size={11} color={c.type === 'together' ? 'var(--accent)' : '#ef4444'} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Pulsante ottimizzazione */}
+            <button
+              onClick={handleOptimize}
+              style={{
+                width: '100%', height: '48px',
+                fontSize: '13px', fontWeight: 900, borderRadius: '100px',
+                background: 'var(--accent)', color: '#fff', border: 'none',
+                boxShadow: '0 8px 24px rgba(var(--accent-rgb), 0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                cursor: 'pointer', padding: 0, whiteSpace: 'nowrap',
+                letterSpacing: '0.01em', transition: 'all 0.2s ease'
+              }}
+            >
+              <Zap size={15} /> Ottimizza Automaticamente
+            </button>
+
+            {/* Pulsante Azzera assegnazioni — alert arancione, doppio check */}
+            {assignments.some((a: any) => a.tableId) && (
+              confirmResetAssignments ? (
+                <button
+                  onClick={() => {
+                    const next = assignments
+                      .filter((a: any) => a.guestId.startsWith('manual-'))
+                      .map((a: any) => ({ ...a, tableId: '' }));
+                    patchConfig({ tableauAssignments: next });
+                    setConfirmResetAssignments(false);
+                  }}
+                  style={{
+                    width: '100%', height: '40px', borderRadius: '100px',
+                    background: '#f59e0b', color: '#fff', border: 'none',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    boxShadow: '0 6px 18px rgba(245, 158, 11, 0.35)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <AlertTriangle size={14} color="#fff" strokeWidth={2.5} />
+                  <span style={{ fontSize: '11px', fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Sicuro? Azzera tutto
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setConfirmResetAssignments(true)}
+                  style={{
+                    width: '100%', height: '40px', borderRadius: '100px',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1.5px solid rgba(245, 158, 11, 0.3)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="Rimuove tutte le assegnazioni guest→tavolo (gli ospiti manuali restano in lista, non assegnati)"
+                >
+                  <RotateCcw size={13} color="#d97706" strokeWidth={2.5} />
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Azzera tutte le assegnazioni
+                  </span>
+                </button>
+              )
+            )}
+          </div>
+
+          {/* ── DIVIDER ── */}
+          <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+
+          {/* MANUAL GUEST ADD */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Aggiungi ospite / gruppo extra
+            </label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+              <input
+                placeholder="Nome ospite o gruppo..."
+                value={manualGuestName}
+                onChange={(e) => setManualGuestName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && manualGuestName.trim()) {
+                    const guestId = `manual-${Date.now()}`;
+                    const names = Array.from({ length: manualGuestCount }, (_, i) => i === 0 ? manualGuestName : '');
+                    patchConfig({ tableauAssignments: [...assignments, { guestId, guestName: manualGuestName, numPeople: manualGuestCount, names, tableId: '' }] });
+                    const projectedTotal = totalConfirmedGuests + manualGuestCount;
+                    if (projectedTotal > totalCapacity) openOverflowModal(projectedTotal - totalCapacity);
+                    setManualGuestName(''); setManualGuestCount(1);
+                  }
+                }}
+                style={{ flex: 1, background: '#fff', border: '1.5px solid var(--border)', borderRadius: '12px', padding: '9px 12px', fontSize: '12px', outline: 'none', fontWeight: 600 }}
+              />
+              {/* Contatore persone */}
+              <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+                <button
+                  onClick={() => setManualGuestCount(c => Math.max(1, c - 1))}
+                  style={{ width: '32px', height: '100%', border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--text-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >−</button>
+                <span style={{ minWidth: '24px', textAlign: 'center', fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>{manualGuestCount}</span>
+                <button
+                  onClick={() => setManualGuestCount(c => c + 1)}
+                  style={{ width: '32px', height: '100%', border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >+</button>
+              </div>
+              <Button
+                variant="subtle"
+                disabled={!manualGuestName.trim()}
+                onClick={() => {
+                  const guestId = `manual-${Date.now()}`;
+                  const names = Array.from({ length: manualGuestCount }, (_, i) => i === 0 ? manualGuestName : '');
+                  patchConfig({ tableauAssignments: [...assignments, { guestId, guestName: manualGuestName, numPeople: manualGuestCount, names, tableId: '' }] });
+                  const projectedTotal = totalConfirmedGuests + manualGuestCount;
+                  if (projectedTotal > totalCapacity) openOverflowModal(projectedTotal - totalCapacity);
+                  setManualGuestName(''); setManualGuestCount(1);
+                }}
+                style={{ padding: '0 12px', borderRadius: '12px', height: 'auto' }}
+              >
+                <Plus size={16} />
+              </Button>
+            </div>
+            {manualGuestCount > 1 && (
+              <div style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 700, paddingLeft: '4px' }}>
+                Gruppo di {manualGuestCount} persone — l'ottimizzazione li terrà insieme
+              </div>
+            )}
+          </div>
+
+          {/* MANUAL GUESTS LIST — stessa identica struttura delle card RSVP, con badge "Aggiunto manualmente" + cestino in testa */}
+          {assignments.filter(a => a.guestId.startsWith('manual-')).map((assignment: any) => {
+            const numPeople = assignment.numPeople || 1;
+            const isAssigned = !!assignment.tableId;
+            const isConfirmingDelete = confirmDeleteManualId === assignment.guestId;
+            const isExpanded = expandedGroups.includes(assignment.guestId);
+            const namesArr: string[] = (assignment.names && Array.isArray(assignment.names) && assignment.names.length > 0)
+              ? assignment.names
+              : Array.from({ length: numPeople }, (_, i) => i === 0 ? (assignment.guestName || '') : '');
+            const toggleManualGroup = () => {
+              setExpandedGroups(prev => prev.includes(assignment.guestId) ? prev.filter(id => id !== assignment.guestId) : [...prev, assignment.guestId]);
+            };
+            const updateNumPeople = (delta: number) => {
+              const newCount = Math.max(1, numPeople + delta);
+              const newNames = [...namesArr];
+              while (newNames.length < newCount) newNames.push('');
+              while (newNames.length > newCount) newNames.pop();
+              const next = assignments.map(a => a.guestId === assignment.guestId
+                ? { ...a, numPeople: newCount, names: newNames, guestName: newNames[0] || assignment.guestName }
+                : a);
+              patchConfig({ tableauAssignments: next });
+            };
+            const updateName = (idx: number, value: string) => {
+              const newNames = [...namesArr];
+              newNames[idx] = value;
+              const next = assignments.map(a => a.guestId === assignment.guestId
+                ? { ...a, names: newNames, guestName: newNames[0] || a.guestName }
+                : a);
+              patchConfig({ tableauAssignments: next });
+            };
+            return (
+              <Surface key={assignment.guestId} variant="soft" style={{
+                padding: '12px',
+                borderRadius: '16px',
+                border: isExpanded ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                background: isExpanded ? 'rgba(var(--accent-rgb), 0.02)' : 'var(--surface)',
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Top row: badge "AGGIUNTO MANUALMENTE" + cestino con doppio check */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      padding: '4px 10px', borderRadius: '100px',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.2)'
+                    }}>
+                      <UserPlus size={11} color="#d97706" strokeWidth={2.5} />
+                      <span style={{ fontSize: '9px', fontWeight: 800, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Aggiunto Manualmente
+                      </span>
+                    </div>
+                    {isConfirmingDelete ? (
+                      <button
+                        onClick={() => {
+                          const next = assignments.filter(a => a.guestId !== assignment.guestId);
+                          patchConfig({ tableauAssignments: next });
+                          setConfirmDeleteManualId(null);
+                        }}
+                        style={{
+                          background: '#fee2e2', border: 'none', borderRadius: '10px',
+                          padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '6px',
+                          cursor: 'pointer', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.15)'
+                        }}
+                      >
+                        <Trash2 size={12} color="#ef4444" strokeWidth={2.5} />
+                        <span style={{ fontSize: '9px', fontWeight: 900, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sicuro?</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteManualId(assignment.guestId)}
+                        style={{
+                          background: 'transparent', border: 'none', cursor: 'pointer',
+                          width: '28px', height: '28px', borderRadius: '8px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          opacity: 0.6, flexShrink: 0
+                        }}
+                        title="Elimina"
+                      >
+                        <Trash2 size={14} color="#ef4444" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* HEADER — identico a card RSVP: chevron + nome + meta cliccabile */}
+                  <div
+                    onClick={toggleManualGroup}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                  >
+                    <div style={{
+                      width: '28px', height: '28px', borderRadius: '8px',
+                      background: isExpanded ? 'var(--accent)' : 'rgba(var(--accent-rgb), 0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.2s ease',
+                      flexShrink: 0
+                    }}>
+                      {isExpanded ? <ChevronUp size={16} color="#fff" /> : <ChevronDown size={16} color="var(--accent)" />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {assignment.guestName || 'Senza nome'}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-soft)' }}>
+                          {numPeople} {numPeople === 1 ? 'Persona' : 'Persone'}
+                        </div>
+                        <div style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--border)', opacity: 0.5 }} />
+                        <div style={{
+                          fontSize: '9px',
+                          fontWeight: 800,
+                          color: isAssigned ? 'var(--accent)' : '#f59e0b',
+                          textTransform: 'uppercase'
+                        }}>
+                          {isAssigned ? `${numPeople}/${numPeople} Assegnati` : `0/${numPeople} Assegnati`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* COLLAPSED — bulk select identico a RSVP */}
+                  {!isExpanded && (
+                    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px' }}>
+                      <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' }}>Assegna intero gruppo</label>
+                      <CustomTableSelect
+                        value={assignment.tableId || ''}
+                        tables={tables}
+                        assignments={assignments}
+                        onChange={(tableId) => {
+                          const next = assignments.map(a => a.guestId === assignment.guestId ? { ...a, tableId } : a);
+                          patchConfig({ tableauAssignments: next });
+                        }}
+                        isBulk
+                      />
+                    </div>
+                  )}
+
+                  {/* EXPANDED — counter + nomi individuali + bulk select */}
+                  {isExpanded && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+                      <div>
+                        <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' }}>
+                          Numero persone
+                        </label>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--surface-light)', border: '1px solid var(--border-subtle)', borderRadius: '10px', overflow: 'hidden', height: '32px' }}>
+                          <button
+                            onClick={() => updateNumPeople(-1)}
+                            disabled={numPeople <= 1}
+                            style={{
+                              width: '32px', height: '100%', border: 'none', background: 'none',
+                              cursor: numPeople <= 1 ? 'not-allowed' : 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              opacity: numPeople <= 1 ? 0.3 : 1
+                            }}
+                          >
+                            <Minus size={13} color="var(--text-soft)" strokeWidth={2.5} />
+                          </button>
+                          <span style={{ minWidth: '32px', textAlign: 'center', fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            {numPeople}
+                          </span>
+                          <button
+                            onClick={() => updateNumPeople(1)}
+                            style={{
+                              width: '32px', height: '100%', border: 'none', background: 'none',
+                              cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}
+                          >
+                            <Plus size={13} color="var(--accent)" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' }}>
+                          Nomi ospiti
+                        </label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {namesArr.map((name, idx) => (
+                            <div key={idx} style={{
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              background: 'var(--surface-light)', border: '1px solid var(--border-subtle)',
+                              borderRadius: '10px', padding: '6px 10px'
+                            }}>
+                              <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', minWidth: '14px' }}>
+                                {idx + 1}.
+                              </span>
+                              <input
+                                value={name}
+                                onChange={e => updateName(idx, e.target.value)}
+                                placeholder={`Ospite ${idx + 1}`}
+                                style={{
+                                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                                  fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)',
+                                  minWidth: 0
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' }}>Assegna intero gruppo</label>
+                        <CustomTableSelect
+                          value={assignment.tableId || ''}
+                          tables={tables}
+                          assignments={assignments}
+                          onChange={(tableId) => {
+                            const next = assignments.map(a => a.guestId === assignment.guestId ? { ...a, tableId } : a);
+                            patchConfig({ tableauAssignments: next });
+                          }}
+                          isBulk
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Surface>
+            );
+          })}
+
+          {/* RSVP GUESTS LIST */}
+          <div style={{ 
+            padding: '12px 16px', background: 'rgba(var(--accent-rgb), 0.08)', borderRadius: '14px', 
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px',
+            border: '1px solid rgba(var(--accent-rgb), 0.15)'
+          }}>
+            <div>
+              <div style={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent)', marginBottom: '2px' }}>Riepilogo Posti</div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Ospiti confermati</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1 }}>
+                {assignments.filter((a: any) => a.tableId).reduce((acc, a) => acc + (a.numPeople || 1), 0)}
+                <span style={{ fontSize: '13px', opacity: 0.3, margin: '0 4px', fontWeight: 400 }}>/</span>
+                <span style={{ opacity: 0.5 }}>{totalConfirmedGuests}</span>
+              </div>
+              <div style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', marginTop: '2px' }}>Assegnati</div>
+            </div>
+          </div>
+
+          {/* Alert overflow inline — visibile sotto al riepilogo se mancano posti */}
+          {missingSeats > 0 && (
+            <div style={{
+              marginTop: '-8px', marginBottom: '16px',
+              padding: '12px 14px', borderRadius: '14px',
+              background: 'rgba(239, 68, 68, 0.06)',
+              border: '1.5px solid rgba(239, 68, 68, 0.22)',
+              display: 'flex', alignItems: 'center', gap: '10px'
+            }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '10px',
+                background: 'rgba(239, 68, 68, 0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+              }}>
+                <AlertTriangle size={16} color="#ef4444" strokeWidth={2.5} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                  Posti insufficienti
+                </div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                  Mancano {missingSeats} {missingSeats === 1 ? 'posto' : 'posti'} per tutti gli ospiti.
+                </div>
+              </div>
+              <button
+                onClick={() => openOverflowModal(missingSeats)}
+                style={{
+                  background: '#ef4444', color: '#fff', border: 'none',
+                  padding: '8px 14px', borderRadius: '100px', cursor: 'pointer',
+                  fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)'
+                }}
+              >
+                Risolvi
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {eventRsvps.filter(r => r.status === 'yes').map((rsvp: any) => {
+              const rsvpId = rsvp._id || rsvp.id;
+              const isExpanded = expandedGroups.includes(rsvpId);
+              
+              // Genera la lista degli ospiti basandosi su guestsCount (totale persone)
+              let rsvpGuests: any[] = [];
+              const totalCount = rsvp.guestsCount || 1;
+              
+              if (rsvp.guests && rsvp.guests.length > 0) {
+                rsvpGuests = rsvp.guests;
+              } else if (rsvp.allergiesDetail?.people && rsvp.allergiesDetail.people.length > 0) {
+                rsvpGuests = rsvp.allergiesDetail.people;
+              }
+              
+              if (rsvpGuests.length === 0) {
+                rsvpGuests.push({ name: rsvp.name });
+              }
+              
+              const currentNamesCount = rsvpGuests.length;
+              if (currentNamesCount < totalCount) {
+                for (let i = currentNamesCount; i < totalCount; i++) {
+                  rsvpGuests.push({ name: `Ospite ${i + 1}` });
+                }
+              } else if (currentNamesCount > totalCount && totalCount > 0) {
+                rsvpGuests = rsvpGuests.slice(0, totalCount);
+              }
+
+              // Bulk assignment logic
+              const groupAssignments = rsvpGuests.map((_, idx) => assignments.find(a => a.guestId === `${rsvpId}-${idx}`));
+              const firstTableId = groupAssignments[0]?.tableId || '';
+              const isUniform = groupAssignments.every(a => (a?.tableId || '') === firstTableId);
+              const bulkTableId = isUniform ? firstTableId : 'multiple';
+
+              const toggleGroup = () => {
+                setExpandedGroups(prev => prev.includes(rsvpId) ? prev.filter(id => id !== rsvpId) : [...prev, rsvpId]);
+              };
+
+              const bulkAssign = (tableId: string) => {
+                if (!tableId) {
+                  let next = assignments.filter(a => !rsvpGuests.some((_, i) => a.guestId === `${rsvpId}-${i}`));
+                  patchConfig({ tableauAssignments: next });
+                  return;
+                }
+
+                const table = tables.find((t: any) => t.id === tableId);
+                const tableIndex = tables.findIndex((t: any) => t.id === tableId);
+                const incomingCount = rsvpGuests.length;
+
+                const execute = (idsToCommit?: string[]) => {
+                  let next = [...assignments];
+                  rsvpGuests.forEach((g, idx) => {
+                    const gid = `${rsvpId}-${idx}`;
+                    if (idsToCommit && !idsToCommit.includes(gid)) return;
+                    const current = next.find(a => a.guestId === gid);
+                    next = next.filter(a => a.guestId !== gid);
+                    next.push({ guestId: gid, tableId, guestName: current?.guestName || g.name });
+                  });
+                  patchConfig({ tableauAssignments: next });
+                  setCapacityWarning(null);
+                  setConstraintWarning(null);
+                };
+
+                const proceed = () => {
+                  const currentOccupancy = assignments.filter(a => a.tableId === tableId).reduce((acc, a) => acc + (a.numPeople || 1), 0);
+                  if (table && currentOccupancy + incomingCount > table.capacity) {
+                    setCapacityWarning({
+                      tableId, tableIndex, guestCount: incomingCount, capacity: table.capacity,
+                      incomingGuests: rsvpGuests.map((g: any, idx: number) => ({ id: `${rsvpId}-${idx}`, name: g.name })),
+                      snapshotAssignments: [...assignments],
+                      onConfirm: execute,
+                      onRedirect: (newTableId: string) => { setCapacityWarning(null); bulkAssign(newTableId); }
+                    });
+                  } else {
+                    execute();
+                  }
+                };
+
+                const guestIds = rsvpGuests.map((_: any, i: number) => `${rsvpId}-${i}`);
+                const conflict = checkConstraintConflict(guestIds, tableId);
+                if (conflict) {
+                  setConstraintWarning({ ...conflict, onConfirm: proceed });
+                } else {
+                  proceed();
+                }
+              };
+
+              return (
+                <Surface key={rsvpId} variant="soft" style={{ 
+                  padding: '12px', 
+                  borderRadius: '16px', 
+                  border: isExpanded ? '1.5px solid var(--accent)' : '1px solid var(--border)', 
+                  background: isExpanded ? 'rgba(var(--accent-rgb), 0.02)' : 'var(--surface)',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)' 
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div 
+                      onClick={toggleGroup}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                    >
+                      <div style={{ 
+                        width: '28px', height: '28px', borderRadius: '8px', 
+                        background: isExpanded ? 'var(--accent)' : 'rgba(var(--accent-rgb), 0.1)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.2s ease',
+                        flexShrink: 0
+                      }}>
+                        {isExpanded ? <ChevronUp size={16} color="#fff" /> : <ChevronDown size={16} color="var(--accent)" />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {rsvp.name}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-soft)' }}>
+                            {rsvpGuests.length} {rsvpGuests.length === 1 ? 'Ospite' : 'Ospiti'}
+                          </div>
+                          <div style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--border)', opacity: 0.5 }} />
+                          <div style={{ 
+                            fontSize: '9px', 
+                            fontWeight: 800, 
+                            color: groupAssignments.every(a => a?.tableId) ? 'var(--accent)' : '#f59e0b',
+                            textTransform: 'uppercase'
+                          }}>
+                            {groupAssignments.filter(a => a?.tableId).length}/{rsvpGuests.length} Assegnati
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {!isExpanded && (
+                      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px' }}>
+                        <label style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' }}>Assegna intero gruppo</label>
+                        <CustomTableSelect
+                          value={bulkTableId}
+                          tables={tables}
+                          assignments={assignments}
+                          onChange={bulkAssign}
+                          isBulk
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
+                  {isExpanded && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                      {rsvpGuests.map((guest: any, gIdx: number) => {
+                        const guestId = `${rsvpId}-${gIdx}`;
+                        const currentAssignment = assignments.find((a: any) => a.guestId === guestId);
+                        const displayName = guest.name;
+                        
+                        const handleSingleAssign = (tableId: string) => {
+                          if (!tableId) {
+                            patchConfig({ tableauAssignments: assignments.filter(a => a.guestId !== guestId) });
+                            return;
+                          }
+
+                          const table = tables.find((t: any) => t.id === tableId);
+                          const tableIndex = tables.findIndex((t: any) => t.id === tableId);
+
+                          const execute = (idsToCommit?: string[]) => {
+                            if (idsToCommit && !idsToCommit.includes(guestId)) {
+                              setCapacityWarning(null);
+                              setConstraintWarning(null);
+                              return;
+                            }
+                            let nextAssignments = assignments.filter((a: any) => a.guestId !== guestId);
+                            nextAssignments.push({ guestId, tableId, guestName: displayName });
+                            patchConfig({ tableauAssignments: nextAssignments });
+                            setCapacityWarning(null);
+                            setConstraintWarning(null);
+                          };
+
+                          const proceed = () => {
+                            const currentOccupancy = assignments.filter(a => a.tableId === tableId).reduce((acc, a) => acc + (a.numPeople || 1), 0);
+                            if (table && currentOccupancy + 1 > table.capacity) {
+                              setCapacityWarning({
+                                tableId, tableIndex, guestCount: 1, capacity: table.capacity,
+                                incomingGuests: [{ id: guestId, name: displayName }],
+                                snapshotAssignments: [...assignments],
+                                onConfirm: execute,
+                                onRedirect: (newTableId: string) => { setCapacityWarning(null); handleSingleAssign(newTableId); }
+                              });
+                            } else {
+                              execute();
+                            }
+                          };
+
+                          const conflict = checkConstraintConflict([guestId], tableId);
+                          if (conflict) {
+                            setConstraintWarning({ ...conflict, onConfirm: proceed });
+                          } else {
+                            proceed();
+                          }
+                        };
+
+                        return (
+                          <div key={guestId} style={{ 
+                            display: 'flex', flexDirection: 'column', gap: '10px',
+                            padding: '12px', background: 'var(--surface-light)', borderRadius: '16px', 
+                            border: '1px solid var(--border-subtle)',
+                            transition: 'all 0.2s ease'
+                          }}>
+                            {/* NOME OSPITE */}
+                            <div style={{ fontSize: '11px', fontWeight: 750, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ 
+                                width: '8px', height: '8px', borderRadius: '50%', 
+                                background: currentAssignment?.tableId ? 'var(--accent)' : '#f59e0b',
+                                boxShadow: currentAssignment?.tableId ? '0 0 10px rgba(var(--accent-rgb), 0.4)' : '0 0 10px rgba(245, 158, 11, 0.4)',
+                                flexShrink: 0 
+                              }} />
+                              <span style={{ lineHeight: 1.4 }}>{displayName}</span>
+                            </div>
+                            
+                            {/* ASSEGNAZIONE */}
+                            <div style={{ width: '100%' }}>
+                              <CustomTableSelect
+                                value={currentAssignment?.tableId || ''}
+                                tables={tables}
+                                assignments={assignments}
+                                onChange={handleSingleAssign}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Surface>
+              );
+            })}
+
+            {eventRsvps.filter(r => r.status === 'yes').length === 0 && (
+              <div style={{ textAlign: 'center', padding: '30px 20px', opacity: 0.5, fontSize: '12px', background: 'var(--surface-light)', borderRadius: '12px', border: '1px dotted var(--border)' }}>
+                Nessun ospite confermato trovato.
+              </div>
+            )}
+          </div>
+          
+          {/* FOOTER DI PUBBLICAZIONE */}
+          <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1.5px solid var(--border)' }}>
+            <Surface variant="soft" style={{ 
+              padding: '24px', 
+              borderRadius: '24px', 
+              border: '1.5px solid var(--border)',
+              background: 'rgba(var(--accent-rgb), 0.03)',
+              textAlign: 'center'
+            }}>
+              <div style={{ 
+                width: '40px', height: '40px', borderRadius: '12px', background: 'var(--accent)', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
+                boxShadow: '0 8px 20px rgba(var(--accent-rgb), 0.2)'
+              }}>
+                <Zap size={20} color="#fff" />
+              </div>
+              
+              <h4 style={{ fontSize: '14px', fontWeight: 900, color: 'var(--text-primary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Pubblicazione
+              </h4>
+              <p style={{ fontSize: '11px', color: 'var(--text-soft)', lineHeight: 1.5, marginBottom: '20px' }}>
+                Salva le assegnazioni finali e rendi il tableau visibile ai tuoi ospiti nella pagina dell'evento.
+              </p>
+
+              <Button 
+                variant="accent" 
+                fullWidth
+                onClick={() => {
+                  const totalConfirmed = totalConfirmedGuests;
+                  const totalAssigned = assignments.filter((a: any) => a.tableId).reduce((acc, a) => acc + (a.numPeople || 1), 0);
+
+                  if (totalAssigned < totalConfirmed) {
+                    setShowPublishConfirm(true);
+                  } else {
+                    patchConfig({ tableauIsPublished: !config.tableauIsPublished });
+                  }
+                }}
+                style={{ height: '48px', borderRadius: '100px', fontWeight: 800, fontSize: '13px' }}
+              >
+                Pubblica Tableau
+              </Button>
+            </Surface>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE WARNING PUBBLICAZIONE (PORTAL) */}
+      {showPublishConfirm && createPortal(
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <Surface variant="soft" style={{ 
+            maxWidth: '440px', width: '100%', padding: '48px 40px', borderRadius: '32px', 
+            textAlign: 'center', boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
+            background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.4)',
+            animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}>
+            <div style={{ 
+              width: '80px', height: '80px', borderRadius: '24px', background: '#fffbeb', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px',
+              border: '1.5px solid #ffe699'
+            }}>
+              <AlertTriangle size={40} color="#f59e0b" />
+            </div>
+            <h2 style={{ fontSize: '24px', fontWeight: 900, color: 'var(--text-primary)', marginBottom: '16px', fontFamily: 'var(--font-heading)' }}>Ospiti non assegnati</h2>
+            <p style={{ fontSize: '15px', color: 'var(--text-soft)', lineHeight: 1.6, marginBottom: '32px' }}>
+              Ci sono ancora degli ospiti che non hanno un tavolo assegnato. Vuoi pubblicare comunque o preferisci finire di sistemarli?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Button 
+                variant="accent" 
+                fullWidth
+                onClick={() => {
+                  patchConfig({ tableauIsPublished: true });
+                  setShowPublishConfirm(false);
+                }}
+                style={{ height: '52px', borderRadius: '100px', fontWeight: 800 }}
+              >
+                Sì, pubblica comunque
+              </Button>
+              <Button 
+                variant="ghost" 
+                fullWidth
+                onClick={() => setShowPublishConfirm(false)}
+                style={{ height: '52px', borderRadius: '100px', color: 'var(--text-primary)', fontWeight: 700 }}
+              >
+                No, fammi finire
+              </Button>
+            </div>
+          </Surface>
+        </div>,
+        document.body
+      )}
+
+      {/* SEATING WARNING MODAL */}
+      {seatingWarnings.length > 0 && createPortal(
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100001,
+          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <Surface variant="soft" style={{
+            maxWidth: '480px', width: '100%', borderRadius: '32px',
+            boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
+            background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.4)',
+            animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh'
+          }}>
+            {/* Header */}
+            <div style={{ padding: '32px 32px 24px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
+              <div style={{
+                width: '72px', height: '72px', borderRadius: '20px', background: '#fffbeb',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px',
+                border: '1.5px solid #ffe699'
+              }}>
+                <AlertTriangle size={32} color="#f59e0b" />
+              </div>
+              <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-primary)', marginBottom: '10px', fontFamily: 'var(--font-heading)' }}>
+                Assegnazione incompleta
+              </h2>
+              <p style={{ fontSize: '13px', color: 'var(--text-soft)', lineHeight: 1.6, margin: 0 }}>
+                L'algoritmo non ha potuto rispettare tutte le preferenze. Rivedi e correggi le assegnazioni qui sotto.
+              </p>
+            </div>
+
+            {/* Body — scrollabile */}
+            <div style={{ overflowY: 'auto', padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {seatingWarnings.map((w, wi) => (
+                <div key={wi}>
+                  <div style={{
+                    fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+                    color: w.type === 'group_split' ? '#f59e0b' : '#ef4444', marginBottom: '10px'
+                  }}>
+                    {w.type === 'group_split' ? 'Gruppo separato' : 'Vincolo irrisolvibile'}
+                  </div>
+                  <div style={{
+                    padding: '12px 14px', borderRadius: '14px',
+                    background: w.type === 'group_split' ? 'rgba(245,158,11,0.05)' : 'rgba(239,68,68,0.05)',
+                    border: w.type === 'group_split' ? '1px solid rgba(245,158,11,0.2)' : '1px solid rgba(239,68,68,0.15)',
+                    marginBottom: '10px', fontSize: '12px', color: 'var(--text-soft)', lineHeight: 1.5
+                  }}>
+                    {w.reason}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {w.groupGuests.map(guest => {
+                      const currentAssignment = assignments.find((a: any) => a.guestId === guest.id);
+                      return (
+                        <div key={guest.id} style={{
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          padding: '10px 12px', background: 'var(--surface-light)',
+                          borderRadius: '12px', border: '1px solid var(--border)'
+                        }}>
+                          <div style={{
+                            width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+                            background: currentAssignment?.tableId ? 'var(--accent)' : '#f59e0b',
+                            boxShadow: currentAssignment?.tableId ? '0 0 8px rgba(var(--accent-rgb),0.4)' : '0 0 8px rgba(245,158,11,0.4)'
+                          }} />
+                          <span style={{ flex: 1, fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{guest.name}</span>
+                          <select
+                            value={currentAssignment?.tableId || ''}
+                            onChange={(e) => {
+                              const tableId = e.target.value;
+                              let next = assignments.filter((a: any) => a.guestId !== guest.id);
+                              if (tableId) next = [...next, { guestId: guest.id, tableId, guestName: guest.name }];
+                              patchConfig({ tableauAssignments: next });
+                            }}
+                            style={{
+                              fontSize: '11px', padding: '5px 8px', borderRadius: '8px',
+                              border: '1.5px solid var(--border)', background: '#fff',
+                              color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer',
+                              maxWidth: '140px'
+                            }}
+                          >
+                            <option value="">Non assegnato</option>
+                            {tables.map((t: any) => {
+                              const occ = assignments.filter((a: any) => a.tableId === t.id).length;
+                              return <option key={t.id} value={t.id}>{t.name} ({occ}/{t.capacity})</option>;
+                            })}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '20px 32px', borderTop: '1px solid var(--border)' }}>
+              <Button
+                variant="accent"
+                fullWidth
+                onClick={() => setSeatingWarnings([])}
+                style={{ height: '48px', borderRadius: '100px', fontWeight: 800, fontSize: '13px' }}
+              >
+                Fatto, chiudi
+              </Button>
+            </div>
+          </Surface>
+        </div>,
+        document.body
+      )}
+
+      {/* CAPACITY WARNING MODAL */}
+      {capacityWarning && createPortal(
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100000,
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          {(() => {
+            const liveOccupancy = assignments.filter(a => a.tableId === capacityWarning.tableId).reduce((acc, a) => acc + (a.numPeople || 1), 0);
+            const tableName = tables[capacityWarning.tableIndex]?.name || 'Tavolo';
+            const guestsAtTable = assignments.filter((a: any) => a.tableId === capacityWarning.tableId);
+            // Ospiti "in arrivo" ancora da gestire: esclude quelli che l'utente ha già riassegnato esplicitamente in questa sessione del modale
+            const stillIncoming = capacityWarning.incomingGuests.filter(g => !modalHandledIds.includes(g.id));
+            const stillIncomingIds = stillIncoming.map(g => g.id);
+            const canProceed = liveOccupancy + stillIncoming.length <= capacityWarning.capacity;
+            return (
+              <Surface variant="soft" style={{
+                maxWidth: '460px', width: '100%', borderRadius: '32px',
+                boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
+                background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.4)',
+                animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh'
+              }}>
+                {/* Header */}
+                <div style={{ padding: '32px 32px 24px', textAlign: 'center' }}>
+                  <div style={{
+                    width: '72px', height: '72px', borderRadius: '20px', background: '#fffbeb',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px',
+                    border: '1.5px solid #ffe699'
+                  }}>
+                    <AlertTriangle size={32} color="#f59e0b" />
+                  </div>
+                  <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-primary)', marginBottom: '10px', fontFamily: 'var(--font-heading)' }}>
+                    Limite Tavolo Superato
+                  </h2>
+                  <p style={{ fontSize: '13px', color: 'var(--text-soft)', lineHeight: 1.6, margin: 0 }}>
+                    Stai aggiungendo <strong>{capacityWarning.guestCount} {capacityWarning.guestCount === 1 ? 'persona' : 'persone'}</strong> al tavolo <strong>{tableName}</strong>,
+                    che ha già <strong style={{ color: '#ef4444' }}>{liveOccupancy} {liveOccupancy === 1 ? 'ospite' : 'ospiti'}</strong> su <strong>{capacityWarning.capacity}</strong> posti.
+                  </p>
+                </div>
+
+                {/* Tre opzioni esplicite */}
+                <div style={{ padding: '0 32px 16px' }}>
+                  <div style={{
+                    padding: '14px 16px', borderRadius: '14px',
+                    background: 'rgba(var(--accent-rgb), 0.04)',
+                    border: '1.5px solid rgba(var(--accent-rgb), 0.12)',
+                    fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6
+                  }}>
+                    <div style={{ fontWeight: 800, marginBottom: '6px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent)' }}>Hai tre opzioni</div>
+                    <div><strong>1.</strong> Sposta uno o più ospiti già al tavolo verso un altro tavolo libero.</div>
+                    <div style={{ marginTop: '4px' }}><strong>2.</strong> Riassegna il gruppo che stai aggiungendo a un altro tavolo con posti sufficienti.</div>
+                    <div style={{ marginTop: '4px' }}><strong>3.</strong> Aumenta la capienza del tavolo {tableName}.</div>
+                  </div>
+                </div>
+
+                {/* Liste — scrollabile globale */}
+                <div style={{ overflowY: 'auto', flex: 1, borderTop: '1px solid var(--border)' }}>
+                  {/* Sezione: ospiti già al tavolo */}
+                  {guestsAtTable.length > 0 && (
+                    <div style={{ padding: '16px 32px 12px' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-soft)', marginBottom: '10px' }}>
+                        Già assegnati al tavolo {tableName}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {guestsAtTable.map((a: any) => (
+                          <div key={a.guestId} style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            padding: '8px 10px', background: 'var(--surface-light)',
+                            borderRadius: '12px', border: '1px solid var(--border)'
+                          }}>
+                            <span style={{ flex: 1, fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.guestName}</span>
+                            <div style={{ width: '170px', flexShrink: 0 }}>
+                              <CustomTableSelect
+                                value={a.tableId}
+                                tables={tables.filter((t: any) => {
+                                  if (t.id === a.tableId) return true;
+                                  const occ = assignments.filter((x: any) => x.tableId === t.id).reduce((acc: number, x: any) => acc + (x.numPeople || 1), 0);
+                                  return occ < t.capacity;
+                                })}
+                                assignments={assignments}
+                                onChange={(newTableId) => {
+                                  const next = assignments.map((x: any) => x.guestId === a.guestId ? { ...x, tableId: newTableId } : x);
+                                  patchConfig({ tableauAssignments: next });
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Separatore */}
+                  {guestsAtTable.length > 0 && stillIncoming.length > 0 && (
+                    <div style={{ padding: '4px 32px' }}>
+                      <div style={{ borderTop: '1px dashed var(--border)' }} />
+                    </div>
+                  )}
+
+                  {/* Sezione: gruppo in arrivo (per-ospite) */}
+                  {stillIncoming.length > 0 && (
+                    <div style={{ padding: '12px 32px 20px' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#f59e0b', marginBottom: '10px' }}>
+                        In arrivo — {stillIncoming.length} {stillIncoming.length === 1 ? 'persona' : 'persone'}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {stillIncoming.map(g => (
+                          <div key={g.id} style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            padding: '8px 10px', background: 'rgba(245,158,11,0.06)',
+                            borderRadius: '12px', border: '1px solid rgba(245,158,11,0.2)'
+                          }}>
+                            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+                            <span style={{ flex: 1, fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
+                            <div style={{ width: '170px', flexShrink: 0 }}>
+                              <CustomTableSelect
+                                value=""
+                                tables={tables.filter((t: any) => {
+                                  const occ = assignments.filter((x: any) => x.tableId === t.id).reduce((acc: number, x: any) => acc + (x.numPeople || 1), 0);
+                                  return occ < t.capacity;
+                                })}
+                                assignments={assignments}
+                                placeholder="Assegna a..."
+                                onChange={(newTableId) => {
+                                  if (!newTableId) return;
+                                  let next = assignments.filter((x: any) => x.guestId !== g.id);
+                                  next.push({ guestId: g.id, tableId: newTableId, guestName: g.name });
+                                  patchConfig({ tableauAssignments: next });
+                                  setModalHandledIds(prev => [...prev, g.id]);
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div style={{ padding: '20px 32px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {stillIncoming.length === 0 ? (
+                    <Button variant="primary" fullWidth onClick={() => setCapacityWarning(null)}
+                      style={{ height: '48px', borderRadius: '100px', fontWeight: 800 }}>
+                      Tutti riassegnati — Chiudi
+                    </Button>
+                  ) : canProceed ? (
+                    <Button variant="primary" fullWidth onClick={() => { capacityWarning.onConfirm(stillIncomingIds); }}
+                      style={{ height: '48px', borderRadius: '100px', fontWeight: 800 }}>
+                      Spazio libero — Procedi
+                    </Button>
+                  ) : (
+                    <Button variant="primary" fullWidth
+                      onClick={() => {
+                        const nextTables = [...tables];
+                        nextTables[capacityWarning.tableIndex] = {
+                          ...nextTables[capacityWarning.tableIndex],
+                          capacity: liveOccupancy + stillIncoming.length
+                        };
+                        patchConfig({ tableauTables: nextTables });
+                        capacityWarning.onConfirm(stillIncomingIds);
+                      }}
+                      style={{ height: '48px', borderRadius: '100px', fontWeight: 800 }}>
+                      Aumenta capienza tavolo {tableName}
+                    </Button>
+                  )}
+                  <Button variant="ghost" fullWidth onClick={() => {
+                    // Ripristina lo stato pre-modale (annulla tutte le riassegnazioni fatte in questa sessione)
+                    patchConfig({ tableauAssignments: capacityWarning.snapshotAssignments });
+                    setCapacityWarning(null);
+                  }}
+                    style={{ height: '48px', borderRadius: '100px', color: 'var(--text-soft)', fontWeight: 700 }}>
+                    Annulla
+                  </Button>
+                </div>
+              </Surface>
+            );
+          })()}
+        </div>,
+        document.body
+      )}
+
+      {/* CONSTRAINT WARNING MODAL */}
+      {constraintWarning && createPortal(
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100002,
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <Surface variant="soft" style={{
+            maxWidth: '420px', width: '100%', padding: '40px 36px', borderRadius: '32px',
+            textAlign: 'center', boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
+            background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.4)',
+            animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}>
+            <div style={{
+              width: '72px', height: '72px', borderRadius: '20px',
+              background: constraintWarning.type === 'avoid' ? 'rgba(239,68,68,0.08)' : 'rgba(var(--accent-rgb),0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px',
+              border: constraintWarning.type === 'avoid' ? '1.5px solid rgba(239,68,68,0.2)' : '1.5px solid rgba(var(--accent-rgb),0.2)'
+            }}>
+              {constraintWarning.type === 'avoid'
+                ? <HeartOff size={30} color="#ef4444" />
+                : <Heart size={30} color="var(--accent)" fill="var(--accent)" />
+              }
+            </div>
+            <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-primary)', marginBottom: '12px', fontFamily: 'var(--font-heading)' }}>
+              {constraintWarning.type === 'avoid' ? 'Vincolo di separazione' : 'Vincolo di vicinanza'}
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--text-soft)', lineHeight: 1.7, marginBottom: '28px' }}>
+              {constraintWarning.type === 'avoid'
+                ? <><strong>{constraintWarning.guestName}</strong> e <strong>{constraintWarning.otherGuestName}</strong> hanno un vincolo <em>Separati</em> ma finirebbero allo stesso tavolo.</>
+                : <><strong>{constraintWarning.guestName}</strong> ha un vincolo <em>Insieme</em> con <strong>{constraintWarning.otherGuestName}</strong>, che si trova già al <strong>{constraintWarning.otherTableName}</strong>.</>
+              }
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <Button variant="accent" fullWidth onClick={() => { constraintWarning.onConfirm(); setConstraintWarning(null); }}
+                style={{ height: '48px', borderRadius: '100px', fontWeight: 800 }}>
+                Procedi comunque
+              </Button>
+              <Button variant="ghost" fullWidth onClick={() => setConstraintWarning(null)}
+                style={{ height: '48px', borderRadius: '100px', color: 'var(--text-soft)', fontWeight: 700 }}>
+                Annulla
+              </Button>
+            </div>
+          </Surface>
+        </div>,
+        document.body
+      )}
+
+      {/* OVERFLOW MODAL — più ospiti che posti */}
+      {showOverflowModal && createPortal(
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100003,
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <Surface variant="soft" style={{
+            maxWidth: '460px', width: '100%', borderRadius: '32px',
+            boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
+            background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.4)',
+            animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            overflow: 'hidden', display: 'flex', flexDirection: 'column'
+          }}>
+            <div style={{ padding: '32px 32px 20px', textAlign: 'center' }}>
+              <div style={{
+                width: '72px', height: '72px', borderRadius: '20px', background: '#fffbeb',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px',
+                border: '1.5px solid #ffe699'
+              }}>
+                <Users size={32} color="#f59e0b" />
+              </div>
+              <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--text-primary)', marginBottom: '10px', fontFamily: 'var(--font-heading)' }}>
+                Più ospiti che posti
+              </h2>
+              <p style={{ fontSize: '13px', color: 'var(--text-soft)', lineHeight: 1.6, margin: 0 }}>
+                Hai <strong>{totalConfirmedGuests} ospiti</strong> ma solo <strong>{totalCapacity} posti</strong> totali ({tables.length} {tables.length === 1 ? 'tavolo' : 'tavoli'}).
+                Mancano <strong style={{ color: '#f59e0b' }}>{missingSeats} {missingSeats === 1 ? 'posto' : 'posti'}</strong>.
+              </p>
+            </div>
+
+            {/* Form aggiungi tavolo inline */}
+            <div style={{ padding: '0 32px 20px' }}>
+              <div style={{
+                padding: '16px', borderRadius: '16px',
+                background: 'rgba(var(--accent-rgb), 0.04)',
+                border: '1.5px solid rgba(var(--accent-rgb), 0.15)'
+              }}>
+                <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>
+                  Aggiungi un tavolo
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                  <input
+                    value={newTableNameInput}
+                    onChange={e => setNewTableNameInput(e.target.value)}
+                    placeholder="Nome tavolo"
+                    style={{
+                      flex: 1, background: '#fff', border: '1.5px solid var(--border)',
+                      borderRadius: '12px', padding: '10px 12px',
+                      fontSize: '12px', fontWeight: 700, outline: 'none', color: 'var(--text-primary)'
+                    }}
+                  />
+                  <div style={{
+                    display: 'flex', alignItems: 'center',
+                    background: '#fff', border: '1.5px solid var(--border)',
+                    borderRadius: '12px', overflow: 'hidden', width: '120px'
+                  }}>
+                    <button
+                      onClick={() => setNewTableCapacityInput(c => Math.max(2, c - 1))}
+                      style={{ width: '32px', height: '100%', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Minus size={12} color="var(--text-soft)" strokeWidth={2.5} />
+                    </button>
+                    <input
+                      type="number"
+                      value={newTableCapacityInput}
+                      onChange={e => setNewTableCapacityInput(Math.max(2, parseInt(e.target.value) || 2))}
+                      style={{
+                        flex: 1, border: 'none', outline: 'none', background: 'transparent',
+                        fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', textAlign: 'center', minWidth: 0
+                      }}
+                    />
+                    <button
+                      onClick={() => setNewTableCapacityInput(c => c + 1)}
+                      style={{ width: '32px', height: '100%', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Plus size={12} color="var(--accent)" strokeWidth={2.5} />
+                    </button>
+                  </div>
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-soft)', marginTop: '6px', fontWeight: 600 }}>
+                  Capienza posti
+                </div>
+                <Button
+                  variant="primary" fullWidth
+                  onClick={() => {
+                    const newTable = {
+                      id: `table-${Date.now()}`,
+                      name: newTableNameInput.trim() || `Tavolo ${tables.length + 1}`,
+                      capacity: Math.max(2, newTableCapacityInput),
+                      shape: 'round' as const,
+                      x: 400, y: 300
+                    };
+                    patchConfig({ tableauTables: [...tables, newTable] });
+                    closeOverflowModal();
+                  }}
+                  style={{ height: '40px', borderRadius: '100px', fontWeight: 800, fontSize: '12px', marginTop: '12px' }}
+                >
+                  <Plus size={14} /> Aggiungi tavolo
+                </Button>
+              </div>
+            </div>
+
+            {/* OPPURE — aumenta capienza tavoli esistenti */}
+            {tables.length > 0 && (
+              <div style={{ padding: '0 32px 20px' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  margin: '8px 0 12px'
+                }}>
+                  <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Oppure</span>
+                  <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+                </div>
+                <div style={{
+                  padding: '16px', borderRadius: '16px',
+                  background: 'var(--surface-light)',
+                  border: '1.5px solid var(--border)'
+                }}>
+                  <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>
+                    Aumenta capienza tavoli esistenti
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {tables.map((t: any) => (
+                      <div key={t.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '8px 10px', background: '#fff',
+                        borderRadius: '12px', border: '1px solid var(--border)'
+                      }}>
+                        <LayoutGrid size={13} color="var(--accent)" style={{ opacity: 0.5, flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                        <div style={{
+                          display: 'flex', alignItems: 'center',
+                          background: 'var(--surface-light)', border: '1px solid var(--border-subtle)',
+                          borderRadius: '10px', overflow: 'hidden', flexShrink: 0
+                        }}>
+                          <button
+                            onClick={() => {
+                              const next = tables.map((x: any) => x.id === t.id ? { ...x, capacity: Math.max(2, (x.capacity || 0) - 1) } : x);
+                              patchConfig({ tableauTables: next });
+                            }}
+                            disabled={(t.capacity || 0) <= 2}
+                            style={{
+                              width: '28px', height: '28px', border: 'none', background: 'none',
+                              cursor: (t.capacity || 0) <= 2 ? 'not-allowed' : 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              opacity: (t.capacity || 0) <= 2 ? 0.3 : 1
+                            }}
+                          >
+                            <Minus size={12} color="var(--text-soft)" strokeWidth={2.5} />
+                          </button>
+                          <span style={{ minWidth: '28px', textAlign: 'center', fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            {t.capacity}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const next = tables.map((x: any) => x.id === t.id ? { ...x, capacity: (x.capacity || 0) + 1 } : x);
+                              patchConfig({ tableauTables: next });
+                            }}
+                            style={{
+                              width: '28px', height: '28px', border: 'none', background: 'none',
+                              cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}
+                          >
+                            <Plus size={12} color="var(--accent)" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {missingSeats === 0 && (
+                    <div style={{
+                      marginTop: '12px', padding: '8px 12px', borderRadius: '10px',
+                      background: 'rgba(var(--accent-rgb), 0.08)',
+                      border: '1px solid rgba(var(--accent-rgb), 0.2)',
+                      fontSize: '11px', fontWeight: 700, color: 'var(--accent)',
+                      textAlign: 'center'
+                    }}>
+                      Tutti gli ospiti hanno un posto
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ padding: '16px 32px 24px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {missingSeats === 0 ? (
+                <Button variant="primary" fullWidth onClick={closeOverflowModal}
+                  style={{ height: '48px', borderRadius: '100px', fontWeight: 800, fontSize: '13px' }}>
+                  Procedi con le modifiche
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" fullWidth
+                    onClick={() => { setActiveTab('tables'); closeOverflowModal(); }}
+                    style={{ height: '44px', borderRadius: '100px', fontWeight: 700, fontSize: '12px' }}>
+                    Vai a "Tavoli" per gestirli
+                  </Button>
+                  <Button variant="ghost" fullWidth onClick={closeOverflowModal}
+                    style={{ height: '44px', borderRadius: '100px', color: 'var(--text-soft)', fontWeight: 600, fontSize: '12px' }}>
+                    Più tardi
+                  </Button>
+                </>
+              )}
+            </div>
+          </Surface>
+        </div>,
+        document.body
+      )}
+    </Surface>
+  );
+};
+
+export default TableauSidebar;

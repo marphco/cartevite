@@ -7,7 +7,7 @@ import InviteSection from "./sidebar/InviteSection";
 import EnvelopeSection from "./sidebar/EnvelopeSection";
 import ScenarioSection from "./sidebar/ScenarioSection";
 import PageSection from "./sidebar/PageSection";
-import type { Layer, CanvasProps, Block } from "../../../types/editor";
+import type { Layer, CanvasProps, Block, EventData } from "../../../types/editor";
 
 interface DesktopSidebarProps {
   slug: string;
@@ -41,7 +41,7 @@ interface DesktopSidebarProps {
   handleBackgroundUpload: (file: File, type: 'canvas' | 'liner' | 'scenario') => Promise<void>;
   isEnvelopeOpen: boolean;
   setIsEnvelopeOpen: (val: boolean) => void;
-  event: any;
+  event: EventData | null;
   updateTheme: (updates: any) => void;
   textureInputRef: React.RefObject<HTMLInputElement | null>;
   userLinerImages: string[];
@@ -56,9 +56,10 @@ interface DesktopSidebarProps {
   setBlocks?: (React.Dispatch<React.SetStateAction<Block[]>> | null) | undefined;
   setIsDirty?: ((val: boolean) => void) | undefined;
   showVisibility?: boolean | undefined;
-  onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
   showMobileAnchorGrid?: boolean | undefined;
   setShowMobileAnchorGrid?: ((show: boolean) => void) | undefined;
+  onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
+  updateEventData?: ((updates: Partial<EventData>, pushToHistory?: () => void) => void) | undefined;
 }
 
 const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
@@ -110,6 +111,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onUpdateBlock,
   showMobileAnchorGrid,
   setShowMobileAnchorGrid,
+  updateEventData,
   showVisibility = true
 }) => {
 
@@ -266,6 +268,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               onUpdateBlock={onUpdateBlock}
               showVisibility={true}
               event={event}
+              updateEventData={updateEventData}
             />
           )}
      </div>

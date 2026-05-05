@@ -7,6 +7,7 @@ import { RSVPWidget } from './widgets/RSVPWidget';
 import GalleryWidget from './widgets/GalleryWidget';
 import VideoWidget from './widgets/VideoWidget';
 import PaymentWidget from './widgets/PaymentWidget';
+import TableauWidget from './widgets/TableauWidget';
 import { widgetLayerIdForBlock } from '../../../utils/widgetLayerId';
 import { resolveBlockHeight } from '../../../utils/blockHeight';
 
@@ -29,11 +30,12 @@ interface SectionCanvasProps {
   onMoveLayer?: ((layerId: string, direction: 'up' | 'down') => void) | undefined;
   onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
   theme: EventTheme;
+  event?: any;
 }
 
 export const SectionCanvas: React.FC<SectionCanvasProps> = ({
   block, layers, selectedLayerIds, setSelectedLayerIds, setLayers, pushToHistory, setIsDirty, hoveredLayerId, setHoveredLayerId, onSelectBlock, isMobile, previewMobile, editingLayerId, setEditingLayerId,
-  editorScale = 1, onUpdateBlock, theme
+  editorScale = 1, onUpdateBlock, theme, event
 }) => {
   const logicalH = resolveBlockHeight(block);
   const blockIdStr = String(block.id || (block as { _id?: string })._id || '');
@@ -450,7 +452,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           // Gli altri blocchi mantengono il minHeight per preservare lo spazio del
           // canvas autore (es. RSVP che ha form espandibile, testi liberi che fanno
           // riferimento a coordinate del canvas logico).
-          minHeight: (block.type === 'gallery' || block.type === 'video' || block.type === 'payment') ? 'auto' : (logicalH + 'px'), 
+          minHeight: (block.type === 'gallery' || block.type === 'video' || block.type === 'payment') ? 'auto' : (logicalH + 'px'),
           position: 'relative', 
           backgroundColor: (block as any).props?.bgColor || 'transparent',
           display: 'flex', 
@@ -471,7 +473,7 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           // ecc. → due RSVP selezionavano entrambi.
           const widgetId =
             block.type === 'rsvp' || block.type === 'gallery' || block.type === 'video'
-            || block.type === 'payment' || block.type === 'map'
+            || block.type === 'payment' || block.type === 'map' || block.type === 'tableau'
               ? widgetSelId
               : null;
 
@@ -519,8 +521,8 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                     if (onSelectBlock) onSelectBlock();
                   }}
                 >
-                  <div style={{ pointerEvents: 'none' }}>
-                    {block.type === 'map' && (
+                  <div style={{ fontSize: '12px', fontWeight: 600 }}>
+                  {block.type === 'map' && (
                       <MapWidget
                         address={block.props?.address}
                         title={block.props?.title}
@@ -581,6 +583,16 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
                         sectionBg={block.props?.bgColor || block.bgColor}
                         previewMobile={previewMobile}
                         readOnly={true}
+                      />
+                    )}
+                    {block.type === 'tableau' && (
+                      <TableauWidget 
+                        block={block}
+                        isEditor={true}
+                        hasTableauAccess={event?.addons?.tableau || false}
+                        onUpdateBlock={onUpdateBlock}
+                        accentColor={block.widgetProps?.tableauAccentColor || theme?.accent}
+                        sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
                       />
                     )}
                   </div>
@@ -891,6 +903,57 @@ export const SectionCanvas: React.FC<SectionCanvasProps> = ({
           </div>
         </div>
       )}
+
+      {block.type === 'tableau' && (() => {
+        // Tableau: stessa logica del modulo RSVP — draggabile in tutte le direzioni, centrato di default.
+        // La sezione cresce verso il basso col contenuto via onUpdateBlock(height) dal TableauWidget,
+        // che scala tableauY proporzionalmente per non far perdere la posizione al widget.
+        const wx = typeof block.widgetProps?.tableauX === 'number' && !isNaN(block.widgetProps.tableauX)
+          ? (block.widgetProps.tableauX as number) + 'px' : '50%';
+        const wy = typeof block.widgetProps?.tableauY === 'number' && !isNaN(block.widgetProps.tableauY)
+          ? (block.widgetProps.tableauY as number) + 'px' : '50%';
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              top: wy,
+              left: wx,
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'auto',
+              cursor: 'grab',
+              touchAction: 'none',
+              zIndex: 5,
+              width: 'min(900px, calc(100% - 40px))'
+            }}
+            onPointerDown={(e) => handleWidgetPointerDownGeneric(e, {
+              widgetId: widgetSelId, xKey: 'tableauX', yKey: 'tableauY',
+              defaultX: (containerRef.current?.clientWidth || 1000) / 2,
+              defaultY: logicalH / 2,
+            })}
+          >
+            {selectedLayerIds.includes(widgetSelId) && (
+              <div style={{
+                position: 'absolute',
+                top: -8, bottom: -8, left: -8, right: -8,
+                border: '2px solid var(--accent)',
+                borderRadius: '16px',
+                pointerEvents: 'none',
+                zIndex: 100
+              }} />
+            )}
+            <div style={{ pointerEvents: 'none', width: '100%' }}>
+              <TableauWidget 
+                block={block}
+                isEditor={true}
+                hasTableauAccess={event?.addons?.tableau || false}
+                onUpdateBlock={onUpdateBlock}
+                accentColor={block.widgetProps?.tableauAccentColor || theme?.accent}
+                sectionBg={block.props?.bgColor || block.bgColor || 'transparent'}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Questo branch è raggiunto **solo** in preview desktop dell'editor (il ramo
           mobile fa early-return più in alto). Quindi filtriamo solo `hiddenDesktop`;

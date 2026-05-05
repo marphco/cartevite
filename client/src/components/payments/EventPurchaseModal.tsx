@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Check, ArrowLeft, Loader2, Star } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import type { Stripe } from "@stripe/stripe-js";
@@ -18,6 +19,7 @@ function getStripePromise() {
 }
 
 const UNLOCK_EUR = 69;
+const TABLEAU_ADDON_EUR = 15;
 const labelStyle: React.CSSProperties = {
   fontSize: "11px",
   textTransform: "uppercase",
@@ -33,7 +35,7 @@ const inputStyle: React.CSSProperties = {
   border: "1.5px solid #e0e0e0",
   fontSize: "14px",
   color: "#1a1a1a",
-  background: "#fafafa",
+  background: "#ffffff",
   boxSizing: "border-box",
   outline: "none",
   transition: "border-color .15s ease",
@@ -50,6 +52,8 @@ export interface EventPurchaseModalProps {
   paymentTitle?: string;
   /** Sottotitolo sotto il titolo; se omesso si usa `eventTitle`. */
   paymentSubtitle?: string;
+  /** Tipo di acquisto: sblocco evento intero o add-on specifico. */
+  purchaseType?: "event_unlock" | "tableau_addon";
 }
 
 type Step = "intro" | "payment" | "success" | "error" | "dev_simulate";
@@ -70,8 +74,11 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
   onUnlocked,
   paymentTitle: paymentTitleProp,
   paymentSubtitle: paymentSubtitleProp,
+  purchaseType = "event_unlock",
 }) => {
-  const paymentTitle = paymentTitleProp?.trim() || "Pagamento";
+  const isTableau = purchaseType === "tableau_addon";
+  const amountEur = isTableau ? TABLEAU_ADDON_EUR : UNLOCK_EUR;
+  const paymentTitle = paymentTitleProp?.trim() || (isTableau ? "Attivazione Tableau" : "Pagamento");
   const paymentSubtitle = (paymentSubtitleProp ?? eventTitle).trim();
   const [step, setStep] = useState<Step>("intro");
   const [accentColor, setAccentColor] = useState("#1ABC9C");
@@ -253,6 +260,7 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
         eventSlug,
         receiptEmail: receiptEmail.trim().toLowerCase(),
         payerName: payerFullName,
+        kind: purchaseType,
       };
       if (wantsInvoice) {
         body.invoiceRequested = true;
@@ -322,13 +330,13 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
 
   const formattedPrice = useMemo(
     () =>
-      UNLOCK_EUR.toLocaleString("it-IT", {
+      amountEur.toLocaleString("it-IT", {
         style: "currency",
         currency: "EUR",
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
       }),
-    []
+    [amountEur]
   );
 
   const elementsAppearance = useMemo(
@@ -354,7 +362,7 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
 
   if (!open) return null;
 
-  return (
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
@@ -362,7 +370,7 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 1000,
+        zIndex: 99999,
         background: "rgba(10, 10, 15, 0.75)",
         backdropFilter: "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",
@@ -439,9 +447,15 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
                 <p style={{ fontSize: "15px", fontWeight: 600, color: "#1a1a1a", margin: 0, lineHeight: 1.35 }}>{paymentSubtitle}</p>
               ) : null}
 
-              <p style={{ fontSize: "13px", color: "#666", margin: 0, lineHeight: 1.45 }}>
-                Dopo il pagamento potrai personalizzare <strong>invito</strong>, <strong>busta</strong> e <strong>pagina evento</strong> dal tuo account.
-              </p>
+              {isTableau ? (
+                <p style={{ fontSize: "13px", color: "#666", margin: 0, lineHeight: 1.45 }}>
+                  Sblocca la gestione intelligente dei tavoli e l'algoritmo di assegnazione posti.
+                </p>
+              ) : (
+                <p style={{ fontSize: "13px", color: "#666", margin: 0, lineHeight: 1.45 }}>
+                  Dopo il pagamento potrai personalizzare <strong>invito</strong>, <strong>busta</strong> e <strong>pagina evento</strong> dal tuo account.
+                </p>
+              )}
 
               <ul
                 style={{
@@ -450,37 +464,32 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
                   margin: 0,
                   display: "flex",
                   flexDirection: "column",
-                  gap: "4px",
+                  gap: "10px",
                 }}
               >
-                {["Un solo addebito, nessun abbonamento", "Accesso immediato alle funzioni del piano Evento"].map((line) => (
-                  <li
-                    key={line}
-                    style={{
-                      fontSize: "12px",
-                      color: "#555",
-                      lineHeight: 1.4,
-                      paddingLeft: "14px",
-                      position: "relative",
-                    }}
-                  >
-                    <span
-                      aria-hidden
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        top: "0.05em",
-                        color: accentColor,
-                        fontWeight: 800,
-                        fontSize: "14px",
-                        lineHeight: 1,
-                      }}
-                    >
-                      ·
-                    </span>
-                    {line}
-                  </li>
-                ))}
+                {isTableau ? (
+                  <>
+                    <li style={{ display: "flex", gap: "10px", alignItems: "flex-start", fontSize: "13px", color: "#444" }}>
+                      <div style={{ color: accentColor, marginTop: "2px" }}><Check size={16} strokeWidth={3} /></div>
+                      <span>Gestione tavoli e ospiti illimitata</span>
+                    </li>
+                    <li style={{ display: "flex", gap: "10px", alignItems: "flex-start", fontSize: "13px", color: "#444" }}>
+                      <div style={{ color: accentColor, marginTop: "2px" }}><Check size={16} strokeWidth={3} /></div>
+                      <span>Algoritmo intelligente "Tableau Engine"</span>
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li style={{ display: "flex", gap: "10px", alignItems: "flex-start", fontSize: "13px", color: "#444" }}>
+                      <div style={{ color: accentColor, marginTop: "2px" }}><Check size={16} strokeWidth={3} /></div>
+                      <span>Un solo addebito, nessun abbonamento</span>
+                    </li>
+                    <li style={{ display: "flex", gap: "10px", alignItems: "flex-start", fontSize: "13px", color: "#444" }}>
+                      <div style={{ color: accentColor, marginTop: "2px" }}><Check size={16} strokeWidth={3} /></div>
+                      <span>Accesso immediato alle funzioni del piano Evento</span>
+                    </li>
+                  </>
+                )}
               </ul>
 
               <div
@@ -673,7 +682,7 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
                         onChange={(e) => setInvoiceCap(e.target.value.replace(/\D/g, "").slice(0, 5))}
                         maxLength={5}
                         style={{ ...inputStyle, borderColor: errors.invoiceCap ? "#c0392b" : "#e0e0e0" }}
-                        placeholder="CAP"
+                        placeholder="CAP (es. 00100)"
                         autoComplete="postal-code"
                       />
                       <input
@@ -682,7 +691,7 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
                         onChange={(e) => setInvoiceCity(e.target.value)}
                         maxLength={80}
                         style={{ ...inputStyle, borderColor: errors.invoiceCity ? "#c0392b" : "#e0e0e0" }}
-                        placeholder="Città"
+                        placeholder="Città (es. Roma)"
                         autoComplete="address-level2"
                       />
                       <input
@@ -695,7 +704,7 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
                           borderColor: errors.invoiceProvince ? "#c0392b" : "#e0e0e0",
                           maxWidth: "64px",
                         }}
-                        placeholder="Prov."
+                        placeholder="PR"
                         autoComplete="address-level1"
                       />
                     </div>
@@ -1066,6 +1075,12 @@ const EventPurchaseModal: React.FC<EventPurchaseModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
 };
 
 interface UnlockPaymentStepProps {
@@ -1139,6 +1154,7 @@ const UnlockPaymentStep: React.FC<UnlockPaymentStepProps> = ({
         setSubmitting(false);
         return;
       }
+      // Conferma esplicita prima di procedere
       onSuccess();
     } catch {
       onError("Errore di rete durante la conferma. Verifica dalla dashboard se l'evento risulta attivato.");

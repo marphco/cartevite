@@ -3,8 +3,9 @@ import "./ui.css";
 import { cn } from "./cn";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "subtle" | "ghost" | "danger" | "outline" | "ghost-white";
+  variant?: "primary" | "subtle" | "ghost" | "danger" | "outline" | "ghost-white" | "accent";
   size?: "sm" | "md" | "lg";
+  fullWidth?: boolean;
   className?: string;
   children: React.ReactNode;
 }
@@ -12,8 +13,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({
   variant = "primary",
   size = "md",
+  fullWidth,
   className,
   children,
+  style,
   ...rest
 }: ButtonProps) {
   return (
@@ -28,6 +31,7 @@ export function Button({
         size === "lg" && "ui-button--lg",
         className
       )}
+      style={fullWidth ? { width: '100%', ...style } : style}
       {...rest}
     >
       {children}

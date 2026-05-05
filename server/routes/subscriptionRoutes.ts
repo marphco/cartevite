@@ -21,6 +21,8 @@ const unlockIntentLimiter = rateLimit({
 
 /** €69 una tantum — listino commerciale (roadmap / business plan 2026-04) */
 const EVENT_UNLOCK_AMOUNT_CENTS = 6900;
+/** €15 una tantum — add-on Tableau de Mariage */
+const TABLEAU_ADDON_AMOUNT_CENTS = 1500;
 
 function clientOrigin(): string {
   const raw = process.env.CLIENT_ORIGINS || "http://localhost:5173";
@@ -40,10 +42,11 @@ const receiptEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  */
 router.post("/create-unlock-intent", requireAuth, unlockIntentLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const { eventSlug, receiptEmail: rawReceipt, payerName: rawPayer } = req.body as {
+    const { eventSlug, receiptEmail: rawReceipt, payerName: rawPayer, kind = "event_unlock" } = req.body as {
       eventSlug?: string;
       receiptEmail?: string;
       payerName?: string;
+      kind?: "event_unlock" | "tableau_addon";
     };
     if (!eventSlug || typeof eventSlug !== "string") {
       return res.status(400).json({ message: "eventSlug richiesto" });
@@ -67,15 +70,30 @@ router.post("/create-unlock-intent", requireAuth, unlockIntentLimiter, async (re
     const ev = await Event.findOne({ slug: eventSlug });
     if (!ev) return res.status(404).json({ message: "Event Not Found" });
     if (ev.ownerId.toString() !== req.userId) return res.status(403).json({ message: "Forbidden" });
-    if (isPaidPlan(ev.plan)) return res.status(400).json({ message: "L'evento risulta già attivato (pagamento registrato)." });
+    
+    if (kind === "event_unlock" && isPaidPlan(ev.plan)) {
+      return res.status(400).json({ message: "L'evento risulta già attivato (pagamento registrato)." });
+    }
+    if (kind === "tableau_addon" && ev.addons?.tableau) {
+      return res.status(400).json({ message: "L'add-on Tableau risulta già attivato." });
+    }
+
+    const amount = kind === "tableau_addon" ? TABLEAU_ADDON_AMOUNT_CENTS : EVENT_UNLOCK_AMOUNT_CENTS;
+    const description = kind === "tableau_addon" 
+      ? `Eenvee — Add-on Tableau — ${ev.title} (${eventSlug})`
+      : `Eenvee — Piano Evento — ${ev.title} (${eventSlug})`;
 
     if (useMockCheckout()) {
       if (process.env.NODE_ENV === "production") {
         return res.status(503).json({ message: "Pagamenti non configurati." });
       }
+      const successPath = kind === "tableau_addon" 
+        ? `/api/subscriptions/${encodeURIComponent(eventSlug)}/success-tableau-mock`
+        : `/api/subscriptions/${encodeURIComponent(eventSlug)}/success-mock`;
+        
       return res.json({
         mode: "dev_simulate" as const,
-        simulatePath: `/api/subscriptions/${encodeURIComponent(eventSlug)}/success-mock`,
+        simulatePath: successPath,
       });
     }
 
@@ -91,19 +109,19 @@ router.post("/create-unlock-intent", requireAuth, unlockIntentLimiter, async (re
 
     const pi = await stripeSdk.paymentIntents.create(
       {
-        amount: EVENT_UNLOCK_AMOUNT_CENTS,
+        amount: amount,
         currency: "eur",
         payment_method_types: ["card", "sepa_debit"],
         receipt_email: receiptEmail,
         metadata: {
-          kind: "event_unlock",
+          kind: kind,
           eventSlug,
           ownerId: String(req.userId),
           payer_name: payerName,
           receipt_email: receiptEmail,
           ...inv.metadata,
         },
-        description: `Eenvee — Piano Evento — ${ev.title} (${eventSlug})`,
+        description: description,
       },
       { idempotencyKey }
     );
@@ -141,7 +159,8 @@ router.post("/complete-unlock-intent", requireAuth, async (req: AuthRequest, res
     const stripeSdk = getStripe();
     const pi = await stripeSdk.paymentIntents.retrieve(paymentIntentId);
 
-    if (pi.metadata?.kind !== "event_unlock") {
+    const kind = pi.metadata?.kind;
+    if (kind !== "event_unlock" && kind !== "tableau_addon") {
       return res.status(400).json({ message: "Pagamento non valido" });
     }
     if (pi.metadata.ownerId !== req.userId) {
@@ -151,7 +170,9 @@ router.post("/complete-unlock-intent", requireAuth, async (req: AuthRequest, res
     if (!eventSlug) {
       return res.status(400).json({ message: "Metadati incompleti" });
     }
-    if (pi.amount !== EVENT_UNLOCK_AMOUNT_CENTS || (pi.currency && pi.currency.toLowerCase() !== "eur")) {
+    
+    const expectedAmount = kind === "tableau_addon" ? TABLEAU_ADDON_AMOUNT_CENTS : EVENT_UNLOCK_AMOUNT_CENTS;
+    if (pi.amount !== expectedAmount || (pi.currency && pi.currency.toLowerCase() !== "eur")) {
       return res.status(400).json({ message: "Importo non valido" });
     }
 
@@ -165,12 +186,16 @@ router.post("/complete-unlock-intent", requireAuth, async (req: AuthRequest, res
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    if (isPaidPlan(ev.plan)) {
-      // Le ricevute email partono solo dal webhook `payment_intent.succeeded` (idempotente), altrimenti doppio invio con questa route.
-      return res.json({ ok: true, slug: eventSlug, alreadyPaid: true });
+    if (kind === "event_unlock") {
+      if (isPaidPlan(ev.plan)) return res.json({ ok: true, slug: eventSlug, alreadyPaid: true });
+      ev.plan = "paid";
+    } else {
+      if (ev.addons?.tableau) return res.json({ ok: true, slug: eventSlug, alreadyPaid: true });
+      if (!ev.addons) ev.addons = {};
+      ev.addons.tableau = true;
+      ev.markModified("addons");
     }
-
-    ev.plan = "paid";
+    
     await ev.save();
 
     return res.json({ ok: true, slug: eventSlug });
@@ -221,6 +246,59 @@ router.post("/checkout", requireAuth, async (req: AuthRequest, res: Response) =>
       client_reference_id: `${eventSlug}:${req.userId}`,
       success_url: `${origin}/dashboard?unlock=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard`,
+    });
+
+    if (!session.url) {
+      return res.status(500).json({ message: "Stripe non ha restituito l'URL di checkout" });
+    }
+
+    return res.json({ url: session.url, mode: "stripe" as const });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/checkout-tableau", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { eventSlug } = req.body as { eventSlug?: string };
+    if (!eventSlug || typeof eventSlug !== "string") {
+      return res.status(400).json({ message: "eventSlug richiesto" });
+    }
+
+    const ev = await Event.findOne({ slug: eventSlug });
+    if (!ev) return res.status(404).json({ message: "Event Not Found" });
+    if (ev.ownerId.toString() !== req.userId) return res.status(403).json({ message: "Forbidden" });
+
+    if (useMockCheckout()) {
+      const sessionUrl = `/api/subscriptions/${eventSlug}/success-tableau-mock`;
+      return res.json({ url: sessionUrl, mode: "mock" as const });
+    }
+
+    const origin = clientOrigin();
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "eur",
+            unit_amount: TABLEAU_ADDON_AMOUNT_CENTS,
+            product_data: {
+              name: "Ynvio — Add-on Tableau de Mariage (15 €)",
+              description: `Gestione avanzata tavoli e algoritmo per ${ev.title}`,
+            },
+          },
+        },
+      ],
+      metadata: {
+        kind: "tableau_addon",
+        eventSlug,
+        ownerId: String(req.userId),
+      },
+      client_reference_id: `${eventSlug}:tableau:${req.userId}`,
+      success_url: `${origin}/edit/${eventSlug}?payment=success&addon=tableau`,
+      cancel_url: `${origin}/edit/${eventSlug}`,
     });
 
     if (!session.url) {
@@ -295,6 +373,25 @@ router.get("/:slug/success-mock", async (req: Request, res: Response) => {
     res.redirect(`${clientOrigin()}/edit/${slug}?payment=success`);
   } catch (err) {
     res.status(500).send("Mock success err");
+  }
+});
+
+router.get("/:slug/success-tableau-mock", async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).send("Not found");
+  }
+  try {
+    const { slug } = req.params;
+    console.log(`[DEBUG] Activating Tableau for event: ${slug}`);
+    await Event.findOneAndUpdate(
+      { slug }, 
+      { $set: { "addons.tableau": true } }, 
+      { new: true }
+    );
+    // Redirect all'URL corretto del builder per le pagine
+    res.redirect(`${clientOrigin()}/editor/${slug}/page?payment=success&addon=tableau`);
+  } catch (err) {
+    res.status(500).send("Mock tableau success err");
   }
 });
 

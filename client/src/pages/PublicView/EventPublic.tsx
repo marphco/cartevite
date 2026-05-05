@@ -15,6 +15,7 @@ import MapWidget from "../Editor/components/widgets/MapWidget";
 import GalleryWidget from "../Editor/components/widgets/GalleryWidget";
 import VideoWidget from "../Editor/components/widgets/VideoWidget";
 import PaymentWidget from "../Editor/components/widgets/PaymentWidget";
+import TableauWidget from "../Editor/components/widgets/TableauWidget";
 import DonationModal from "./DonationModal";
 import { widgetLayerIdForBlock } from "../../utils/widgetLayerId";
 
@@ -27,7 +28,7 @@ function widgetAbsoluteStyleFromEditorCoords(
   widgetX: number,
   widgetY: number,
   blockHeight: number
-) {
+): React.CSSProperties {
   const h = blockHeight || 400;
   const x = Math.max(0, Math.min(EDITOR_LOGICAL_WIDTH, widgetX));
   const y = Math.max(0, Math.min(h, widgetY));
@@ -48,8 +49,8 @@ export default function EventPublic() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [donationModal, setDonationModal] = useState<{
     open: boolean;
-    block?: any;
-    defaultAmount?: number;
+    block?: any | undefined;
+    defaultAmount?: number | undefined;
   }>({ open: false });
 
   useEffect(() => {
@@ -258,7 +259,7 @@ export default function EventPublic() {
               {orderedBlocks.map((block) => {
                 const layoutPreset = block.props?.layoutPreset || "single";
                 const currentScale = isMobile ? 1 : stageScale;
-                const isWidget = ['map', 'gallery', 'video', 'payment'].includes(block.type);
+                const isWidget = ['map', 'gallery', 'video', 'payment', 'tableau'].includes(block.type);
                 // Su mobile gallery e video cadono nel ramo LOGICAL CANVAS con
                 // ReadOnlyCanvas `isMobile+isBlock`, che genera uno stream flex
                 // column interleaved (stesso comportamento di SectionCanvas mobile).
@@ -267,7 +268,7 @@ export default function EventPublic() {
                 // con coordinate del canvas logico 1000x400, che su mobile cadono
                 // in posizioni incoerenti. Map resta nel ramo isWidget anche su
                 // mobile perché non ha un widget-layer ordinabile (è fill-parent).
-                const useAbsoluteWidgetBranch = isWidget && !(isMobile && (block.type === 'gallery' || block.type === 'video' || block.type === 'payment'));
+                const useAbsoluteWidgetBranch = isWidget && !(isMobile && (block.type === 'gallery' || block.type === 'video' || block.type === 'payment' || block.type === 'tableau'));
                 const scaledHeight = (block.height || 400) * currentScale;
                 const isRsvpBlock = block.type === 'rsvp';
                 const rsvpFormY = isRsvpBlock
@@ -427,6 +428,31 @@ export default function EventPublic() {
                               width: 'min(940px, calc(100% - 40px))'
                             }}>
                               {videoEl}
+                            </div>
+                          );
+                        })()}
+                        {block.type === 'tableau' && (() => {
+                          const hasPos = !isMobile
+                            && typeof block.widgetProps?.widgetX === 'number'
+                            && typeof block.widgetProps?.widgetY === 'number';
+                          const tableauEl = (
+                            <TableauWidget
+                              block={block}
+                              isEditor={false}
+                              hasTableauAccess={!!event?.addons?.tableau}
+                            />
+                          );
+                          if (!hasPos) return tableauEl;
+                          return (
+                            <div style={{
+                              ...widgetAbsoluteStyleFromEditorCoords(
+                                block.widgetProps!.widgetX as number,
+                                block.widgetProps!.widgetY as number,
+                                block.height || 400
+                              ),
+                              width: 'min(1000px, calc(100% - 40px))'
+                            }}>
+                              {tableauEl}
                             </div>
                           );
                         })()}
@@ -684,6 +710,17 @@ export default function EventPublic() {
                                       previewMobile={isMobile}
                                       readOnly={false}
                                       onClickDonate={(amt) => setDonationModal({ open: true, block, defaultAmount: amt })}
+                                    />
+                                  </div>
+                                );
+                              }
+                              if (layer.type === 'custom-widget' && block.type === 'tableau') {
+                                return (
+                                  <div style={{ pointerEvents: 'auto', width: '100%' }}>
+                                    <TableauWidget
+                                      block={block}
+                                      isEditor={false}
+                                      hasTableauAccess={!!event?.addons?.tableau}
                                     />
                                   </div>
                                 );

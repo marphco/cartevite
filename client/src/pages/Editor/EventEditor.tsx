@@ -234,9 +234,9 @@ export default function EventEditor() {
         setCanvasProps(prev => ({ 
           ...prev, 
           bgImage: r2Url,
-          bgX: undefined,
-          bgY: undefined,
-          bgScale: undefined 
+          bgX: 0,
+          bgY: 0,
+          bgScale: 1 
         }));
         setIsEditingBackground(true);
       } else if (type === 'liner') {
@@ -384,6 +384,7 @@ export default function EventEditor() {
           selectedBlockId={selectedBlockId}
           previewMobile={previewMobile}
           setPreviewMobile={setPreviewMobile}
+          updateEventData={updateEventData}
         />
         <MobileToolbar 
            activeMobileTab={activeMobileTab} setActiveMobileTab={setActiveMobileTab}

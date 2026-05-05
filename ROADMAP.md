@@ -6,18 +6,21 @@ Log completo delle funzionalità implementate e delle prossime feature da realiz
 
 ## ⏳ Storico Progetto (Completato)
 
-### 28-04-2026: Immagini e Bugfix Editor
-- [x] **Redesign Premium Dashboard**: Trasformata la dashboard in un'esperienza visiva a griglia con anteprime reali (thumbnail) degli inviti. Introdotta tipografia Outfit, glassmorphism e statistiche RSVP rapide direttamente sulle card. [2026-04-28]
-- [x] **Eliminazione Stato Draft**: Semplificato il ciclo di vita dell'evento. Alla creazione lo stato è impostato su `published` di default. Rimosse label "Bozza" e restrizioni di accesso nella Dashboard e nell'Editor. [2026-04-28]
-- [x] **Redesign Widget Regali (Busta Digitale)**: Integrati loghi ufficiali assets (Visa, Mastercard, Amex, Apple Pay, Google Pay, SEPA) nel footer del widget. Rimpicciolito il logo Stripe per un look più discreto ed elegante. [2026-04-28]
-- [x] **Tiers Default Regali**: Aggiornati i valori predefiniti delle card a `50, 100, 200, 300` in tutto l'editor (sidebar e toolbar mobile). [2026-04-28]
-- [x] **Refinement Toolbar Mobile**: Raffinato il toggle "Visualizza su" con testi in Pascal Case ("Mobile", "Desktop") e allineamento a sinistra. Alzata la posizione della toolbar flottante delle sezioni a `130px` dal fondo per evitare sovrapposizioni durante l'editing dei widget. [2026-04-28]
-- [x] **Aggiungi Sezione (UX/Mobile)**: Eliminato il pulsante tratteggiato ripetitivo dal fondo della pagina. Al suo posto, il pulsante "Sezione" nella toolbar mobile ora apre un menu completo (identico alla sidebar desktop) che permette di scegliere quale specifica sezione aggiungere (Vuota, Mappa, RSVP, Galleria, Video, Regali), garantendo consistenza tra le piattaforme. Mantenuto il corretto ordinamento (`order: blocks.length`) in fase di creazione.
-- [x] **Redesign Widget RSVP (Card Mode)**: Refactoring strutturale dell'interfaccia RSVP. Titolo e descrizione non sono più livelli di testo separati ma sono stati internalizzati nel `RSVPWidget` all'interno di un componente 'Card' (identico al widget Regali in Denaro). Questo risolve alla radice tutti i problemi di leggibilità, dato che il widget si adatta ora in modo nativo allo sfondo (`cardBg`, `cardBorder`, etc.) indipendentemente dal contesto e mantiene consistenza visiva con gli altri blocchi speciali.
-- [x] **Tab Contenuto RSVP**: Aggiunta l'interfaccia "Testo" per RSVP sia nella toolbar mobile che nella sidebar desktop, consentendo un editing semplice e isolato di Titolo e Descrizione.
-- [x] **Fix Upload Immagini (R2_ENDPOINT)**: Corretto l'URL di R2 nel server rimuovendo il suffisso `/eenvee-media` ridondante, risolvendo i problemi di immagini rotte (404) su asset appena caricati.
-- [x] **Fix Hint "Regolazione Sfondo" (Editor Mobile/Desktop)**: Risolto il problema per cui l'azione "Rimuovi Immagine" lasciava attiva l'interfaccia di regolazione sfondo. Lo stato `isEditingBackground` ora si resetta correttamente.
-- [x] **Auto-Scale Immagini Sfondo**: Sostituita la logica `Math.max` con `Math.min` per i background caricati, in modo che l'immagine sia inserita interamente (`contain`) all'interno della viewport invece di traboccare (`cover`), migliorando drasticamente la UX per immagini fuori scala.
+### 29-04-2026: RSVP UX & Tableau Integration — Evoluzione "Group Split" 💎
+- [x] **RSVP Group Names**: Obbligare l'utente principale a inserire i nomi di tutti i componenti del gruppo direttamente nel form RSVP (es. Rafiluccio + Moglie + 4 Figli), eliminando i segnaposto generici "Ospite X". [2026-04-29]
+- [x] **Allergie Nominative**: Ridisegnare la sezione allergie del form RSVP: non più un campo testo generico, ma una selezione per persona ("Chi ha allergie?") con campo testo specifico per ognuno. [2026-04-29]
+- [x] **Tableau Sidebar Redesign**: Pulizia visiva della sidebar ospiti: rimosso il badge (+X) a favore di un testo discreto "X Ospiti". Eliminati i contatori a destra ridondanti. [2026-04-29]
+- [x] **Export & Lista Invitati**: Aggiornata la lista invitati nella dashboard per mostrare i nomi dei componenti del gruppo. [2026-04-29]
+
+### 28-04-2026: Tableau de Mariage — Raffinamento & UX 💎
+- [x] **Smart Grid Layout**: Discardata la mappa interattiva per favorire una griglia "intelligente" che centra automaticamente i tavoli nelle righe incomplete, garantendo simmetria e leggibilità. [2026-04-28]
+- [x] **Workflow di Pubblicazione**: Aggiunto un sistema di conferma ("Sei sicuro?") prima della pubblicazione, con spiegazione testuale chiara del processo in sidebar. [2026-04-28]
+- [x] **UI Polish (Forme & Icone)**: Migliorati i pulsanti del toggle (Tondo/Rettangolare) aggiungendo icone eleganti e correggendo il padding per un design arioso. [2026-04-28]
+- [x] **Sicurezza Dati**: Inserito un sistema di doppia conferma per l'eliminazione dei tavoli per prevenire cancellazioni accidentali disastrose. Ridisegnato con bottone "SICURO?". [2026-04-28]
+- [x] **Personalizzazione Accento**: Aggiunto il Color Picker dedicato al Tableau per scegliere il colore di base del widget (Pulsanti, bordi, testi), riposizionato in cima alla sidebar sotto l'header. [2026-04-28]
+- [x] **Adaptive Palette & Auto-height**: I testi del widget si adattano in automatico al colore di sfondo per garantire sempre alto contrasto. L'editor ora auto-ridimensiona l'altezza della sezione in base al numero di tavoli aggiunti, evitando lo scroll manuale. [2026-04-28]
+- [x] **Gestione Ospiti & Occupazione**: Risolto il bug dei nomi RSVP non visualizzati (fix status 'yes'). Implementato il conteggio delle persone per ospite (manuale e gruppi) per un calcolo reale della capienza dei tavoli. [2026-04-28]
+- [x] **Fix Selezione Editor**: Ottimizzata la selezione della sezione Tableau nell'editor; ora ogni punto del widget è cliccabile per attivare la sidebar. [2026-04-28]
 
 ### 27-04-2026: Catalogo — Anteprima Full-Page Scrollabile
 - [x] **Full-Page Preview**: Riscritto il modal anteprima da zero. Ora mostra una replica scrollabile della pagina pubblica dell'evento: l'utente scorre e vede tutto ciò che sta comprando — invito con busta, mappa, RSVP, galleria, video — esattamente come lo vedranno i suoi ospiti.
@@ -890,7 +893,7 @@ Penetrazione ~8–10% mercato matrimoni + espansione non-wedding: **€600.000�
 - [x] Pagina regali e donazioni host (riepilogo in denaro, messaggi donatori, export PDF/CSV, hub Denaro/Lista regali) — 2026-04-19 *(affiliate multi-merchant: voci post-lancio)*
 - [ ] Account planner con subscription Stripe
 - [ ] Dashboard planner (lista clienti/eventi, branding studio)
-- [ ] Tableau de mariage
+- [x] Tableau de mariage (Infrastruttura, Gestione Tavoli/Ospiti, Motore Seating) — 2026-04-28
 - [ ] Libretto messa sfogliabile
 - [ ] Timeline evento
 - [ ] Menu catering

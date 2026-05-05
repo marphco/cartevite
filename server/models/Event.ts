@@ -105,6 +105,13 @@ const eventSchema = new Schema(
     /** Solo documenti pre-migrazione; rimuovere dopo `npm run migrate:plan` ovunque. */
     premiumReceiptSentForPi: { type: String, default: undefined },
     ownerId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    /** Flag di attivazione funzionalità aggiuntive (es: tableau) */
+    addons: { 
+      type: Schema.Types.Mixed, 
+      default: { tableau: false } 
+    },
+    /** Configurazione del Tableau de Mariage (Tavoli, Assegnazioni, Vincoli) */
+    tableauConfig: { type: Schema.Types.Mixed, default: undefined },
   },
   { timestamps: true }
 );

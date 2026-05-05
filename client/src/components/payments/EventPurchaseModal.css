@@ -20,6 +20,12 @@
   gap: 8px;
 }
 
+/* Fix Placeholder Visibility */
+.event-purchase-modal input::placeholder {
+  color: #777 !important;
+  opacity: 1 !important;
+}
+
 @media (max-width: 440px) {
   .event-purchase-modal__name-row,
   .event-purchase-modal__addr-row {

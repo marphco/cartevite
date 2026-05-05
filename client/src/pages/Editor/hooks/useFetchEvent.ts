@@ -74,7 +74,8 @@ export function useFetchEvent(
           setEvent(withTheme({ 
             title: "Prova Design - " + template.name, 
             status: "draft", 
-            theme: template.theme as any 
+            theme: template.theme as any,
+            rsvps: [] 
           }));
           setLayers(template.layers as Layer[] || []);
           setBlocks(normalizeBlocksForEditor((template.blocks as Block[]) || []));
@@ -88,9 +89,17 @@ export function useFetchEvent(
       if (!slug) return;
 
       try {
-        const res = await apiFetch(`/api/events/${slug}/private`);
-        if (!res.ok) throw new Error("Evento non trovato");
-        const data = await res.json();
+        const [eventRes, rsvpsRes] = await Promise.all([
+          apiFetch(`/api/events/${slug}/private`),
+          apiFetch(`/api/events/${slug}/rsvps`)
+        ]);
+
+        if (!eventRes.ok) throw new Error("Evento non trovato");
+        const data = await eventRes.json();
+        const rsvps = rsvpsRes.ok ? await rsvpsRes.json() : [];
+        
+        // Collega gli RSVP caricati all'oggetto evento
+        data.rsvps = rsvps;
 
         if (!cancelled) {
           // Guard: se il piano non è pagato, redirect ad attivazione
@@ -104,7 +113,14 @@ export function useFetchEvent(
              setLayers(draft.layers || []);
              setBlocks(normalizeBlocksForEditor(draft.blocks || []));
              setCanvasProps(draft.canvas || { bgImage: null, width: 800, height: 1000 });
-             if (draft.event) setEvent(withTheme(draft.event));
+             if (draft.event) {
+               // Priorità assoluta agli addons del server (stato pagamenti) rispetto alla bozza locale
+               setEvent(withTheme({ 
+                 ...draft.event, 
+                 addons: data.addons || { tableau: false },
+                 plan: data.plan 
+               }));
+             }
              setIsDirty(true);
           } else {
              setLayers(data.layers || []);

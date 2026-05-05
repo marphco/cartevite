@@ -101,6 +101,24 @@ export interface Block {
     widgetX?: number;
     widgetY?: number;
     mobileOrder?: number;
+    // Tableau de mariage configurations
+    tableauTables?: Array<{
+      id: string;
+      name: string;
+      capacity: number;
+      shape: 'round' | 'rect';
+      x: number;
+      y: number;
+      rotation?: number;
+    }>;
+    tableauAssignments?: Array<{ guestId: string; tableId: string; guestName?: string }>;
+    tableauConstraints?: Array<{ guestId1: string; guestId2: string; type: 'together' | 'avoid' }>;
+    tableauIsPublished?: boolean;
+    tableauLayout?: 'grid' | 'map';
+    tableauSettings?: {
+      autoSplitGroups?: boolean;
+      showFloorPlan?: boolean;
+    };
     [key: string]: any;
   };
 }
@@ -142,4 +160,9 @@ export interface EventData {
   blocks?: Block[];
   canvas?: CanvasProps;
   editLink?: string;
+  rsvps?: any[];
+  addons?: {
+    tableau?: boolean;
+    [key: string]: any;
+  };
 }

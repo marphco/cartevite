@@ -2,12 +2,13 @@ import React from 'react';
 import { Surface, Button } from "../../../../ui";
 import { 
   Type, Image as ImageIcon, MapPin, CheckSquare, Plus, Trash2, Monitor, Smartphone, Check, Pencil,
-  Images, Video as VideoIcon, Upload, GripVertical, Youtube, Gift
+  Images, Video as VideoIcon, Upload, GripVertical, Youtube, Gift, LayoutGrid
 } from "lucide-react";
 import PropertyPanel from "../PropertyPanel";
 import CustomColorPicker from "../CustomColorPicker";
 import PaymentSection from "./PaymentSection";
-import type { Layer, Block } from "../../../../types/editor";
+import TableauSidebar from "./TableauSidebar";
+import type { Layer, Block, EventData } from "../../../../types/editor";
 import { apiFetch } from "../../../../utils/apiFetch";
 import { parseVideoUrl } from "../widgets/VideoWidget";
 import { widgetLayerIdForBlock } from "../../../../utils/widgetLayerId";
@@ -42,7 +43,8 @@ interface PageSectionProps {
   blocks?: Block[] | undefined;
   setBlocks?: React.Dispatch<React.SetStateAction<Block[]>> | undefined;
   onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
-  event?: any;
+  event?: EventData | null | undefined;
+  updateEventData?: ((updates: Partial<EventData>, pushToHistory?: () => void) => void) | undefined;
 }
 
 const PageSection: React.FC<PageSectionProps> = ({
@@ -75,6 +77,7 @@ const PageSection: React.FC<PageSectionProps> = ({
   pushToHistory,
   onUpdateBlock,
   event,
+  updateEventData,
   showVisibility = true
 }) => {
    const selectedBlock = blocks?.find(b => b.id === selectedBlockId);
@@ -258,7 +261,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                       sono sezioni widget-only, le immagini libere non hanno senso
                       (la galleria gestisce già le foto, il video ha il suo player,
                       la mappa e il form non accettano overlay immagine). */}
-                  {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && (
+                  {selectedBlock?.type !== 'rsvp' && selectedBlock?.type !== 'map' && selectedBlock?.type !== 'gallery' && selectedBlock?.type !== 'video' && selectedBlock?.type !== 'payment' && selectedBlock?.type !== 'tableau' && (
                     <Button variant="subtle" style={{ width: '100%', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
                       <ImageIcon size={18} style={{marginRight: 8}}/> Immagine
                     </Button>
@@ -267,7 +270,7 @@ const PageSection: React.FC<PageSectionProps> = ({
               </Surface>
             )}
           </div>
-       ) : selectedBlockId ? (
+        ) : selectedBlockId ? (
           /* PRIORITÀ 2: OPZIONI SEZIONE (Se nessun elemento è selezionato) */
           <div key={selectedBlockId}>
            {/* Solo "Inserisci" si nasconde quando è selezionato il widget virtuale;
@@ -295,7 +298,6 @@ const PageSection: React.FC<PageSectionProps> = ({
                 usato per RSVP / Testo / Immagine (header di contesto + controlli in un unico Surface) */}
             {selectedBlock && selectedBlock.type === 'map' && (
               <Surface variant="soft" className="panel-section" style={{ marginTop: '20px' }}>
-
                 {/* HEADER DI CONTESTO */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px', paddingBottom: '14px', borderBottom: '1px solid var(--border)' }}>
                   <div style={{
@@ -1006,6 +1008,25 @@ const PageSection: React.FC<PageSectionProps> = ({
               />
             )}
 
+            {/* SETTINGS SPECIFICI PER WIDGET TABLEAU */}
+            {selectedBlock && selectedBlock.type === 'tableau' && (
+              <TableauSidebar 
+                selectedBlock={selectedBlock}
+                onUpdateBlock={onUpdateBlock || ((id, up) => {
+                  if (blocks && setBlocks) {
+                    setIsDirty(true);
+                    setBlocks(blocks.map(b => b.id === id ? { ...b, ...up } : b));
+                  }
+                })}
+                eventRsvps={event?.rsvps || []}
+                hasTableauAccess={event?.addons?.tableau || false}
+                slug={slug}
+                eventTitle={event?.title}
+                updateEventData={updateEventData}
+                event={event}
+              />
+            )}
+
             {/* SETTINGS SPECIFICI PER WIDGET RSVP */}
             {selectedBlock && selectedBlock.type === 'rsvp' && selectedLayerIds.includes(widgetLayerIdForBlock(String(selectedBlock.id))) && (
               <Surface variant="soft" className="panel-section" style={{ marginTop: '20px' }}>
@@ -1082,7 +1103,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                                 setBlocks(blocks.map(b => b.id === selectedBlock.id ? { ...b, widgetProps: { ...b.widgetProps, rsvpTitle: e.target.value } } : b));
                               }
                             }}
-                            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', minWidth: 0 }}
+                            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', minWidth: 0 }}
                           />
                         </div>
                       </div>
@@ -1501,7 +1522,7 @@ const PageSection: React.FC<PageSectionProps> = ({
               </Button>
 
               <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
-                if (blocks && setBlocks && setLayers) {
+                if (blocks && setBlocks) {
                   setIsDirty(true);
                   const newBlockId = 'block-gallery-' + Date.now();
                   // Il titolo della sezione è ora un **layer testo libero** (stesso
@@ -1523,9 +1544,9 @@ const PageSection: React.FC<PageSectionProps> = ({
                       y: 40,
                       width: 600,
                       fontSize: 28,
-                      fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
+                      fontFamily: event?.theme?.fonts?.heading || 'Playfair Display',
                       textAlign: 'center',
-                      color: event.theme?.accent || 'var(--accent)'
+                      color: event?.theme?.accent || 'var(--accent)'
                     }
                   ];
                   // Altezza = titolo layer (40 top + ~50) + padding (24) + empty state
@@ -1553,7 +1574,7 @@ const PageSection: React.FC<PageSectionProps> = ({
               </Button>
 
               <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
-                if (blocks && setBlocks && setLayers) {
+                if (blocks && setBlocks) {
                   setIsDirty(true);
                   const newBlockId = 'block-video-' + Date.now();
                   // Titolo = layer testo libero (stesso rationale della galleria).
@@ -1570,7 +1591,7 @@ const PageSection: React.FC<PageSectionProps> = ({
                       y: 40,
                       width: 600,
                       fontSize: 28,
-                      fontFamily: event.theme?.fonts?.heading || 'Playfair Display',
+                      fontFamily: event?.theme?.fonts?.heading || 'Playfair Display',
                       textAlign: 'center',
                       color: '#ffffff'
                     }
@@ -1601,16 +1622,9 @@ const PageSection: React.FC<PageSectionProps> = ({
               </Button>
 
               <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
-                if (blocks && setBlocks && setLayers) {
+                if (blocks && setBlocks) {
                   setIsDirty(true);
                   const newBlockId = 'block-payment-' + Date.now();
-
-                  // Altezza = titolo layer (40 top + ~50) + gap + card payment (full state
-                  // con icon, titolo interno, desc, 4 preset + custom input + CTA + footer
-                  // ~560px) + padding bottom (24) + breathing ≈ 760.
-                  // [FIX] Prima era 620: la card (~560px) + titolo layer + padding superava
-                  // il block height → su pubblico la card veniva visivamente schiacciata
-                  // contro il titolo (titolo a y=48 overlappava il top del widget centrato).
                   setBlocks([...blocks, {
                     id: newBlockId,
                     type: 'payment',
@@ -1635,6 +1649,31 @@ const PageSection: React.FC<PageSectionProps> = ({
                 }
               }}>
                 <Gift size={18} style={{marginRight: 8}}/> Sezione Regali
+              </Button>
+
+              <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
+                if (blocks && setBlocks && setLayers) {
+                  setIsDirty(true);
+                  const newBlockId = 'block-tableau-' + Date.now();
+                  setBlocks([...blocks, {
+                    id: newBlockId,
+                    type: 'tableau',
+                    order: blocks.length,
+                    y: 0,
+                    height: 800,
+                    bgColor: '#f8fafc',
+                    props: { bgColor: '#f8fafc' },
+                    widgetProps: { 
+                      tableauTables: [],
+                      tableauAssignments: [],
+                      tableauConstraints: [],
+                      tableauSettings: { showFloorPlan: true }
+                    }
+                  } as any]);
+                  pushToHistory();
+                }
+              }}>
+                <LayoutGrid size={18} style={{marginRight: 8}}/> Sezione Tableau
               </Button>
             </div>
           </Surface>
