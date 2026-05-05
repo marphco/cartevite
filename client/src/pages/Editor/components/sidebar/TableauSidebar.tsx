@@ -12,6 +12,7 @@ import { optimizeSeating } from "../../../../utils/seatingEngine";
 import type { SplitWarning } from "../../../../utils/seatingEngine";
 import EventPurchaseModal from "../../../../components/payments/EventPurchaseModal";
 import CustomColorPicker from '../CustomColorPicker';
+import { useTableauTotals } from './tableau/hooks/useTableauTotals';
 
 interface TableauSidebarProps {
   selectedBlock: Block;
@@ -448,39 +449,15 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
   const assignments = (config.tableauAssignments || []) as any[];
   const constraints = config.tableauConstraints || [];
 
-  const allGuests = [
-    ...eventRsvps
-      .filter(r => r.status === 'yes')
-      .flatMap(r => (r.guests || [{ name: r.name }]).map((g: any, idx: number) => ({
-        id: `${r._id || r.id}-${idx}`,
-        name: g.name
-      }))),
-    ...assignments
-      .filter((a: any) => a.guestId.startsWith('manual-'))
-      .flatMap((a: any) => {
-        const namesArr: string[] = (a.names && Array.isArray(a.names) && a.names.length > 0)
-          ? a.names
-          : [a.guestName];
-        return namesArr.map((n: string, i: number) => ({
-          // Primo membro usa l'id del gruppo (così assegnazioni continuano a funzionare).
-          // Membri successivi usano un sub-id univoco per la dropdown ma riferiscono lo stesso gruppo.
-          id: i === 0 ? a.guestId : `${a.guestId}__sub${i}`,
-          name: n || `${a.guestName} ${i + 1}`
-        }));
-      })
-  ];
-
-  // Totali capienza vs ospiti confermati
-  const totalRsvpGuests = eventRsvps
-    .filter((r: any) => r.status === 'yes')
-    .reduce((acc: number, r: any) => acc + (r.guestsCount || 1), 0);
-  const totalManualGuests = assignments
-    .filter((a: any) => a.guestId.startsWith('manual-'))
-    .reduce((acc: number, a: any) => acc + (a.numPeople || 1), 0);
-  const totalConfirmedGuests = totalRsvpGuests + totalManualGuests;
-  const totalCapacity = tables.reduce((acc: number, t: any) => acc + (t.capacity || 0), 0);
-  const missingSeats = Math.max(0, totalConfirmedGuests - totalCapacity);
-  const spareSeats = Math.max(0, totalCapacity - totalConfirmedGuests);
+  const {
+    allGuests,
+    totalRsvpGuests,
+    totalManualGuests,
+    totalConfirmedGuests,
+    totalCapacity,
+    missingSeats,
+    spareSeats,
+  } = useTableauTotals(eventRsvps, assignments, tables);
 
   // Helper: apre il modale overflow con valori suggeriti, dato un missing calcolato (anche proiettato)
   const openOverflowModal = (missing: number) => {
