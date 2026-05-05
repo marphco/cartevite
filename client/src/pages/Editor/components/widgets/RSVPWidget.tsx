@@ -125,26 +125,39 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
   const [allergyMode, setAllergyMode] = useState<"whole_party" | "by_person" | null>(null);
   const [wholePartyAllergies, setWholePartyAllergies] = useState("");
   const [allergyPeople, setAllergyPeople] = useState<AllergyPersonRow[]>(() => defaultAllergyPeopleRows());
+  const [guests, setGuests] = useState<{name: string}[]>([]);
   const [customResponses, setCustomResponses] = useState<Record<string, any>>({});
 
   const resetAllergyFields = () => {
     setAllergyMode(null);
     setWholePartyAllergies("");
-    setAllergyPeople(defaultAllergyPeopleRows());
+    setAllergyPeople([]); // Resettiamo le righe custom
   };
 
   useEffect(() => {
-    if (Number(guestsCount) <= 1 && allergyMode === "whole_party") {
-      setAllergyMode("by_person");
-      setWholePartyAllergies("");
-    }
-  }, [guestsCount, allergyMode]);
+    const n = Math.max(1, guestsCount);
+    setGuests(prev => {
+      const next = [...prev];
+      if (next.length < n - 1) {
+        while(next.length < n - 1) next.push({ name: '' });
+      } else {
+        next.length = n - 1;
+      }
+      return next;
+    });
+  }, [guestsCount]);
 
+  // Sincronizza allergyPeople quando cambiano i nomi degli ospiti
   useEffect(() => {
-    if (Number(guestsCount) <= 1 && allergyMode === "by_person" && allergyPeople.length > 1) {
-      setAllergyPeople((p) => [{ name: "", allergies: p[0]?.allergies ?? "" }]);
-    }
-  }, [guestsCount, allergyMode, allergyPeople.length]);
+    const allNames = [name, ...guests.map(g => g.name)];
+    setAllergyPeople(prev => {
+      // Manteniamo le allergie già inserite basandoci sull'indice
+      return allNames.map((n, i) => ({
+        name: n,
+        allergies: prev[i]?.allergies || ""
+      }));
+    });
+  }, [name, guests, hasAllergies, status]); // Aggiunto hasAllergies e status per rinfrescare quando si attiva la sezione
 
   // Submitting States
   const [isSending, setIsSending] = useState(false);
@@ -251,6 +264,7 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
           email: email || null,
           phone: phone || null,
           guestsCount: Number(guestsCount) || 1,
+          guests: [{ name }, ...guests],
           message: messageOut,
           status,
           allergies: allergiesText,
@@ -447,14 +461,16 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
             return (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile || !showGuests ? '1fr' : '1fr 1fr', gap: '16px' }}>
-                  <input 
-                    type="text" 
-                    placeholder="Nome o gruppo *" 
-                    value={name} 
-                    onChange={e => setName(e.target.value)} 
-                    required 
-                    style={inputStyle}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      type="text" 
+                      placeholder="Il tuo Nome *" 
+                      value={name} 
+                      onChange={e => setName(e.target.value)} 
+                      required 
+                      style={inputStyle}
+                    />
+                  </div>
                   {showGuests && (
                     <div style={{ position: 'relative' }}>
                       <Users size={18} color={colors.text} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
@@ -475,9 +491,36 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                     </div>
                   )}
                 </div>
+
+                {/* ELENCO NOMI OSPITI ADDIZIONALI */}
+                {showGuests && guests.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', animation: 'fadeIn 0.3s ease-out', background: colors.inputBg, padding: '16px', borderRadius: '16px', border: `1px solid ${colors.inputBorder}` }}>
+                    <div style={{ fontSize: '10px', fontWeight: 800, color: colors.textSoft, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
+                      Nomi degli altri partecipanti
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
+                      {guests.map((g, idx) => (
+                        <input 
+                          key={idx}
+                          type="text"
+                          placeholder={`Nome Ospite ${idx + 2} *`}
+                          value={g.name}
+                          onChange={(e) => {
+                            const next = [...guests];
+                            next[idx] = { name: e.target.value };
+                            setGuests(next);
+                          }}
+                          required
+                          style={{ ...inputStyle, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', fontSize: '13px' }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {showGuests && askIntolerances && (
                   <p style={{ margin: 0, fontSize: '11px', color: colors.textSoft, lineHeight: 1.4, opacity: 0.9 }}>
-                    Includi tutti i posti (anche bambini).
+                    Includi tutti i partecipanti per aiutarci con l'organizzazione dei tavoli.
                   </p>
                 )}
               </>
@@ -581,8 +624,6 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
                   type="button" 
                   onClick={() => {
                     setHasAllergies('yes');
-                    setWholePartyAllergies('');
-                    setAllergyPeople(defaultAllergyPeopleRows());
                     setAllergyMode('by_person');
                   }}
                   style={{ 
@@ -604,150 +645,49 @@ export const RSVPWidget: React.FC<RSVPWidgetProps> = ({
 
               {hasAllergies === 'yes' && (
                 <div style={{ animation: 'fadeIn 0.3s ease-out', marginTop: '14px' }}>
-                  {Number(guestsCount) > 1 && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        width: '100%',
-                        marginBottom: '14px',
-                      }}
-                    >
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          color: colors.text,
-                          userSelect: 'none',
-                          maxWidth: '100%',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={allergyMode === 'whole_party'}
-                          onChange={(e) => {
-                            const on = e.target.checked;
-                            if (on) {
-                              const first = allergyPeople.find((p) => p.allergies.trim());
-                              setWholePartyAllergies(first?.allergies?.trim() || '');
-                              setAllergyMode('whole_party');
-                              setAllergyPeople(defaultAllergyPeopleRows());
-                            } else {
-                              const t = wholePartyAllergies.trim();
-                              setAllergyMode('by_person');
-                              setWholePartyAllergies('');
-                              setAllergyPeople(t ? [{ name: '', allergies: t }] : defaultAllergyPeopleRows());
-                            }
-                          }}
-                          style={{ width: '18px', height: '18px', flexShrink: 0, accentColor: primaryColor }}
-                        />
-                        <span>Stessa allergia per tutti gli ospiti</span>
-                      </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 800, color: colors.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', marginBottom: '4px' }}>
+                      Dettaglio per persona
                     </div>
-                  )}
-
-                  {Number(guestsCount) > 1 && allergyMode === 'whole_party' && (
-                    <div style={{ marginBottom: '12px' }}>
-                      <textarea
-                        placeholder={"Descrizione dell'allergia o intolleranza condivisa da tutti *"}
-                        value={wholePartyAllergies}
-                        onChange={(e) => setWholePartyAllergies(e.target.value)}
-                        rows={3}
-                        style={{ ...inputStyle, resize: 'vertical' }}
-                      />
-                    </div>
-                  )}
-
-                  {((Number(guestsCount) > 1 && allergyMode !== 'whole_party') || Number(guestsCount) <= 1) && (
-                    <div style={{ marginTop: Number(guestsCount) > 1 && allergyMode === 'by_person' ? '0' : '0' }}>
-                      {allergyPeople.map((row, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            display: 'grid',
-                            gap: '10px',
-                            marginBottom: '12px',
-                            alignItems: 'center',
-                            gridTemplateColumns:
-                              Number(guestsCount) <= 1
-                                ? '1fr'
-                                : allergyPeople.length > 1
-                                  ? 'minmax(0,1fr) minmax(0,1.15fr) auto'
-                                  : 'minmax(0,1fr) minmax(0,1.15fr)',
-                          }}
-                        >
-                          {Number(guestsCount) > 1 && (
-                            <input
+                    {allergyPeople.map((row, idx) => {
+                      const hasAllergyValue = row.allergies.length > 0;
+                      return (
+                        <div key={idx} style={{ 
+                          background: hasAllergyValue ? `${primaryColor}08` : 'transparent',
+                          border: `1px solid ${hasAllergyValue ? primaryColor : colors.allergyBorder}`,
+                          borderRadius: '16px', padding: '12px', transition: 'all 0.2s'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: hasAllergyValue ? '10px' : '0' }}>
+                            <input 
+                              type="checkbox"
+                              checked={hasAllergyValue}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setAllergyPeople(prev => prev.map((p, i) => i === idx ? { ...p, allergies: checked ? " " : "" } : p));
+                              }}
+                              style={{ width: '18px', height: '18px', accentColor: primaryColor }}
+                            />
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: colors.text }}>
+                              {idx === 0 ? (name || "Tu") : (guests[idx - 1]?.name || `Ospite ${idx + 1}`)}
+                            </span>
+                          </div>
+                          
+                          {hasAllergyValue && (
+                            <input 
                               type="text"
-                              autoComplete="off"
-                              placeholder="Nome (opz.)"
-                              value={row.name}
+                              placeholder="Indica allergie o intolleranze..."
+                              value={row.allergies === " " ? "" : row.allergies}
                               onChange={(e) => {
                                 const v = e.target.value;
-                                setAllergyPeople((prev) => prev.map((p, i) => (i === idx ? { ...p, name: v } : p)));
+                                setAllergyPeople(prev => prev.map((p, i) => i === idx ? { ...p, allergies: v || " " } : p));
                               }}
-                              style={inputStyle}
+                              style={{ ...inputStyle, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', fontSize: '13px', height: '40px' }}
                             />
                           )}
-                          <input
-                            type="text"
-                            autoComplete="off"
-                            placeholder={
-                              Number(guestsCount) <= 1
-                                ? 'Allergia o intolleranza *'
-                                : 'Allergia o intolleranza *'
-                            }
-                            value={row.allergies}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setAllergyPeople((prev) => prev.map((p, i) => (i === idx ? { ...p, allergies: v } : p)));
-                            }}
-                            style={inputStyle}
-                          />
-                          {Number(guestsCount) > 1 && allergyPeople.length > 1 ? (
-                            <button
-                              type="button"
-                              aria-label={`Rimuovi persona ${idx + 1}`}
-                              title="Rimuovi questa riga"
-                              onClick={() =>
-                                setAllergyPeople((prev) => prev.filter((_, i) => i !== idx))
-                              }
-                              style={{
-                                border: `1px solid ${colors.allergyBorder}`,
-                                background: colors.toggleBg,
-                                borderRadius: '12px',
-                                padding: '12px',
-                                cursor: 'pointer',
-                                color: '#c45c52',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <Trash2 size={18} aria-hidden />
-                            </button>
-                          ) : null}
                         </div>
-                      ))}
-                      {allergyMode !== 'whole_party' && Number(guestsCount) > 1 && allergyPeople.length < 12 && (
-                        <button
-                          type="button"
-                          onClick={() => setAllergyPeople((p) => [...p, { name: '', allergies: '' }])}
-                          style={{
-                            marginTop: '4px', padding: '10px 14px', borderRadius: '12px', border: `1px dashed ${colors.allergyBorder}`,
-                            background: 'transparent', color: colors.textSoft, fontSize: '12px', fontWeight: 600, cursor: 'pointer', width: '100%',
-                          }}
-                        >
-                          + Altra persona
-                        </button>
-                      )}
-                    </div>
-                  )}
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>

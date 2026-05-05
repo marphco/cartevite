@@ -42,6 +42,7 @@ const rsvpSchema = new Schema(
     phone: { type: String, trim: true },
 
     guestsCount: { type: Number, default: 1 },
+    guests: { type: [{ name: String }], default: [] },
     message: { type: String, default: "" },
 
     /** ✅ Campo dedicato per allergie/intolleranze (separato da `message` per export catering). */

@@ -21,9 +21,9 @@ interface PaymentSectionProps {
   displayColorPicker: any;
   setDisplayColorPicker: (v: any) => void;
   setIsDirty: (v: boolean) => void;
-  blocks?: Block[];
-  setBlocks?: React.Dispatch<React.SetStateAction<Block[]>>;
-  onUpdateBlock?: (blockId: string, updates: Partial<Block>) => void;
+  blocks?: Block[] | undefined;
+  setBlocks?: React.Dispatch<React.SetStateAction<Block[]>> | undefined;
+  onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
   slug: string;
   /**
    * Modalità compatta per il MobileToolbar: salta il wrapper Surface
@@ -244,7 +244,7 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
               type="text"
               value={props.paymentTitle || defaultTitle}
               onChange={(e) => patch({ paymentTitle: e.target.value })}
-              style={inputStyle}
+              style={{ ...inputStyle, fontWeight: 600 }}
               maxLength={80}
             />
           </div>

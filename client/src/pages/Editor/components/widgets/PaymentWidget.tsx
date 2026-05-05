@@ -16,24 +16,24 @@ import stripeLogo from '../../../../assets/stripe.svg';
 import stripeDarkLogo from '../../../../assets/stripe-dark.svg';
 
 export interface PaymentWidgetProps {
-  eventSlug?: string;
-  title?: string;
-  description?: string;
-  presetAmounts?: number[];
-  minAmount?: number;
-  maxAmount?: number;
-  targetAmount?: number;
-  showProgress?: boolean;
-  accentColor?: string;
-  mode?: 'gift' | 'donation';
-  ctaLabel?: string;
-  sectionBg?: string | null;
-  previewMobile?: boolean;
-  readOnly?: boolean;
+  eventSlug?: string | undefined;
+  title?: string | undefined;
+  description?: string | undefined;
+  presetAmounts?: number[] | undefined;
+  minAmount?: number | undefined;
+  maxAmount?: number | undefined;
+  targetAmount?: number | undefined;
+  showProgress?: boolean | undefined;
+  accentColor?: string | undefined;
+  mode?: 'gift' | 'donation' | undefined;
+  ctaLabel?: string | undefined;
+  sectionBg?: string | null | undefined;
+  previewMobile?: boolean | undefined;
+  readOnly?: boolean | undefined;
   /** Se true (default) mostra un input per importo libero sotto i preset. */
-  allowCustomAmount?: boolean;
+  allowCustomAmount?: boolean | undefined;
   /** In editor: se l'owner non ha ancora completato onboarding Stripe mostriamo un banner. */
-  onboardingNeeded?: boolean;
+  onboardingNeeded?: boolean | undefined;
   onClickDonate?: (defaultAmount?: number) => void;
 }
 

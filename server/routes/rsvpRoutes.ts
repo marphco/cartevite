@@ -134,6 +134,7 @@ router.post("/", async (req: Request, res: Response) => {
       message,
       status,
       customResponses,
+      guests,
     } = req.body;
 
     if (!eventSlug || !name) {
@@ -173,6 +174,7 @@ router.post("/", async (req: Request, res: Response) => {
       existing.email = email ? email.toLowerCase().trim() : existing.email;
       existing.phone = phone ? phone.trim() : existing.phone;
       existing.guestsCount = guestsCount ?? existing.guestsCount;
+      existing.guests = guests ?? existing.guests;
       existing.message = message ?? existing.message;
       existing.status = status || existing.status;
 
@@ -223,6 +225,7 @@ router.post("/", async (req: Request, res: Response) => {
       email,
       phone,
       guestsCount,
+      guests,
       message,
       allergies: normNew.allergies,
       ...(normNew.allergiesDetail ? { allergiesDetail: normNew.allergiesDetail } : {}),
@@ -311,7 +314,7 @@ router.get("/edit/:token", async (req: Request, res: Response) => {
 ====================================== */
 router.put("/edit/:token", async (req: Request, res: Response) => {
   try {
-    const { name, guestsCount, status, message, email, phone, customResponses } = req.body;
+    const { name, guestsCount, guests, status, message, email, phone, customResponses } = req.body;
 
     const rsvp = await Rsvp.findOne({ editToken: req.params.token });
     if (!rsvp) return res.status(404).json({ message: "Token non valido" });
@@ -322,6 +325,7 @@ router.put("/edit/:token", async (req: Request, res: Response) => {
 
     rsvp.name = name ?? rsvp.name;
     rsvp.guestsCount = guestsCount ?? rsvp.guestsCount;
+    rsvp.guests = guests ?? rsvp.guests;
     rsvp.status = status ?? rsvp.status;
     rsvp.message = message ?? rsvp.message;
 
@@ -368,10 +372,11 @@ router.put("/:id", requireAuth, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: "Non autorizzato" });
     }
 
-    const { name, guestsCount, status, message, customResponses, email, phone } = req.body;
+    const { name, guestsCount, guests, status, message, customResponses, email, phone } = req.body;
 
     if (name !== undefined) rsvp.name = name;
     if (guestsCount !== undefined) rsvp.guestsCount = guestsCount;
+    if (guests !== undefined) rsvp.guests = guests;
     if (status !== undefined) rsvp.status = status;
     if (message !== undefined) rsvp.message = message;
 

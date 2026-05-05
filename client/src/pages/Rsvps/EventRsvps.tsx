@@ -19,6 +19,7 @@ import {
   ChevronUp,
   UserPlus,
   Trash2,
+  Check,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -47,6 +48,7 @@ interface RSVP {
   phone?: string;
   guestsCount: number;
   status: "yes" | "maybe" | "no";
+  guests?: { name: string }[];
   message?: string;
   allergies?: string;
   allergiesDetail?: AllergiesDetailPayload | null;
@@ -155,6 +157,7 @@ export default function EventRsvps() {
   const [manualCustom, setManualCustom] = useState<Record<string, any>>({});
   const [manualSending, setManualSending] = useState(false);
   const [manualError, setManualError] = useState("");
+  const [manualGuestsList, setManualGuestsList] = useState<{name: string}[]>([]);
 
   /** Allineato a RSVPWidget: sì/no + stessa allergia / per persona. */
   const [manualAllergy, setManualAllergy] = useState<{
@@ -201,6 +204,7 @@ export default function EventRsvps() {
     email: "",
     phone: "",
   });
+  const [editGuestsList, setEditGuestsList] = useState<{name: string}[]>([]);
 
   const [editAllergy, setEditAllergy] = useState<{
     hasAllergies: "yes" | "no" | null;
@@ -230,7 +234,58 @@ export default function EventRsvps() {
     if (manualPanelOpen && Number(manualGuests) <= 1 && manualAllergy.mode === "whole_party") {
       setManualAllergy((p) => ({ ...p, mode: "by_person", wholeParty: "" }));
     }
+    // Sync manualGuestsList size
+    const n = Math.max(1, Number(manualGuests));
+    setManualGuestsList(prev => {
+      const next = [...prev];
+      if (next.length < n - 1) {
+        while(next.length < n - 1) next.push({ name: '' });
+      } else {
+        next.length = n - 1;
+      }
+      return next;
+    });
   }, [manualPanelOpen, manualGuests, manualAllergy.mode]);
+
+  // Sincronizza nomi allergie manuali
+  useEffect(() => {
+    const allNames = [manualName, ...manualGuestsList.map(g => g.name)];
+    setManualAllergy(prev => ({
+      ...prev,
+      people: allNames.map((n, i) => ({
+        name: n,
+        allergies: prev.people[i]?.allergies || ""
+      }))
+    }));
+  }, [manualName, manualGuestsList]);
+
+  // Sync editGuestsList size
+  useEffect(() => {
+    if (!editingId) return;
+    const n = Math.max(1, Number(editForm.guestsCount));
+    setEditGuestsList(prev => {
+      const next = [...prev];
+      if (next.length < n - 1) {
+        while(next.length < n - 1) next.push({ name: '' });
+      } else {
+        next.length = n - 1;
+      }
+      return next;
+    });
+  }, [editingId, editForm.guestsCount]);
+
+  // Sincronizza nomi allergie edit
+  useEffect(() => {
+    if (!editingId) return;
+    const allNames = [editForm.name, ...editGuestsList.map(g => g.name)];
+    setEditAllergy(prev => ({
+      ...prev,
+      people: allNames.map((n, i) => ({
+        name: n,
+        allergies: prev.people[i]?.allergies || ""
+      }))
+    }));
+  }, [editingId, editForm.name, editGuestsList]);
 
   useEffect(() => {
     async function fetchAll() {
@@ -352,7 +407,8 @@ export default function EventRsvps() {
     const headers = [...baseHeaders, ...customHeaders];
 
     const rows = rsvps.map((r) => {
-      const base: (string | number)[] = [r.name || ""];
+      const allNames = r.guests?.map(g => g.name).filter(Boolean).join(", ") || r.name || "";
+      const base: (string | number)[] = [allNames];
       if (hasAnyEmail) base.push(r.email || "");
       if (hasAnyPhone) base.push(r.phone || "");
       base.push(
@@ -394,6 +450,7 @@ export default function EventRsvps() {
     if (hasAnyEmail) headers.push("Email");
     if (hasAnyPhone) headers.push("Telefono");
     const rows = withAllergies.map(({ r, allergies }) => {
+      const allNames = r.guests?.map(g => g.name).filter(Boolean).join(", ") || r.name || "";
       const allergySubjects = countCateringAllergySubjects(
         r.guestsCount ?? 1,
         r.allergiesDetail,
@@ -405,7 +462,7 @@ export default function EventRsvps() {
         allergies
       );
       const row: (string | number)[] = [
-        r.name || "",
+        allNames,
         r.guestsCount ?? 1,
         allergySubjects,
         statusLabel(r.status),
@@ -488,7 +545,8 @@ export default function EventRsvps() {
     const statusColumnIndex = 1 + (hasAnyEmail ? 1 : 0) + (hasAnyPhone ? 1 : 0) + 1; // Nome + (Email?) + (Tel?) + Osp.
 
     const body = rsvps.map((r) => {
-      const base: string[] = [r.name || "—"];
+      const allNames = r.guests?.map(g => g.name).filter(Boolean).join("\n") || r.name || "—";
+      const base: string[] = [allNames];
       if (hasAnyEmail) base.push(r.email || "—");
       if (hasAnyPhone) base.push(r.phone || "—");
       base.push(
@@ -565,6 +623,7 @@ export default function EventRsvps() {
     autoTable(doc, {
       head: [headers],
       body: withAllergies.map(({ r, allergies }) => {
+        const allNames = r.guests?.map(g => g.name).filter(Boolean).join("\n") || r.name || "—";
         const allergySubjects = countCateringAllergySubjects(
           r.guestsCount ?? 1,
           r.allergiesDetail,
@@ -576,7 +635,7 @@ export default function EventRsvps() {
           allergies
         );
         const row: string[] = [
-          r.name || "—",
+          allNames,
           String(r.guestsCount ?? 1),
           String(allergySubjects),
           statusLabel(r.status),
@@ -722,7 +781,7 @@ export default function EventRsvps() {
     const cleanPhoneF = manualPhone.trim();
 
     try {
-      const res = await apiFetch(`/api/rsvps`, {
+          const res = await apiFetch(`/api/rsvps`, {
         method: "POST",
         body: JSON.stringify({
           eventSlug: slug,
@@ -730,6 +789,7 @@ export default function EventRsvps() {
           email: st === "no" ? null : cleanEmailF || null,
           phone: st === "no" ? null : cleanPhoneF || null,
           guestsCount: gc,
+          guests: [{ name: manualName.trim() }, ...manualGuestsList],
           message: messageOut,
           status: st,
           allergies: allergiesText,
@@ -793,6 +853,8 @@ export default function EventRsvps() {
       wholeParty: parsed.wholePartyAllergies,
       people: parsed.allergyPeople.length ? parsed.allergyPeople : defaultAllergyPeopleRows(),
     });
+    const guestNames = (r.guests || []).slice(1);
+    setEditGuestsList(guestNames);
   };
 
   const cancelEdit = () => {
@@ -868,6 +930,7 @@ export default function EventRsvps() {
         body: JSON.stringify({
           name: editForm.name,
           guestsCount: Number(editForm.guestsCount) || 1,
+          guests: [{ name: editForm.name }, ...editGuestsList],
           status: editForm.status,
           allergies: allergiesOut,
           allergiesDetail: allergiesDetailOut,
@@ -958,7 +1021,7 @@ export default function EventRsvps() {
             <div className="rsvp-collapse-trigger__text">
               <span className="rsvp-collapse-trigger__eyebrow">Aggiungi ospite</span>
               <span className="rsvp-collapse-trigger__title">
-                Inserisci un ospite che non compare nell&apos;elenco (es. conferma telefonica)
+                Inserisci un ospite che non ha completato la procedura online
               </span>
             </div>
             <span className="rsvp-collapse-trigger__meta">
@@ -970,80 +1033,95 @@ export default function EventRsvps() {
           {manualPanelOpen ? (
           <div className="rsvp-collapse-body">
           <form onSubmit={handleManualAdd}>
-            <div
-              className="rsvp-form-grid"
-              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))" }}
-            >
-              <div className="input-group">
-                <label>Nome Ospite</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Nome o gruppo *"
-                  value={manualName}
-                  onChange={(e) => setManualName(e.target.value)}
-                  className="rsvp-input"
-                />
-              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "1.5rem" }}>
+                <div className="input-group" style={{ gridColumn: "1 / -1", marginBottom: "0.5rem" }}>
+                  <label>L'ospite parteciperà?</label>
+                  <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                    {[
+                      { val: "yes", lab: "Sì, partecipa" },
+                      { val: "maybe", lab: "Forse" },
+                      { val: "no", lab: "No" }
+                    ].map((opt) => {
+                      const active = manualStatus === opt.val;
+                      return (
+                        <Button
+                          key={opt.val}
+                          type="button"
+                          variant={active ? "primary" : "subtle"}
+                          onClick={() => {
+                            const v = opt.val as any;
+                            setManualStatus(v);
+                            if (v === "no") {
+                              setManualCustom({});
+                              setManualEmail("");
+                              setManualPhone("");
+                              setManualFreeAllergies("");
+                              setManualAllergy({
+                                hasAllergies: null,
+                                mode: null,
+                                wholeParty: "",
+                                people: defaultAllergyPeopleRows(),
+                              });
+                            }
+                          }}
+                          style={{ flex: 1, height: "48px", fontWeight: 800, fontSize: "13px" }}
+                        >
+                          {opt.lab}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-              {rsvpConfig.askGuests && manualStatus !== "no" && (
+                <div className="input-group">
+                  <label>Nome Ospite</label>
+                  <input
+                    type="text"
+                    placeholder="Nome e Cognome *"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    className="rsvp-input"
+                    autoComplete="off"
+                  />
+                </div>
                 <div className="input-group">
                   <label>Numero Ospiti</label>
                   <div style={{ position: "relative" }}>
-                    <Users
-                      size={18}
-                      style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.4, pointerEvents: "none" }}
-                    />
+                    <Users size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-soft)" }} />
                     <input
                       type="number"
-                      min={1}
-                      max={20}
-                      placeholder="1"
+                      min="1"
                       value={manualGuests}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10);
-                        setManualGuests(Number.isFinite(v) ? Math.min(20, Math.max(1, v)) : 1);
-                      }}
+                      onChange={(e) => setManualGuests(Number(e.target.value) || 1)}
                       className="rsvp-input"
-                      style={{ paddingLeft: 40 }}
+                      style={{ paddingLeft: 36 }}
                     />
                   </div>
                   {rsvpConfig.askIntolerances && (
                     <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-soft)", lineHeight: 1.4, opacity: 0.9 }}>
-                      Includi tutti i posti (anche bambini).
+                      Indica il numero totale di partecipanti per questo gruppo.
                     </p>
                   )}
                 </div>
-              )}
 
-              <div className="input-group">
-                <label>Stato</label>
-                <select
-                  value={manualStatus}
-                  onChange={(e) => {
-                    const v = e.target.value as "yes" | "maybe" | "no";
-                    setManualStatus(v);
-                    if (v === "no") {
-                      setManualCustom({});
-                      setManualEmail("");
-                      setManualPhone("");
-                      setManualFreeAllergies("");
-                      setManualAllergy({
-                        hasAllergies: null,
-                        mode: null,
-                        wholeParty: "",
-                        people: defaultAllergyPeopleRows(),
-                      });
-                    }
-                  }}
-                  className="rsvp-select"
-                >
-                  <option value="yes">Partecipa</option>
-                  <option value="maybe">Forse</option>
-                  <option value="no">Non può</option>
-                </select>
+                {/* LISTA NOMI OSPITI MANUALI */}
+                {manualStatus !== "no" && Number(manualGuests) > 1 && manualGuestsList.map((g, idx) => (
+                  <div key={idx} className="input-group">
+                    <label>Ospite {idx + 2}</label>
+                    <input 
+                      type="text"
+                      placeholder="Nome e Cognome *"
+                      value={g.name}
+                      onChange={(e) => {
+                        const next = [...manualGuestsList];
+                        next[idx] = { name: e.target.value };
+                        setManualGuestsList(next);
+                      }}
+                      className="rsvp-input"
+                    />
+                  </div>
+                ))}
               </div>
-            </div>
 
             {manualStatus !== "no" && (
               <div className="rsvp-form-subsection">
@@ -1215,150 +1293,49 @@ export default function EventRsvps() {
                     </div>
 
                     {manualAllergy.hasAllergies === "yes" && (
-                      <div style={{ marginTop: 4 }}>
-                        {Number(manualGuests) > 1 && (
-                          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-                            <label
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                                cursor: "pointer",
-                                fontSize: 13,
-                                fontWeight: 600,
-                                userSelect: "none",
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={manualAllergy.mode === "whole_party"}
-                                onChange={(e) => {
-                                  const on = e.target.checked;
-                                  if (on) {
-                                    setManualAllergy((p) => {
-                                      const first = p.people.find((x) => x.allergies.trim());
-                                      return {
-                                        ...p,
-                                        mode: "whole_party",
-                                        wholeParty: first?.allergies?.trim() || p.wholeParty,
-                                        people: defaultAllergyPeopleRows(),
-                                      };
-                                    });
-                                  } else {
-                                    setManualAllergy((p) => {
-                                      const t = p.wholeParty.trim();
-                                      return {
-                                        ...p,
-                                        mode: "by_person",
-                                        wholeParty: "",
-                                        people: t ? [{ name: "", allergies: t }] : defaultAllergyPeopleRows(),
-                                      };
-                                    });
-                                  }
-                                }}
-                                style={{ width: 17, height: 17, accentColor: "var(--accent)" }}
-                              />
-                              <span>Stessa allergia per tutti gli ospiti</span>
-                            </label>
-                          </div>
-                        )}
-
-                        {Number(manualGuests) > 1 && manualAllergy.mode === "whole_party" && (
-                          <div style={{ marginBottom: 10 }}>
-                            <textarea
-                              className="rsvp-input"
-                              rows={3}
-                              placeholder="Descrizione condivisa da tutti gli ospiti *"
-                              value={manualAllergy.wholeParty}
-                              onChange={(e) => setManualAllergy((p) => ({ ...p, wholeParty: e.target.value }))}
-                            />
-                          </div>
-                        )}
-
-                        {((Number(manualGuests) > 1 && manualAllergy.mode !== "whole_party") || Number(manualGuests) <= 1) && (
-                          <div style={{ display: "grid", gap: 10 }}>
-                            {manualAllergy.people.map((row, idx) => (
-                              <div
-                                key={idx}
-                                style={{
-                                  display: "grid",
-                                  gap: 8,
-                                  alignItems: "center",
-                                  gridTemplateColumns:
-                                    Number(manualGuests) <= 1
-                                      ? "1fr"
-                                      : manualAllergy.people.length > 1
-                                        ? "1fr 1fr auto"
-                                        : "1fr 1fr",
-                                }}
-                              >
-                                {Number(manualGuests) > 1 && (
-                                  <input
-                                    className="rsvp-input"
-                                    placeholder="Nome (opz.)"
-                                    value={row.name}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setManualAllergy((p) => ({
-                                        ...p,
-                                        people: p.people.map((x, i) => (i === idx ? { ...x, name: v } : x)),
+                         <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px", padding: "16px", background: "var(--bg-secondary)", borderRadius: "16px", border: "1px solid var(--border-subtle)" }}>
+                          {manualAllergy.people.map((p, idx) => {
+                            const hasAllergy = p.allergies.length > 0;
+                            const personName = idx === 0 ? (manualName || "Titolare") : (manualGuestsList[idx-1]?.name || `Ospite ${idx+1}`);
+                            return (
+                              <div key={idx} style={{ 
+                                display: "flex", flexDirection: "column", gap: "8px", paddingBottom: "8px", 
+                                borderBottom: idx === manualAllergy.people.length - 1 ? "none" : "1px solid var(--border-subtle)" 
+                              }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                  <input 
+                                    type="checkbox"
+                                    checked={hasAllergy}
+                                    onChange={() => {
+                                      setManualAllergy(prev => ({
+                                        ...prev,
+                                        people: prev.people.map((row, i) => i === idx ? { ...row, allergies: !hasAllergy ? " " : "" } : row)
                                       }));
                                     }}
+                                    style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                                  />
+                                  <span style={{ fontSize: "14px", fontWeight: 600 }}>{personName}</span>
+                                </div>
+                                {hasAllergy && (
+                                  <input 
+                                    type="text"
+                                    placeholder="Quali allergie?"
+                                    value={p.allergies === " " ? "" : p.allergies}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setManualAllergy(prev => ({
+                                        ...prev,
+                                        people: prev.people.map((row, i) => i === idx ? { ...row, allergies: v || " " } : row)
+                                      }));
+                                    }}
+                                    className="rsvp-input"
+                                    style={{ height: "36px", fontSize: "13px" }}
                                   />
                                 )}
-                                <input
-                                  className="rsvp-input"
-                                  placeholder="Allergia o intolleranza *"
-                                  value={row.allergies}
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setManualAllergy((p) => ({
-                                      ...p,
-                                      people: p.people.map((x, i) => (i === idx ? { ...x, allergies: v } : x)),
-                                    }));
-                                  }}
-                                />
-                                {Number(manualGuests) > 1 && manualAllergy.people.length > 1 ? (
-                                  <button
-                                    type="button"
-                                    aria-label="Rimuovi riga"
-                                    onClick={() =>
-                                      setManualAllergy((p) => ({
-                                        ...p,
-                                        people: p.people.filter((_, i) => i !== idx),
-                                      }))
-                                    }
-                                    style={{
-                                      border: "1px solid var(--border-color-strong, rgba(0,0,0,0.12))",
-                                      background: "var(--surface)",
-                                      borderRadius: 10,
-                                      padding: 10,
-                                      cursor: "pointer",
-                                      color: "#c45c52",
-                                    }}
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
-                                ) : null}
                               </div>
-                            ))}
-                            {manualAllergy.mode !== "whole_party" && Number(manualGuests) > 1 && manualAllergy.people.length < 12 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() =>
-                                  setManualAllergy((p) => ({
-                                    ...p,
-                                    people: [...p.people, { name: "", allergies: "" }],
-                                  }))
-                                }
-                              >
-                                + Altra persona
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                            );
+                          })}
+                        </div>
                     )}
                   </div>
                 )}
@@ -1544,9 +1521,19 @@ export default function EventRsvps() {
                     <div>
                       {!isEditing ? (
                         <>
-                          <strong>{r.name || "(senza nome)"}</strong>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                            {r.guests && r.guests.length > 0 ? (
+                              r.guests.map((g, idx) => (
+                                <strong key={idx} style={{ fontSize: idx === 0 ? "14px" : "13px", color: idx === 0 ? "var(--text-main)" : "var(--accent)", fontWeight: idx === 0 ? 800 : 700 }}>
+                                  {g.name}
+                                </strong>
+                              ))
+                            ) : (
+                              <strong>{r.name || "(senza nome)"}</strong>
+                            )}
+                          </div>
                           <p style={{ margin: "0.2rem 0 0", color: "var(--text-soft)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                            <Users size={14} /> {r.guestsCount} ospiti
+                            <Users size={14} /> {r.guestsCount} {r.guestsCount === 1 ? 'ospite' : 'ospiti'}
                           </p>
                           {(r.email || r.phone) && (
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "6px", fontSize: "12px", color: "var(--text-soft)" }}>
@@ -1564,17 +1551,74 @@ export default function EventRsvps() {
                           )}
                         </>
                       ) : (
-                        <div className="input-group">
-                          <label>Nome Ospite</label>
-                          <input
-                            type="text"
-                            value={editForm.name}
-                            onChange={(e) =>
-                              setEditForm((prev) => ({ ...prev, name: e.target.value }))
-                            }
-                            className="rsvp-input"
-                          />
+                        <>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "10px" }}>
+                          <div className="input-group" style={{ gridColumn: "1 / -1", marginBottom: "0.5rem" }}>
+                            <label>Stato RSVP</label>
+                            <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                              {[
+                                { val: "yes", lab: "Partecipa" },
+                                { val: "maybe", lab: "Forse" },
+                                { val: "no", lab: "No" }
+                              ].map((opt) => {
+                                const active = editForm.status === opt.val;
+                                return (
+                                  <Button
+                                    key={opt.val}
+                                    type="button"
+                                    variant={active ? "primary" : "subtle"}
+                                    onClick={() => setEditForm(p => ({ ...p, status: opt.val as any }))}
+                                    style={{ flex: 1, height: "44px", fontWeight: 800, fontSize: "13px" }}
+                                  >
+                                    {opt.lab}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className="input-group">
+                            <label>Nome Ospite</label>
+                            <input
+                              type="text"
+                              value={editForm.name}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                              }
+                              className="rsvp-input"
+                            />
+                          </div>
+                          <div className="input-group">
+                            <label>Num. Ospiti</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={editForm.guestsCount}
+                              onChange={(e) => {
+                                const next = Number(e.target.value) || 1;
+                                setEditForm((prev) => ({ ...prev, guestsCount: next }));
+                              }}
+                              className="rsvp-input"
+                            />
+                          </div>
+                          {/* LISTA NOMI OSPITI EDIT */}
+                          {Number(editForm.guestsCount) > 1 && editGuestsList.map((g, idx) => (
+                            <div key={idx} className="input-group">
+                              <label>Ospite {idx + 2}</label>
+                              <input 
+                                type="text"
+                                placeholder={`Nome Ospite ${idx + 2} *`}
+                                value={g.name}
+                                onChange={(e) => {
+                                  const next = [...editGuestsList];
+                                  next[idx] = { name: e.target.value };
+                                  setEditGuestsList(next);
+                                }}
+                                className="rsvp-input"
+                              />
+                            </div>
+                          ))}
                         </div>
+                        </>
                       )}
                     </div>
                     <div style={{ alignSelf: 'flex-start' }}>
@@ -1708,171 +1752,48 @@ export default function EventRsvps() {
                               </div>
 
                               {editAllergy.hasAllergies === "yes" && (
-                                <div>
-                                  {Number(editForm.guestsCount) > 1 && (
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        justifyContent: "center",
-                                        width: "100%",
-                                        marginBottom: "12px",
-                                      }}
-                                    >
-                                      <label
-                                        style={{
-                                          display: "flex",
-                                          alignItems: "center",
-                                          gap: "10px",
-                                          cursor: "pointer",
-                                          fontSize: "0.9rem",
-                                          fontWeight: 600,
-                                          color: "var(--text-primary)",
-                                          userSelect: "none",
-                                          maxWidth: "100%",
-                                        }}
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={editAllergy.mode === "whole_party"}
-                                          onChange={(e) => {
-                                            const on = e.target.checked;
-                                            if (on) {
-                                              setEditAllergy((p) => {
-                                                const first = p.people.find((x) => x.allergies.trim());
-                                                return {
-                                                  ...p,
-                                                  mode: "whole_party",
-                                                  wholeParty: first?.allergies?.trim() || p.wholeParty,
-                                                  people: defaultAllergyPeopleRows(),
-                                                };
-                                              });
-                                            } else {
-                                              setEditAllergy((p) => {
-                                                const t = p.wholeParty.trim();
-                                                return {
-                                                  ...p,
-                                                  mode: "by_person",
-                                                  wholeParty: "",
-                                                  people: t ? [{ name: "", allergies: t }] : defaultAllergyPeopleRows(),
-                                                };
-                                              });
-                                            }
-                                          }}
-                                          style={{ width: "17px", height: "17px", flexShrink: 0, accentColor: "var(--accent)" }}
-                                        />
-                                        <span>Stessa allergia per tutti gli ospiti</span>
-                                      </label>
-                                    </div>
-                                  )}
-
-                                  {Number(editForm.guestsCount) > 1 && editAllergy.mode === "whole_party" && (
-                                    <div style={{ marginBottom: "10px" }}>
-                                      <textarea
-                                        className="rsvp-input"
-                                        rows={3}
-                                        placeholder={"Descrizione dell'allergia o intolleranza condivisa da tutti *"}
-                                        value={editAllergy.wholeParty}
-                                        onChange={(e) => setEditAllergy((p) => ({ ...p, wholeParty: e.target.value }))}
-                                      />
-                                    </div>
-                                  )}
-
-                                  {((Number(editForm.guestsCount) > 1 && editAllergy.mode !== "whole_party") ||
-                                    Number(editForm.guestsCount) <= 1) && (
-                                    <div style={{ display: "grid", gap: "10px" }}>
-                                      {editAllergy.people.map((row, idx) => (
-                                        <div
-                                          key={idx}
-                                          style={{
-                                            display: "grid",
-                                            gap: "8px",
-                                            alignItems: "center",
-                                            gridTemplateColumns:
-                                              Number(editForm.guestsCount) <= 1
-                                                ? "1fr"
-                                                : editAllergy.people.length > 1
-                                                  ? "1fr 1fr auto"
-                                                  : "1fr 1fr",
-                                          }}
-                                        >
-                                          {Number(editForm.guestsCount) > 1 && (
-                                            <input
-                                              className="rsvp-input"
-                                              autoComplete="off"
-                                              placeholder="Nome (opz.)"
-                                              value={row.name}
-                                              onChange={(e) => {
-                                                const v = e.target.value;
-                                                setEditAllergy((p) => ({
-                                                  ...p,
-                                                  people: p.people.map((x, i) => (i === idx ? { ...x, name: v } : x)),
-                                                }));
-                                              }}
-                                            />
-                                          )}
-                                          <input
-                                            className="rsvp-input"
-                                            autoComplete="off"
-                                            placeholder={
-                                              Number(editForm.guestsCount) <= 1
-                                                ? "Allergia o intolleranza *"
-                                                : "Allergia o intolleranza *"
-                                            }
-                                            value={row.allergies}
-                                            onChange={(e) => {
-                                              const v = e.target.value;
-                                              setEditAllergy((p) => ({
-                                                ...p,
-                                                people: p.people.map((x, i) => (i === idx ? { ...x, allergies: v } : x)),
+                                <div style={{ marginTop: "12px", padding: "16px", background: "var(--bg-secondary)", borderRadius: "16px", border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                                  {editAllergy.people.map((p, idx) => {
+                                    const hasAllergy = p.allergies.length > 0;
+                                    const personName = idx === 0 ? (editForm.name || "Titolare") : (editGuestsList[idx-1]?.name || `Ospite ${idx+1}`);
+                                    return (
+                                      <div key={idx} style={{ 
+                                        display: "flex", flexDirection: "column", gap: "8px", paddingBottom: "8px", 
+                                        borderBottom: idx === editAllergy.people.length - 1 ? "none" : "1px solid var(--border-subtle)" 
+                                      }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                          <input 
+                                            type="checkbox"
+                                            checked={hasAllergy}
+                                            onChange={() => {
+                                              setEditAllergy(prev => ({
+                                                ...prev,
+                                                people: prev.people.map((row, i) => i === idx ? { ...row, allergies: !hasAllergy ? " " : "" } : row)
                                               }));
                                             }}
+                                            style={{ width: "18px", height: "18px", cursor: "pointer" }}
                                           />
-                                          {Number(editForm.guestsCount) > 1 && editAllergy.people.length > 1 ? (
-                                            <button
-                                              type="button"
-                                              aria-label={`Rimuovi riga ${idx + 1}`}
-                                              title="Rimuovi questa riga"
-                                              onClick={() =>
-                                                setEditAllergy((p) => ({
-                                                  ...p,
-                                                  people: p.people.filter((_, i) => i !== idx),
-                                                }))
-                                              }
-                                              style={{
-                                                border: "1px solid var(--border-color-strong)",
-                                                background: "var(--surface)",
-                                                borderRadius: "10px",
-                                                padding: "10px",
-                                                cursor: "pointer",
-                                                color: "#c45c52",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                              }}
-                                            >
-                                              <Trash2 size={18} aria-hidden />
-                                            </button>
-                                          ) : null}
+                                          <span style={{ fontSize: "14px", fontWeight: 600 }}>{personName}</span>
                                         </div>
-                                      ))}
-                                      {editAllergy.mode !== "whole_party" &&
-                                        Number(editForm.guestsCount) > 1 &&
-                                        editAllergy.people.length < 12 && (
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            onClick={() =>
-                                              setEditAllergy((p) => ({
-                                                ...p,
-                                                people: [...p.people, { name: "", allergies: "" }],
-                                              }))
-                                            }
-                                          >
-                                            + Altra persona
-                                          </Button>
+                                        {hasAllergy && (
+                                          <input 
+                                            type="text"
+                                            placeholder="Quali allergie?"
+                                            value={p.allergies === " " ? "" : p.allergies}
+                                            onChange={(e) => {
+                                              const v = e.target.value;
+                                              setEditAllergy(prev => ({
+                                                ...prev,
+                                                people: prev.people.map((row, i) => i === idx ? { ...row, allergies: v || " " } : row)
+                                              }));
+                                            }}
+                                            className="rsvp-input"
+                                            style={{ height: "36px", fontSize: "13px" }}
+                                          />
                                         )}
-                                    </div>
-                                  )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>

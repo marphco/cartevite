@@ -32,14 +32,14 @@ interface DonationModalProps {
   onClose: () => void;
   eventSlug: string;
   eventTitle: string;
-  presetAmounts?: number[];
-  defaultAmount?: number;
-  minAmount?: number;
-  maxAmount?: number;
-  accentColor?: string;
-  mode?: 'gift' | 'donation';
-  thankYouMessage?: string;
-  allowCustomAmount?: boolean;
+  presetAmounts?: number[] | undefined;
+  defaultAmount?: number | undefined;
+  minAmount?: number | undefined;
+  maxAmount?: number | undefined;
+  accentColor?: string | undefined;
+  mode?: 'gift' | 'donation' | undefined;
+  thankYouMessage?: string | undefined;
+  allowCustomAmount?: boolean | undefined;
 }
 
 type Step = 'amount' | 'payment' | 'success' | 'error';
