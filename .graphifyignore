@@ -1,0 +1,138 @@
+# Cosa graphify NON deve indicizzare. Stesso spirito di .gitignore ma più aggressivo:
+# escludiamo tutto ciò che non è codice di prodotto.
+
+# Dipendenze
+node_modules/
+**/node_modules/
+jspm_packages/
+bower_components/
+
+# Build output
+dist/
+dist-ssr/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+.vite/
+*.tsbuildinfo
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/
+*.lcov
+
+# IDE / editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env / secrets
+.env
+.env.*
+*.local
+
+# Asset binari (rumore puro per il graph)
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.svg
+**/*.webp
+**/*.ico
+**/*.pdf
+**/*.mp4
+**/*.mov
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.otf
+**/*.eot
+
+# Server uploads e artefatti runtime
+server/uploads/
+server/dist/
+
+# Tooling AI / IDE locali (non parte del prodotto)
+.claude/
+.cursor/
+.cursorrules
+.aider/
+.amazonq/
+.amp/
+.antigravity/
+.augment/
+.bolt/
+.clawdbot/
+.cline/
+.codebuddy/
+.codegpt/
+.codex/
+.cody/
+.commandcode/
+.continue/
+.crush/
+.devin/
+.factory/
+.goose/
+.hermes/
+.kilocode/
+.kiro/
+.lovable/
+.mcpjam/
+.mux/
+.neovate/
+.openclaw/
+.opencode/
+.openhands/
+.pi/
+.playcode/
+.qoder/
+.qwen/
+.replit/
+.roo/
+.tabby/
+.tabnine/
+.trae/
+.windsurf/
+.zencoder/
+.gemini/
+brain/
+skills/
+
+# File task / planning AI generati
+task.md
+implementation_plan.md
+AGENTS.md
+WORKLOG.md
+diff.txt
+patch.diff
+ts_errors.txt
+
+# Output di graphify stesso (no-recurse)
+graphify-out/
+
+# Lock file (rumore)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Markdown sparso (non codice)
+**/CHANGELOG.md
+**/CONTRIBUTING.md
+docs/fase1-spec.md

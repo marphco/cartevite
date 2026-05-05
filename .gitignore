@@ -225,3 +225,6 @@ server/uploads/
 /.trae/
 /.windsurf/
 /.zencoder/
+
+# Graphify (graph statico del codebase, rigenerabile con `graphify update .`)
+graphify-out/
