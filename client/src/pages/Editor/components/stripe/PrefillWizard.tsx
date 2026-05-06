@@ -7,9 +7,9 @@ export interface PrefillWizardProps {
   onComplete: () => void;
   onCancel: () => void;
   /** Slug dell'evento che l'utente sta configurando, usato da Stripe per pre-popolare business_profile.url. */
-  eventSlug?: string;
+  eventSlug?: string | undefined;
   /** gift | donation — usato per impostare MCC Stripe corretto. */
-  paymentMode?: 'gift' | 'donation';
+  paymentMode?: 'gift' | 'donation' | undefined;
 }
 
 interface FormState {
@@ -120,7 +120,7 @@ const PrefillWizard: React.FC<PrefillWizardProps> = ({ onComplete, onCancel, eve
     if (apiError) setApiError(null);
   };
 
-  const currentStep = STEPS[stepIdx];
+  const currentStep = STEPS[stepIdx]!;
 
   const yearsList = useMemo(() => {
     const now = new Date().getFullYear();

@@ -5,11 +5,11 @@ import type { Block } from "../../../../types/editor";
 
 interface TableauWidgetProps {
   block: Block;
-  isEditor?: boolean;
-  hasTableauAccess?: boolean;
-  onUpdateBlock?: (blockId: string, updates: Partial<Block>) => void;
-  accentColor?: string;
-  sectionBg?: string;
+  isEditor?: boolean | undefined;
+  hasTableauAccess?: boolean | undefined;
+  onUpdateBlock?: ((blockId: string, updates: Partial<Block>) => void) | undefined;
+  accentColor?: string | undefined;
+  sectionBg?: string | undefined;
 }
 
 const hexToRgb = (hex: string) => {

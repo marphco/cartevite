@@ -40,7 +40,7 @@ export function backgroundLuminance(bg: string): number {
     const x = c / 255;
     return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
   });
-  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  return 0.2126 * (linear[0] ?? 0) + 0.7152 * (linear[1] ?? 0) + 0.0722 * (linear[2] ?? 0);
 }
 
 export type ToneFilter = "all" | "light" | "dark" | "mid";

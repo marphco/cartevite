@@ -1652,7 +1652,7 @@ const PageSection: React.FC<PageSectionProps> = ({
               </Button>
 
               <Button variant="subtle" style={{width: '100%', justifyContent: 'center', borderColor: 'var(--accent-soft)', borderStyle: 'dashed'}} onClick={() => {
-                if (blocks && setBlocks && setLayers) {
+                if (blocks && setBlocks) {
                   setIsDirty(true);
                   const newBlockId = 'block-tableau-' + Date.now();
                   setBlocks([...blocks, {

@@ -30,12 +30,12 @@ export interface Layer {
 export interface CanvasProps {
   width: number;
   height: number;
-  bgColor?: string;
-  bgImage?: string | null;
-  bgX?: number;
-  bgY?: number;
-  bgScale?: number;
-  bgOpacity?: number;
+  bgColor?: string | undefined;
+  bgImage?: string | null | undefined;
+  bgX?: number | undefined;
+  bgY?: number | undefined;
+  bgScale?: number | undefined;
+  bgOpacity?: number | undefined;
 }
 
 export interface SelectionBox {

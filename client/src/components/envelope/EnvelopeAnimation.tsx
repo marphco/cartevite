@@ -13,7 +13,7 @@ interface EnvelopeAnimationProps {
   pocketColor?: string | null;
   canvasProps?: { width: number; height: number } | null;
   onOpenComplete?: () => void;
-  envelopeFormat?: 'horizontal' | 'vertical';
+  envelopeFormat?: 'horizontal' | 'vertical' | undefined;
   editMode?: boolean;
   manualPhase?: 'closed' | 'flap_open' | 'extracting' | 'extracted' | null;
   linerX?: number;

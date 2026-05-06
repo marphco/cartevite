@@ -179,7 +179,7 @@ export const optimizeSeating = (
         if (targetOccupancy + groupSize <= targetCap) {
           // Free space: move entire group
           assignments.forEach((a, i) => {
-            if (g2Ids.has(a.guestId)) assignments[i] = { ...assignments[i], tableId: targetId };
+            if (g2Ids.has(a.guestId)) assignments[i] = { ...assignments[i]!, tableId: targetId };
           });
           improved = true;
           break;
@@ -194,8 +194,8 @@ export const optimizeSeating = (
         if (swapCandidate) {
           const swapIds = new Set(swapCandidate.map(g => g.id));
           assignments.forEach((a, i) => {
-            if (g2Ids.has(a.guestId)) assignments[i] = { ...assignments[i], tableId: targetId };
-            else if (swapIds.has(a.guestId)) assignments[i] = { ...assignments[i], tableId: violatingTableId };
+            if (g2Ids.has(a.guestId)) assignments[i] = { ...assignments[i]!, tableId: targetId };
+            else if (swapIds.has(a.guestId)) assignments[i] = { ...assignments[i]!, tableId: violatingTableId };
           });
           improved = true;
           break;

@@ -11,7 +11,7 @@ const StripeEmbeddedOnboarding: React.FC<StripeEmbeddedOnboardingProps> = ({ onE
     <StripeConnectProvider>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <ConnectNotificationBanner />
-        <ConnectAccountOnboarding onExit={onExit} />
+        <ConnectAccountOnboarding onExit={onExit ?? (() => {})} />
       </div>
     </StripeConnectProvider>
   );

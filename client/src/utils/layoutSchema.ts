@@ -109,6 +109,8 @@ export interface Block {
   type: string;
   order: number;
   props: Record<string, any>;
+  height?: number | undefined;
+  widgetProps?: Record<string, any> | undefined;
 }
 
 export function createBlockInstance(type: string): Block {

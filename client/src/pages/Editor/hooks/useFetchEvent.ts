@@ -66,6 +66,7 @@ export function useFetchEvent(
         const templateId = searchParams.get('templateId');
         const fmt = parseInviteFormat(searchParams.get("format"));
         const raw = PREBUILT_TEMPLATES.find((t) => t.id === templateId) || PREBUILT_TEMPLATES[0];
+        if (!raw) return;
         const template =
           raw.id === UPLOAD_CUSTOM_TEMPLATE_ID
             ? applyUploadFormatToTemplate(raw, fmt ?? "square")
