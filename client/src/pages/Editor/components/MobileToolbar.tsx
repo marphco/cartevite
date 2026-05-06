@@ -5,7 +5,7 @@ import {
   Shapes, Type, ChevronUp, Minus, Plus, Circle, ArrowRight, 
   ArrowLeft, ArrowDown, ArrowUp, ArrowUpRight, ArrowUpLeft, 
   ArrowDownRight, ArrowDownLeft, Check, ChevronLeft, Layout, Smartphone, Monitor, Upload,
-  AlignJustify, CreditCard, Banknote, MapPin, CheckSquare, Images, Video as VideoIcon, Gift, Pencil
+  AlignJustify, CreditCard, Banknote, MapPin, CheckSquare, Images, Video as VideoIcon, Gift, Pencil, Users
 } from 'lucide-react';
 import { Button } from "../../../ui";
 import MobileIconBtn from "../../../components/ui/MobileIconBtn";
@@ -1765,6 +1765,45 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                 );
                               }
 
+                              // Tableau widget: 4 tab dedicati (Tavoli / Ospiti /
+                              // Vincoli / Stile) coerenti con i microcomponenti
+                              // sidebar desktop. Stessa estetica del payment block.
+                              if (block && block.type === 'tableau') {
+                                const tableauTabs = ['tableau_tables', 'tableau_guests', 'tableau_rules', 'tableau_style'];
+                                const active = tableauTabs.includes(activeMobileTab as string);
+                                return (
+                                  <div
+                                    className="tableau-mobile-tabs"
+                                    style={{ display: 'flex', gap: '2px', alignItems: 'center', flex: 1, overflowX: 'auto', minWidth: 0 }}
+                                  >
+                                    <MobileIconBtn
+                                      icon={Layout}
+                                      label="Tavoli"
+                                      variant={activeMobileTab === 'tableau_tables' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'tableau_tables' ? null : 'tableau_tables')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={Users}
+                                      label="Ospiti"
+                                      variant={activeMobileTab === 'tableau_guests' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'tableau_guests' ? null : 'tableau_guests')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={Sparkles}
+                                      label="Vincoli"
+                                      variant={activeMobileTab === 'tableau_rules' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'tableau_rules' ? null : 'tableau_rules')}
+                                    />
+                                    <MobileIconBtn
+                                      icon={Palette}
+                                      label="Stile"
+                                      variant={activeMobileTab === 'tableau_style' ? 'primary' : 'ghost'}
+                                      onClick={() => setActiveMobileTab(active && activeMobileTab === 'tableau_style' ? null : 'tableau_style')}
+                                    />
+                                  </div>
+                                );
+                              }
+
                               return (
                                 <>
                                   <MobileIconBtn 
@@ -1781,7 +1820,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                   {/* Filtro coerente con sidebar desktop: niente "Foto"
                                       su widget-only (rsvp/map/gallery/video hanno già le
                                       loro sorgenti media specifiche). */}
-                                  {(!block || !['rsvp','map','gallery','video','payment'].includes(block.type as string)) && (
+                                  {(!block || !['rsvp','map','gallery','video','payment','tableau'].includes(block.type as string)) && (
                                     <MobileIconBtn 
                                       icon={ImageIcon} 
                                       label="Foto" 
