@@ -8,10 +8,10 @@ interface TableauHeaderProps {
   hasTableauAccess: boolean;
   isPurchaseModalOpen: boolean;
   setIsPurchaseModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  slug?: string;
+  slug: string | undefined;
   eventTitle: string;
-  event?: EventData | null;
-  updateEventData?: (updates: Partial<EventData>, pushToHistory?: () => void) => void;
+  event: EventData | null | undefined;
+  updateEventData: ((updates: Partial<EventData>, pushToHistory?: () => void) => void) | undefined;
   config: any;
   patchConfig: (patch: any) => void;
   showPublishConfirm: boolean;

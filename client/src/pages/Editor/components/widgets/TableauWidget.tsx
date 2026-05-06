@@ -14,7 +14,8 @@ interface TableauWidgetProps {
 
 const hexToRgb = (hex: string) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : null;
+  if (!result || !result[1] || !result[2] || !result[3]) return null;
+  return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`;
 };
 
 const TableauWidget: React.FC<TableauWidgetProps> = ({ block, isEditor, hasTableauAccess = false, onUpdateBlock, accentColor, sectionBg: propSectionBg }) => {
@@ -344,7 +345,6 @@ const TableauWidget: React.FC<TableauWidgetProps> = ({ block, isEditor, hasTable
                     alignItems: 'center',
                     justifyContent: 'flex-start', // Partiamo dall'alto
                     gap: '20px',
-                    boxShadow: '0 12px 40px rgba(0,0,0,0.06)',
                     transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                     position: 'relative',
                     textAlign: 'center',

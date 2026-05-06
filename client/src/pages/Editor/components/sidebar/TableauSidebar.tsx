@@ -237,9 +237,11 @@ const TableauSidebar: React.FC<TableauSidebarProps> = ({
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= tables.length) return;
     const next = [...tables];
-    const temp = next[index];
-    next[index] = next[newIndex];
-    next[newIndex] = temp;
+    const a = next[index];
+    const b = next[newIndex];
+    if (!a || !b) return;
+    next[index] = b;
+    next[newIndex] = a;
     patchConfig({ tableauTables: next });
   };
 
